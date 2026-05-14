@@ -104,7 +104,7 @@ fn main() -> anyhow::Result<()> {
     let theme = Theme;
     let renderer = MarkdownRenderer::new(76);
 
-    let mut resolver = FsImageResolver::new("./examples");
+    let mut resolver = FsImageResolver::new(concat!(env!("CARGO_MANIFEST_DIR"), "/examples"));
     let blocks = renderer.parse_with_images(MARKDOWN, &mut resolver);
     let output = renderer.render_full(&blocks, &theme);
 

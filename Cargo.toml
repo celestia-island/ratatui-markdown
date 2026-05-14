@@ -36,3 +36,6 @@ crossterm = "^0.28"
 [[example]]
 name = "image"
 required-features = ["image"]
+
+[[example]]
+name = "scrollable"

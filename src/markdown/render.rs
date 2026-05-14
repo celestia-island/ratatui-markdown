@@ -29,32 +29,18 @@ struct ListGroupInfo {
 }
 
 fn compute_list_groups(blocks: &[MarkdownBlock]) -> Vec<ListGroupInfo> {
-    let mut groups = Vec::new();
-    let mut i = 0;
-    while i < blocks.len() {
-        if let MarkdownBlock::ListItem(_, indent) = &blocks[i] {
-            let indent = *indent;
-            let mut indices = vec![i];
-            let mut j = i + 1;
-            while j < blocks.len() {
-                if let MarkdownBlock::ListItem(_, item_indent) = &blocks[j] {
-                    if *item_indent == indent {
-                        indices.push(j);
-                        j += 1;
-                        continue;
-                    }
-                }
-                break;
-            }
-            groups.push(ListGroupInfo {
-                block_indices: indices,
-                indent,
-            });
-            i = j;
-        } else {
-            i += 1;
+    use std::collections::HashMap;
+    let mut by_indent: HashMap<u8, Vec<usize>> = HashMap::new();
+    for (i, block) in blocks.iter().enumerate() {
+        if let MarkdownBlock::ListItem(_, indent) = block {
+            by_indent.entry(*indent).or_default().push(i);
         }
     }
+    let mut groups: Vec<ListGroupInfo> = by_indent
+        .into_iter()
+        .map(|(indent, indices)| ListGroupInfo { block_indices: indices, indent })
+        .collect();
+    groups.sort_by_key(|g| g.block_indices.first().copied().unwrap_or(0));
     groups
 }
 
@@ -405,13 +391,58 @@ impl MarkdownRenderer {
         block_idx: usize,
         list_groups: &[ListGroupInfo],
     ) -> (bool, Vec<bool>, usize) {
-        for group in list_groups {
-            if let Some(pos) = group.block_indices.iter().position(|&i| i == block_idx) {
-                let is_last = pos == group.block_indices.len() - 1;
-                return (is_last, Vec::new(), pos);
+        let (target_indent, is_last, pos) = {
+            let mut result = None;
+            for group in list_groups {
+                if let Some(p) = group.block_indices.iter().position(|&i| i == block_idx) {
+                    let is_last = p == group.block_indices.len() - 1;
+                    result = Some((group.indent, is_last, p));
+                    break;
+                }
+            }
+            match result {
+                Some(r) => r,
+                _ => return (true, Vec::new(), 0),
+            }
+        };
+        if target_indent == 0 {
+            return (is_last, Vec::new(), pos);
+        }
+        let mut ancestors_are_last = Vec::new();
+        for depth in 0..target_indent {
+            let mut found = false;
+            for group in list_groups {
+                if group.indent != depth {
+                    continue;
+                }
+                let last_idx = *group.block_indices.last().unwrap();
+                if last_idx < block_idx {
+                    ancestors_are_last.push(true);
+                    found = true;
+                    break;
+                } else if group.block_indices.contains(&block_idx) {
+                    ancestors_are_last.push(false);
+                    found = true;
+                    break;
+                } else {
+                    let mut has_before = false;
+                    for &idx in &group.block_indices {
+                        if idx < block_idx {
+                            has_before = true;
+                        } else if idx > block_idx {
+                            break;
+                        }
+                    }
+                    ancestors_are_last.push(!has_before);
+                    found = true;
+                    break;
+                }
+            }
+            if !found {
+                ancestors_are_last.push(false);
             }
         }
-        (true, Vec::new(), 0)
+        (is_last, ancestors_are_last, pos)
     }
 
     fn default_code_block_header(&self, lang: &str, theme: &impl RichTextTheme) -> Line<'static> {
