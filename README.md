@@ -6,17 +6,8 @@
 <br />
 
 <div align="center">
-  <a href="https://github.com/celestia-island/ratatui-markdown/actions/workflows/test.yml">
-    <img src="https://img.shields.io/github/actions/workflow/status/celestia-island/ratatui-markdown/test.yml?branch=dev" alt="Test" />
-  </a>
-  <a href="https://github.com/celestia-island/ratatui-markdown/actions/workflows/clippy.yml">
-    <img src="https://img.shields.io/github/actions/workflow/status/celestia-island/ratatui-markdown/clippy.yml?branch=dev" alt="Clippy" />
-  </a>
-  <a href="https://github.com/celestia-island/ratatui-markdown/actions/workflows/fmt.yml">
-    <img src="https://img.shields.io/github/actions/workflow/status/celestia-island/ratatui-markdown/fmt.yml?branch=dev" alt="Format" />
-  </a>
-  <a href="https://github.com/celestia-island/ratatui-markdown/actions/workflows/security.yml">
-    <img src="https://img.shields.io/github/actions/workflow/status/celestia-island/ratatui-markdown/security.yml?branch=dev" alt="Security Audit" />
+  <a href="https://github.com/celestia-island/ratatui-markdown/actions/workflows/ci.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/celestia-island/ratatui-markdown/ci.yml?branch=dev" alt="CI" />
   </a>
   <a href="LICENSE">
     <img src="https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg" alt="License" />
