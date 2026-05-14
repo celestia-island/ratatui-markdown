@@ -1,6 +1,6 @@
 use ratatui::text::Line;
 
-pub trait RenderHooks {
+pub trait RenderHooks: Send + Sync {
     fn heading1(&self, _text: &str) -> Option<Line<'static>> {
         None
     }
