@@ -21,10 +21,38 @@
   <h3>
     <a href="#quick-start">Quick Start</a>
     <span> | </span>
-    <a href="docs/guides/en/index.md">Documentation</a>
+    <a href="index.md">Documentation</a>
     <span> | </span>
     <a href="https://docs.rs/ratatui-markdown">API Reference</a>
   </h3>
+</div>
+
+<div align="center">
+  <p>
+    <a href="../../README.md">English</a> |
+    <a href="../zhs/index.md">简体中文</a> |
+    <a href="../zht/index.md">繁體中文</a> |
+    <a href="../ja/index.md">日本語</a> |
+    <a href="../ko/index.md">한국어</a> |
+    <a href="../fr/index.md">Français</a> |
+    <a href="../es/index.md">Español</a> |
+    <a href="../ru/index.md">Русский</a> |
+    <a href="../ar/index.md">العربية</a>
+  </p>
+</div>
+
+<div align="center">
+  <p>
+    <a href="README.md">English</a> |
+    <a href="docs/guides/zhs/index.md">简体中文</a> |
+    <a href="docs/guides/zht/index.md">繁體中文</a> |
+    <a href="docs/guides/ja/index.md">日本語</a> |
+    <a href="docs/guides/ko/index.md">한국어</a> |
+    <a href="docs/guides/fr/index.md">Français</a> |
+    <a href="docs/guides/es/index.md">Español</a> |
+    <a href="docs/guides/ru/index.md">Русский</a> |
+    <a href="docs/guides/ar/index.md">العربية</a>
+  </p>
 </div>
 
 <br/>
@@ -120,14 +148,28 @@ tree.toggle("nested"); // collapse/expand
 
 ## Documentation
 
-- [Getting Started](docs/guides/en/getting-started.md)
-- [Markdown Module](docs/guides/en/markdown.md)
-- [Scroll System](docs/guides/en/scroll.md)
-- [Tree View](docs/guides/en/tree.md)
-- [Preview Widget](docs/guides/en/preview.md)
-- [Theme Customization](docs/guides/en/theme.md)
+- [Getting Started](getting-started.md)
+- [Markdown Module](markdown.md)
+- [Scroll System](scroll.md)
+- [Tree View](tree.md)
+- [Preview Widget](preview.md)
+- [Theme Customization](theme.md)
+- [Contributing](contributing.md)
 - [API Reference](https://docs.rs/ratatui-markdown)
-- Multilingual docs under `docs/guides/` (en, zhs, zht, ja, ko, fr, es, ru, ar)
+
+### Languages
+
+| Language | Documentation |
+|----------|---------------|
+| English | [docs/guides/en/](index.md) |
+| 简体中文 | [docs/guides/zhs/](../zhs/index.md) |
+| 繁體中文 | [docs/guides/zht/](../zht/index.md) |
+| 日本語 | [docs/guides/ja/](../ja/index.md) |
+| 한국어 | [docs/guides/ko/](../ko/index.md) |
+| Français | [docs/guides/fr/](../fr/index.md) |
+| Español | [docs/guides/es/](../es/index.md) |
+| Русский | [docs/guides/ru/](../ru/index.md) |
+| العربية | [docs/guides/ar/](../ar/index.md) |
 
 ## License
 
