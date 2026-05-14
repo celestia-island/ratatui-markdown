@@ -91,14 +91,20 @@ impl MarkdownRenderer {
         &self,
         markdown: &str,
         resolver: &mut I,
-    ) -> Vec<MarkdownBlock> {
-        let mut blocks = self.parse_inner(markdown, &mut Vec::new());
-        for block in &mut blocks {
+    ) -> (Vec<MarkdownBlock>, Vec<super::image::ResolvedImage>) {
+        let blocks = self.parse_inner(markdown, &mut Vec::new());
+        let mut resolved = Vec::new();
+        for block in &blocks {
             if let MarkdownBlock::Image { path, .. } = block {
-                let _ = resolver.resolve(path);
+                if let Some(img) = resolver.resolve(path) {
+                    resolved.push(super::image::ResolvedImage {
+                        path: path.clone(),
+                        image: img,
+                    });
+                }
             }
         }
-        blocks
+        (blocks, resolved)
     }
 
     fn parse_inner(

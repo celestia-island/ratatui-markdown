@@ -10,6 +10,7 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Wrap},
     Terminal,
 };
+use ratatui_image::picker::Picker;
 use ratatui_markdown::{
     markdown::{ImageResolver, MarkdownRenderer},
     theme::{Generation, RichTextTheme},
@@ -88,8 +89,8 @@ The first two images are loaded from the `examples/` directory.
 The third shows the fallback span for missing images.
 
 Images are resolved via the `ImageResolver` trait. When an image is
-found, its position is recorded in `MarkdownRenderOutput`. When not
-found, the fallback `Span` is displayed inline.
+found, its position is recorded in `MarkdownRenderOutput`. The example
+then renders each placement using `ratatui_image::Image`.
 
 Press `q` to quit.
 "#;
@@ -105,24 +106,53 @@ fn main() -> anyhow::Result<()> {
     let renderer = MarkdownRenderer::new(76);
 
     let mut resolver = FsImageResolver::new(concat!(env!("CARGO_MANIFEST_DIR"), "/examples"));
-    let blocks = renderer.parse_with_images(MARKDOWN, &mut resolver);
-    let output = renderer.render_full(&blocks, &theme);
+    let (blocks, resolved) = renderer.parse_with_images(MARKDOWN, &mut resolver);
+    let output = renderer.render_full(&blocks, &theme, &resolved);
+
+    let mut picker = Picker::from_termios().map_err(|e| anyhow::anyhow!("picker error: {:?}", e))?;
 
     loop {
         terminal.draw(|f| {
             let area = f.area();
-            let inner = Rect::new(area.x + 1, area.y + 1, area.width.saturating_sub(2), area.height.saturating_sub(2));
-            let paragraph = Paragraph::new(output.lines.clone())
-                .block(Block::default().borders(Borders::ALL).title(" Image Example "))
-                .wrap(Wrap { trim: false });
-            f.render_widget(paragraph, inner);
+            let inner = Rect::new(
+                area.x + 1,
+                area.y + 1,
+                area.width.saturating_sub(2),
+                area.height.saturating_sub(2),
+            );
+            f.render_widget(
+                Paragraph::new(output.lines.clone())
+                    .block(Block::default().borders(Borders::ALL).title(" Image Example "))
+                    .wrap(Wrap { trim: false }),
+                inner,
+            );
 
-            // Note: To render actual images, use ratatui-image in your draw loop:
-            // for placement in &output.images {
-            //     let protocol = picker.new_protocol(placement.image, size, Resize::Fit(None))?;
-            //     let rect = Rect::new(placement.col, placement.row as u16, placement.width_cells, placement.height_cells);
-            //     f.render_widget(ratatui_image::Image::new(&protocol), rect);
-            // }
+            let max_w = inner.width.saturating_sub(4);
+            let max_h = inner.height / 3;
+
+            for placement in &output.images {
+                let img_w = placement.image.width().min(max_w as u32) as u16;
+                let img_h = placement.image.height().min(max_h as u32) as u16;
+                if img_w < 2 || img_h < 2 {
+                    continue;
+                }
+                let proto_rect = Rect::new(0, 0, img_w, img_h);
+                let protocol = match picker.new_protocol(
+                    placement.image.clone(),
+                    proto_rect,
+                    ratatui_image::Resize::Fit(Some(image::imageops::FilterType::Triangle)),
+                ) {
+                    Ok(p) => p,
+                    Err(_) => continue,
+                };
+                let render_rect = Rect::new(
+                    inner.x + 2,
+                    inner.y + (placement.row as u16).min(inner.height.saturating_sub(img_h)),
+                    img_w,
+                    img_h,
+                );
+                f.render_widget(ratatui_image::Image::new(protocol.as_ref()), render_rect);
+            }
         })?;
 
         if event::poll(std::time::Duration::from_millis(100))? {

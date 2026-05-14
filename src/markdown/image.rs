@@ -17,6 +17,12 @@ pub struct ImagePlacement {
 }
 
 #[cfg(feature = "image")]
+pub struct ResolvedImage {
+    pub path: String,
+    pub image: image::DynamicImage,
+}
+
+#[cfg(feature = "image")]
 pub struct MarkdownRenderOutput {
     pub lines: Vec<Line<'static>>,
     pub images: Vec<ImagePlacement>,

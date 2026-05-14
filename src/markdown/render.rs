@@ -107,15 +107,67 @@ impl MarkdownRenderer {
         &self,
         blocks: &[MarkdownBlock],
         theme: &impl RichTextTheme,
+        resolved_images: &[super::image::ResolvedImage],
     ) -> MarkdownRenderOutput {
         let mut output = MarkdownRenderOutput::new();
         let list_groups = compute_list_groups(blocks);
+        let mut next_image_idx = 0;
 
         for (block_idx, block) in blocks.iter().enumerate() {
-            self.render_block(block, block_idx, theme, &list_groups, blocks, &mut output.lines);
+            self.render_block_with_images(
+                block,
+                block_idx,
+                theme,
+                &list_groups,
+                blocks,
+                &mut output.lines,
+                &mut output.images,
+                resolved_images,
+                &mut next_image_idx,
+            );
         }
 
         output
+    }
+
+    #[cfg(feature = "image")]
+    fn render_block_with_images(
+        &self,
+        block: &MarkdownBlock,
+        block_idx: usize,
+        theme: &impl RichTextTheme,
+        list_groups: &[ListGroupInfo],
+        _blocks: &[MarkdownBlock],
+        lines: &mut Vec<Line<'static>>,
+        placements: &mut Vec<super::image::ImagePlacement>,
+        resolved_images: &[super::image::ResolvedImage],
+        next_image_idx: &mut usize,
+    ) {
+        match block {
+            MarkdownBlock::Image { alt, path } => {
+                if *next_image_idx < resolved_images.len() && resolved_images[*next_image_idx].path == *path {
+                    let ref_img = &resolved_images[*next_image_idx].image;
+                    let (w, h) = (ref_img.width(), ref_img.height());
+                    placements.push(super::image::ImagePlacement {
+                        row: lines.len(),
+                        col: 0,
+                        width_cells: w.min(80) as u16,
+                        height_cells: h.min(24) as u16,
+                        image: ref_img.clone(),
+                    });
+                    *next_image_idx += 1;
+                }
+                let hooks = self.hooks.as_deref();
+                if let Some(h) = hooks {
+                    if let Some(custom) = h.image_fallback(alt, path) {
+                        lines.extend(custom);
+                        return;
+                    }
+                }
+                lines.push(default_image_fallback(alt, path));
+            }
+            _ => self.render_block(block, block_idx, theme, list_groups, _blocks, lines),
+        }
     }
 
     fn render_block(
@@ -288,26 +340,16 @@ impl MarkdownRenderer {
                     let marker = h.list_item_marker(*indent, is_last, &ancestors_are_last, index_in_group);
                     if marker.is_some() || h.list_item_content(text, *indent).is_some() {
                         let marker_str = marker.unwrap_or_else(|| "\u{2022} ".to_string());
-                        let indent_prefix = if ancestors_are_last.is_empty() {
-                            String::new()
-                        } else {
-                            let mut s = String::new();
-                            for is_last_ancestor in &ancestors_are_last {
-                                s.push_str(if *is_last_ancestor { "   " } else { "\u{2502}  " });
-                            }
-                            s
-                        };
                         if let Some(custom_content) = h.list_item_content(text, *indent) {
                             for mut cline in custom_content {
-                                let mut new_spans = vec![Span::raw(format!("{indent_prefix}{marker_str}"))];
+                                let mut new_spans = vec![Span::raw(marker_str.clone())];
                                 new_spans.append(&mut cline.spans);
                                 cline.spans = new_spans;
                                 lines.push(cline);
                             }
                         } else {
-                            let full_prefix = format!("{indent_prefix}{marker_str}");
                             let wrapped =
-                                self.wrap_text_with_inline_formatting(&format!("{full_prefix}{text}"), theme);
+                                self.wrap_text_with_inline_formatting(&format!("{marker_str}{text}"), theme);
                             lines.extend(wrapped);
                         }
                         return;
