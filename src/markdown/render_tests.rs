@@ -1333,3 +1333,420 @@ fn hooks_multiple_overrides_in_same_document() {
     let hr = texts.iter().find(|t| t.contains("HR"));
     assert!(hr.is_some(), "should find HR override");
 }
+
+// ==================== Image render_full + Zoom Tests ====================
+
+#[cfg(feature = "image")]
+mod image_zoom_tests {
+    use super::*;
+    use crate::markdown::image::{ImageResolver, ResolvedImage};
+    use crate::markdown::types::MarkdownBlock;
+
+    struct TestImageResolver {
+        font_w: u16,
+        font_h: u16,
+        halfblocks: bool,
+        resolve_result: Option<image::DynamicImage>,
+    }
+
+    impl TestImageResolver {
+        fn with_font(fw: u16, fh: u16) -> Self {
+            Self { font_w: fw, font_h: fh, halfblocks: false, resolve_result: None }
+        }
+
+        fn halfblocks(fw: u16, fh: u16) -> Self {
+            Self { font_w: fw, font_h: fh, halfblocks: true, resolve_result: None }
+        }
+
+        fn resolves_to(mut self, img: image::DynamicImage) -> Self {
+            self.resolve_result = Some(img);
+            self
+        }
+    }
+
+    impl ImageResolver for TestImageResolver {
+        fn resolve(&mut self, _path: &str) -> Option<image::DynamicImage> {
+            self.resolve_result.clone()
+        }
+
+        fn cell_dimensions(
+            &self,
+            img: &image::DynamicImage,
+            max_width: u16,
+            _max_height: u16,
+        ) -> (u16, u16) {
+            let pw = img.width();
+            let ph = img.height();
+            if pw == 0 || ph == 0 || self.font_w == 0 || max_width == 0 {
+                return (0, 0);
+            }
+            let w_cells = ((pw + self.font_w as u32 - 1) / self.font_w as u32) as u16;
+            let w = w_cells.min(max_width);
+            let ratio = ph as u32 * w as u32 / pw.max(1);
+            let height_div = if self.halfblocks { self.font_h * 2 } else { self.font_h };
+            let h_cells = ((ratio + height_div as u32 - 1) / height_div as u32) as u16;
+            (w.max(1), h_cells.max(1))
+        }
+    }
+
+    fn make_test_img(w: u32, h: u32) -> image::DynamicImage {
+        let buf = image::ImageBuffer::from_fn(w, h, |_, _| image::Rgb([255u8, 100, 50]));
+        image::DynamicImage::ImageRgb8(buf)
+    }
+
+    #[test]
+    fn cell_dimensions_100x100_with_10x20_font() {
+        let r = TestImageResolver::with_font(10, 20);
+        let img = make_test_img(100, 100);
+        let (cw, ch) = r.cell_dimensions(&img, 80, 30);
+        assert_eq!(cw, 10, "100px / 10px-per-cell = 10 cells wide");
+        assert!(ch >= 1, "height at least 1 cell, got {}", ch);
+    }
+
+    #[test]
+    fn cell_dimensions_halfblocks_doubles_height() {
+        let r = TestImageResolver::halfblocks(10, 20);
+        let img = make_test_img(100, 500);
+        let (_cw, ch) = r.cell_dimensions(&img, 80, 30);
+        assert!(
+            ch >= 2,
+            "halfblocks: tall image should use multiple rows, got {}",
+            ch,
+        );
+    }
+
+    #[test]
+    fn cell_dimensions_respects_max_width() {
+        let r = TestImageResolver::with_font(10, 20);
+        let img = make_test_img(500, 200);
+        let (cw, _ch) = r.cell_dimensions(&img, 20, 30);
+        assert!(cw <= 20, "width should not exceed max_width=20, got {}", cw);
+    }
+
+    #[test]
+    fn cell_dimensions_zero_image_returns_zero() {
+        let r = TestImageResolver::with_font(10, 20);
+        let img = make_test_img(0, 0);
+        let (cw, ch) = r.cell_dimensions(&img, 80, 30);
+        assert_eq!((cw, ch), (0, 0));
+    }
+
+    #[test]
+    fn cell_dimensions_tiny_image_at_least_one_cell() {
+        let r = TestImageResolver::with_font(10, 20);
+        let img = make_test_img(1, 1);
+        let (cw, ch) = r.cell_dimensions(&img, 80, 30);
+        assert!(cw >= 1, "at least 1 cell wide");
+        assert!(ch >= 1, "at least 1 cell tall");
+    }
+
+    #[test]
+    fn render_full_reserves_blank_lines_for_resolved_images() {
+        let mut r = TestImageResolver::with_font(10, 20).resolves_to(make_test_img(100, 60));
+        let renderer = MarkdownRenderer::new(80);
+        let blocks = vec![
+            MarkdownBlock::Heading1("Title".into()),
+            MarkdownBlock::Image { alt: "logo".into(), path: "a.webp".into() },
+            MarkdownBlock::Paragraph(vec!["after".into()]),
+        ];
+        let resolved = vec![ResolvedImage {
+            path: "a.webp".into(),
+            image: make_test_img(100, 60),
+        }];
+        let output = renderer.render_full(&blocks, &TestTheme, &resolved, &r, 70, 20);
+
+        assert!(output.lines.len() >= 3, "should have heading + blank lines + paragraph");
+        assert_eq!(output.images.len(), 1, "one placement");
+        let p = &output.images[0];
+        assert!(p.height_cells >= 1, "height_cells >= 1, got {}", p.height_cells);
+        assert!(p.width_cells >= 1, "width_cells >= 1, got {}", p.width_cells);
+        let end_row = (p.row as usize) + (p.height_cells as usize);
+        assert!(
+            end_row <= output.lines.len(),
+            "image area ends within lines: row {} + height {} <= {}",
+            p.row, p.height_cells, output.lines.len(),
+        );
+    }
+
+    #[test]
+    fn render_full_fallback_for_unresolved_images() {
+        let r = TestImageResolver::with_font(10, 20);
+        let renderer = MarkdownRenderer::new(80);
+        let blocks = vec![
+            MarkdownBlock::Heading1("Title".into()),
+            MarkdownBlock::Image { alt: "missing".into(), path: "gone.png".into() },
+        ];
+        let resolved: Vec<ResolvedImage> = Vec::new();
+        let output = renderer.render_full(&blocks, &TestTheme, &resolved, &r, 70, 20);
+
+        assert_eq!(output.images.len(), 0, "no placements for unresolved images");
+        let has_fallback = output.lines.iter()
+            .any(|l| l.spans.iter().any(|s| s.content.contains("[image:")));
+        assert!(has_fallback, "should contain fallback span with '[image:' prefix");
+    }
+
+    #[test]
+    fn render_full_multiple_images_independent_placements() {
+        let mut r = TestImageResolver::with_font(10, 20)
+            .resolves_to(make_test_img(50, 30));
+        let renderer = MarkdownRenderer::new(80);
+        let blocks = vec![
+            MarkdownBlock::Image { alt: "first".into(), path: "a.webp".into() },
+            MarkdownBlock::Paragraph(vec!["between".into()]),
+            MarkdownBlock::Image { alt: "second".into(), path: "b.webp".into() },
+        ];
+        let resolved = vec![
+            ResolvedImage { path: "a.webp".into(), image: make_test_img(50, 30) },
+            ResolvedImage { path: "b.webp".into(), image: make_test_img(80, 40) },
+        ];
+        let output = renderer.render_full(&blocks, &TestTheme, &resolved, &r, 70, 20);
+
+        assert_eq!(output.images.len(), 2, "two placements for two images");
+        assert!(
+            output.images[0].row < output.images[1].row,
+            "first image row ({}) < second image row ({})",
+            output.images[0].row,
+            output.images[1].row,
+        );
+    }
+
+    #[test]
+    fn render_full_image_placement_row_matches_line_index() {
+        let mut r = TestImageResolver::with_font(8, 16).resolves_to(make_test_img(64, 32));
+        let renderer = MarkdownRenderer::new(80);
+        let blocks = vec![
+            MarkdownBlock::Paragraph(vec!["line before".into()]),
+            MarkdownBlock::Image { alt: "x".into(), path: "x.png".into() },
+        ];
+        let resolved = vec![ResolvedImage {
+            path: "x.png".into(),
+            image: make_test_img(64, 32),
+        }];
+        let output = renderer.render_full(&blocks, &TestTheme, &resolved, &r, 70, 20);
+
+        assert_eq!(output.images.len(), 1);
+        let p = &output.images[0];
+        assert_eq!(p.row, 1, "image starts at line index 1 (after 1 paragraph line)");
+    }
+
+    struct SimulatedZoomState {
+        original_w: u32,
+        original_h: u32,
+        scale: f64,
+        font_w: u16,
+        font_h: u16,
+    }
+
+    impl SimulatedZoomState {
+        fn new(w: u32, h: u32, font_w: u16, font_h: u16) -> Self {
+            Self { original_w: w, original_h: h, scale: 1.0, font_w, font_h }
+        }
+
+        fn zoom_in(&mut self) { self.scale *= 1.25; }
+
+        fn zoom_out(&mut self) {
+            self.scale /= 1.25;
+            self.scale = self.scale.max(0.05);
+        }
+
+        fn scaled_px(&self) -> (u32, u32) {
+            (
+                ((self.original_w as f64 * self.scale) as u32).max(1),
+                ((self.original_h as f64 * self.scale) as u32).max(1),
+            )
+        }
+
+        fn scaled_cells(&self) -> (u16, u16) {
+            let (sw, sh) = self.scaled_px();
+            let cw = ((sw + self.font_w as u32 - 1) / self.font_w as u32) as u16;
+            let ratio = sh * cw as u32 / sw.max(1);
+            let h = ((ratio + self.font_h as u32 - 1) / self.font_h as u32) as u16;
+            (cw.max(1), h.max(1))
+        }
+    }
+
+    #[test]
+    fn zoom_in_increases_scale_and_pixel_size() {
+        let mut z = SimulatedZoomState::new(100, 100, 10, 20);
+        let (w0, h0) = z.scaled_px();
+        let s0 = z.scale;
+        z.zoom_in();
+        let (w1, h1) = z.scaled_px();
+        assert!(z.scale > s0, "scale increased: {:.4} > {:.4}", z.scale, s0);
+        assert!(w1 > w0, "pixel width grew: {} > {}", w1, w0);
+        assert!(h1 > h0, "pixel height grew: {} > {}", h1, h0);
+    }
+
+    #[test]
+    fn zoom_out_decreases_scale_and_pixel_size() {
+        let mut z = SimulatedZoomState::new(100, 100, 10, 20);
+        z.scale = 2.0;
+        let (w0, h0) = z.scaled_px();
+        z.zoom_out();
+        let (w1, h1) = z.scaled_px();
+        assert!(z.scale < 2.0, "scale decreased: {:.4} < 2.0", z.scale);
+        assert!(w1 < w0, "pixel width shrunk: {} < {}", w1, w0);
+        assert!(h1 < h0, "pixel height shrunk: {} < {}", h1, h0);
+    }
+
+    #[test]
+    fn zoom_out_clamps_to_minimum_scale() {
+        let mut z = SimulatedZoomState::new(100, 100, 10, 20);
+        z.scale = 0.06;
+        for _ in 0..20 { z.zoom_out(); }
+        assert!(
+            (z.scale - 0.05).abs() < 0.001,
+            "scale clamped to ~0.05, got {:.6}",
+            z.scale,
+        );
+    }
+
+    #[test]
+    fn repeated_zoom_in_grows_exponentially() {
+        let mut z = SimulatedZoomState::new(100, 100, 10, 20);
+        let scales: Vec<f64> = (0..10).map(|_| { z.zoom_in(); z.scale }).collect();
+        for i in 1..scales.len() {
+            assert!(
+                scales[i] > scales[i-1],
+                "scale[{}] ({:.4}) > scale[{}] ({:.4})",
+                i, scales[i], i-1, scales[i-1],
+            );
+        }
+    }
+
+    #[test]
+    fn simulated_bracket_keys_sequence() {
+        let mut z = SimulatedZoomState::new(160, 90, 8, 16);
+        let initial = z.scaled_cells();
+
+        simulate_n_presses(&mut z, '[', 3);
+        let after_zoom_in = z.scaled_cells();
+        assert!(
+            after_zoom_in.0 > initial.0,
+            "after 3x [ : width {} > {}",
+            after_zoom_in.0, initial.0,
+        );
+        assert!(
+            after_zoom_in.1 > initial.1,
+            "after 3x [ : height {} > {}",
+            after_zoom_in.1, initial.1,
+        );
+
+        simulate_n_presses(&mut z, ']', 5);
+        let after_zoom_out = z.scaled_cells();
+        assert!(
+            after_zoom_out.0 < after_zoom_in.0,
+            "after 5x ] : width shrunk from {} to {}",
+            after_zoom_in.0, after_zoom_out.0,
+        );
+    }
+
+    #[test]
+    fn zoom_preserves_aspect_ratio_approximately() {
+        let mut z = SimulatedZoomState::new(200, 100, 10, 20);
+        for _ in 0..20 {
+            z.zoom_in();
+            let (sw, sh) = z.scaled_px();
+            let ratio = sw as f64 / sh as f64;
+            let orig_ratio = z.original_w as f64 / z.original_h as f64;
+            assert!(
+                (ratio - orig_ratio).abs() < 0.15,
+                "aspect ratio preserved: {:.2} ≈ {:.2} (scale={:.4})",
+                ratio, orig_ratio, z.scale,
+            );
+        }
+    }
+
+    #[test]
+    fn large_zoom_produces_large_cell_dimensions() {
+        let mut z = SimulatedZoomState::new(100, 100, 10, 20);
+        for _ in 0..15 { z.zoom_in(); }
+        let (cw, ch) = z.scaled_cells();
+        assert!(cw > 50, "after 15x zoom in, width cells {} > 50", cw);
+        assert!(ch > 5, "after 15x zoom in, height cells {} > 5", ch);
+    }
+
+    #[test]
+    fn tiny_zoom_still_produces_valid_cells() {
+        let mut z = SimulatedZoomState::new(1024, 768, 12, 24);
+        for _ in 0..30 { z.zoom_out(); }
+        let (cw, ch) = z.scaled_cells();
+        assert!(cw >= 1, "even at min zoom, width >= 1: {}", cw);
+        assert!(ch >= 1, "even at min zoom, height >= 1: {}", ch);
+    }
+
+    #[test]
+    fn multiple_images_each_have_own_placement_metadata() {
+        let mut r = TestImageResolver::with_font(8, 16)
+            .resolves_to(make_test_img(40, 20));
+        let renderer = MarkdownRenderer::new(80);
+        let blocks: Vec<MarkdownBlock> = (0..5)
+            .map(|i| MarkdownBlock::Image {
+                alt: format!("img{}", i),
+                path: format!("{}.webp", i),
+            })
+            .collect();
+        let resolved: Vec<ResolvedImage> = (0..5)
+            .map(|i| ResolvedImage {
+                path: format!("{}.webp", i),
+                image: make_test_img(40 + i * 10, 20 + i * 5),
+            })
+            .collect();
+        let output = renderer.render_full(&blocks, &TestTheme, &resolved, &r, 70, 20);
+
+        assert_eq!(output.images.len(), 5, "5 images => 5 placements");
+        for (i, p) in output.images.iter().enumerate() {
+            assert!(p.width_cells >= 1, "placement {} width >= 1", i);
+            assert!(p.height_cells >= 1, "placement {} height >= 1", i);
+            assert!(
+                !p.image.as_bytes().is_empty(),
+                "placement {} holds actual image data",
+                i,
+            );
+        }
+    }
+
+    #[test]
+    fn image_between_text_blocks_does_not_displace_text() {
+        let mut r = TestImageResolver::with_font(10, 20).resolves_to(make_test_img(80, 40));
+        let renderer = MarkdownRenderer::new(80);
+        let blocks = vec![
+            MarkdownBlock::Paragraph(vec!["before".into()]),
+            MarkdownBlock::Image { alt: "mid".into(), path: "m.webp".into() },
+            MarkdownBlock::Paragraph(vec!["after".into()]),
+        ];
+        let resolved = vec![ResolvedImage {
+            path: "m.webp".into(),
+            image: make_test_img(80, 40),
+        }];
+        let output = renderer.render_full(&blocks, &TestTheme, &resolved, &r, 70, 20);
+
+        let first_line_has_before = output.lines.first()
+            .map(|l| l.spans.iter().any(|s| s.content.contains("before")))
+            .unwrap_or(false);
+        assert!(first_line_has_before, "first line still contains 'before' text");
+
+        let last_line_has_after = output.lines.last()
+            .map(|l| l.spans.iter().any(|s| s.content.contains("after")))
+            .unwrap_or(false);
+        assert!(last_line_has_after, "last line still contains 'after' text");
+
+        let img_row = output.images[0].row;
+        assert!(img_row > 0, "image row ({}) after text line 0", img_row);
+        let last_text_row = output.lines.len() - 1;
+        assert!(
+            img_row + output.images[0].height_cells as usize <= last_text_row,
+            "image ends before or at last text line",
+        );
+    }
+
+    fn simulate_n_presses(z: &mut SimulatedZoomState, key: char, n: usize) {
+        for _ in 0..n {
+            match key {
+                '[' => z.zoom_in(),
+                ']' => z.zoom_out(),
+                _ => {}
+            }
+        }
+    }
+}
