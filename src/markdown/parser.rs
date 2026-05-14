@@ -1,5 +1,8 @@
 use super::{types::MarkdownBlock, MarkdownRenderer};
 
+#[cfg(feature = "image")]
+use super::image::ImageResolver;
+
 const MD_FENCE: &str = "```";
 const MD_HRULE_DASH: &str = "---";
 const MD_HRULE_STAR: &str = "***";
@@ -11,8 +14,98 @@ const MD_LIST_DASH: &str = "- ";
 const MD_LIST_STAR: &str = "* ";
 const MD_LIST_PLUS: &str = "+ ";
 
+fn parse_image_syntax(text: &str) -> Option<(String, String)> {
+    let trimmed = text.trim();
+    if !trimmed.starts_with('!') {
+        return None;
+    }
+    let rest = &trimmed[1..];
+    if !rest.starts_with('[') {
+        return None;
+    }
+    let alt_end = rest.find(']')?;
+    let alt = rest[1..alt_end].to_string();
+    let url_part = &rest[alt_end + 1..];
+    if !url_part.starts_with('(') {
+        return None;
+    }
+    let url_end = url_part.find(')')?;
+    let path = url_part[1..url_end].to_string();
+    if path.is_empty() {
+        return None;
+    }
+    Some((alt, path))
+}
+
+fn is_line_only_image(text: &str) -> bool {
+    let trimmed = text.trim();
+    if !trimmed.starts_with('!') {
+        return false;
+    }
+    if let Some(close_bracket) = trimmed.find(']') {
+        let rest = &trimmed[close_bracket + 1..];
+        if rest.starts_with('(') {
+            if let Some(close_paren) = rest.find(')') {
+                let after = rest[close_paren + 1..].trim();
+                return after.is_empty();
+            }
+        }
+    }
+    false
+}
+
+#[allow(dead_code)]
+fn extract_inline_images(text: &str) -> Vec<(String, String)> {
+    let mut images = Vec::new();
+    let mut search_from = 0;
+    let chars: Vec<char> = text.chars().collect();
+
+    while search_from < chars.len() {
+        if chars[search_from] != '!' {
+            search_from += 1;
+            continue;
+        }
+        if search_from + 1 >= chars.len() || chars[search_from + 1] != '[' {
+            search_from += 1;
+            continue;
+        }
+        let remaining: String = chars[search_from..].iter().collect();
+        if let Some((alt, path)) = parse_image_syntax(&remaining) {
+            images.push((alt, path));
+            let close_paren = remaining.find(')').unwrap_or(0);
+            search_from += close_paren + 1;
+        } else {
+            search_from += 1;
+        }
+    }
+    images
+}
+
 impl MarkdownRenderer {
     pub fn parse(&self, markdown: &str) -> Vec<MarkdownBlock> {
+        self.parse_inner(markdown, &mut Vec::new())
+    }
+
+    #[cfg(feature = "image")]
+    pub fn parse_with_images<I: ImageResolver>(
+        &self,
+        markdown: &str,
+        resolver: &mut I,
+    ) -> Vec<MarkdownBlock> {
+        let mut blocks = self.parse_inner(markdown, &mut Vec::new());
+        for block in &mut blocks {
+            if let MarkdownBlock::Image { path, .. } = block {
+                let _ = resolver.resolve(path);
+            }
+        }
+        blocks
+    }
+
+    fn parse_inner(
+        &self,
+        markdown: &str,
+        _inline_images: &mut Vec<(String, String)>,
+    ) -> Vec<MarkdownBlock> {
         let mut blocks = Vec::new();
         let mut in_code_block = false;
         let mut code_lang = String::new();
@@ -53,6 +146,18 @@ impl MarkdownRenderer {
                     paragraph_lines.clear();
                 }
                 blocks.push(MarkdownBlock::BlankLine);
+                continue;
+            }
+
+            if is_line_only_image(trimmed) {
+                Self::flush_table(&mut table_buffer, &mut blocks, &mut paragraph_lines);
+                if !paragraph_lines.is_empty() {
+                    blocks.push(MarkdownBlock::Paragraph(paragraph_lines.clone()));
+                    paragraph_lines.clear();
+                }
+                if let Some((alt, path)) = parse_image_syntax(trimmed) {
+                    blocks.push(MarkdownBlock::Image { alt, path });
+                }
                 continue;
             }
 

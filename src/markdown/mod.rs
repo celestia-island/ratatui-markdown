@@ -1,4 +1,7 @@
+mod hooks;
 mod inline;
+#[cfg(feature = "image")]
+pub mod image;
 mod parser;
 mod render;
 #[cfg(test)]
@@ -8,15 +11,30 @@ mod tests;
 mod text;
 mod types;
 
+pub use hooks::RenderHooks;
 pub use inline::parse_inline_formatting;
 pub use types::MarkdownBlock;
 
+#[cfg(feature = "image")]
+pub use image::{ImagePlacement, ImageResolver, MarkdownRenderOutput, NoopImageResolver};
+
+use std::boxed::Box;
+
 pub struct MarkdownRenderer {
     pub(crate) max_width: usize,
+    pub(crate) hooks: Option<Box<dyn RenderHooks>>,
 }
 
 impl MarkdownRenderer {
     pub fn new(max_width: usize) -> Self {
-        Self { max_width }
+        Self {
+            max_width,
+            hooks: None,
+        }
+    }
+
+    pub fn with_render_hooks(mut self, hooks: Box<dyn RenderHooks>) -> Self {
+        self.hooks = Some(hooks);
+        self
     }
 }

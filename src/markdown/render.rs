@@ -1,5 +1,6 @@
 use ratatui::{
-    style::{Modifier, Style},
+    prelude::Stylize,
+    style::{Color, Modifier, Style},
     text::{Line, Span},
 };
 
@@ -16,7 +17,88 @@ use crate::{
     theme::RichTextTheme,
 };
 
+#[cfg(feature = "image")]
+use super::image::MarkdownRenderOutput;
+
 const LANG_MERMAID: &str = "mermaid";
+
+struct ListGroupInfo {
+    block_indices: Vec<usize>,
+    #[allow(dead_code)]
+    indent: u8,
+}
+
+fn compute_list_groups(blocks: &[MarkdownBlock]) -> Vec<ListGroupInfo> {
+    let mut groups = Vec::new();
+    let mut i = 0;
+    while i < blocks.len() {
+        if let MarkdownBlock::ListItem(_, indent) = &blocks[i] {
+            let indent = *indent;
+            let mut indices = vec![i];
+            let mut j = i + 1;
+            while j < blocks.len() {
+                if let MarkdownBlock::ListItem(_, item_indent) = &blocks[j] {
+                    if *item_indent == indent {
+                        indices.push(j);
+                        j += 1;
+                        continue;
+                    }
+                }
+                break;
+            }
+            groups.push(ListGroupInfo {
+                block_indices: indices,
+                indent,
+            });
+            i = j;
+        } else {
+            i += 1;
+        }
+    }
+    groups
+}
+
+#[allow(dead_code)]
+fn compute_ancestors_are_last(
+    block_idx: usize,
+    groups: &[ListGroupInfo],
+    blocks: &[MarkdownBlock],
+) -> Vec<bool> {
+    let mut ancestors = Vec::new();
+    let target_indent = match &blocks[block_idx] {
+        MarkdownBlock::ListItem(_, indent) => *indent,
+        _ => return ancestors,
+    };
+    if target_indent == 0 {
+        return ancestors;
+    }
+    for depth in 0..target_indent {
+        let check_indent = depth;
+        let mut found_last = false;
+        for group in groups {
+            if group.indent != check_indent {
+                continue;
+            }
+            if group.block_indices.last().map_or(false, |&idx| idx < block_idx) {
+                found_last = group.block_indices.last().copied() == Some(*group.block_indices.last().unwrap());
+            }
+        }
+        ancestors.push(found_last);
+    }
+    ancestors
+}
+
+fn default_image_fallback(alt: &str, path: &str) -> Line<'static> {
+    let label = if alt.is_empty() {
+        path.to_string()
+    } else {
+        alt.to_string()
+    };
+    Line::from(Span::styled(
+        format!("[image: {label}]"),
+        Style::default().italic().fg(Color::Gray),
+    ))
+}
 
 impl MarkdownRenderer {
     pub fn render(
@@ -25,150 +107,332 @@ impl MarkdownRenderer {
         theme: &impl RichTextTheme,
     ) -> Vec<Line<'static>> {
         let mut lines = Vec::new();
+        let list_groups = compute_list_groups(blocks);
 
-        for block in blocks {
-            match block {
-                MarkdownBlock::Heading1(text) => {
-                    let parsed = parse_inline_formatting(text, theme);
-                    let style = Style::default()
-                        .fg(theme.get_primary_color())
-                        .add_modifier(Modifier::BOLD | Modifier::UNDERLINED);
-                    if parsed.is_empty() {
-                        lines.push(Line::from(Span::styled(text.clone(), style)));
-                    } else {
-                        let styled: Vec<Span<'static>> = parsed
-                            .into_iter()
-                            .map(|mut s| {
-                                s.style = style.patch(s.style);
-                                s
-                            })
-                            .collect();
-                        lines.push(Line::from(styled));
+        for (block_idx, block) in blocks.iter().enumerate() {
+            self.render_block(block, block_idx, theme, &list_groups, blocks, &mut lines);
+        }
+
+        lines
+    }
+
+    #[cfg(feature = "image")]
+    pub fn render_full(
+        &self,
+        blocks: &[MarkdownBlock],
+        theme: &impl RichTextTheme,
+    ) -> MarkdownRenderOutput {
+        let mut output = MarkdownRenderOutput::new();
+        let list_groups = compute_list_groups(blocks);
+
+        for (block_idx, block) in blocks.iter().enumerate() {
+            self.render_block(block, block_idx, theme, &list_groups, blocks, &mut output.lines);
+        }
+
+        output
+    }
+
+    fn render_block(
+        &self,
+        block: &MarkdownBlock,
+        block_idx: usize,
+        theme: &impl RichTextTheme,
+        list_groups: &[ListGroupInfo],
+        _blocks: &[MarkdownBlock],
+        lines: &mut Vec<Line<'static>>,
+    ) {
+        let hooks = self.hooks.as_deref();
+
+        match block {
+            MarkdownBlock::Heading1(text) => {
+                if let Some(h) = hooks {
+                    if let Some(custom) = h.heading1(text) {
+                        lines.push(custom);
+                        return;
                     }
                 }
-                MarkdownBlock::Heading2(text) => {
-                    let parsed = parse_inline_formatting(text, theme);
-                    let style = Style::default()
-                        .fg(theme.get_text_color())
-                        .add_modifier(Modifier::BOLD);
-                    if parsed.is_empty() {
-                        lines.push(Line::from(Span::styled(text.clone(), style)));
-                    } else {
-                        let styled: Vec<Span<'static>> = parsed
-                            .into_iter()
-                            .map(|mut s| {
-                                s.style = style.patch(s.style);
-                                s
-                            })
-                            .collect();
-                        lines.push(Line::from(styled));
+                let parsed = parse_inline_formatting(text, theme);
+                let style = Style::default()
+                    .fg(theme.get_primary_color())
+                    .add_modifier(Modifier::BOLD | Modifier::UNDERLINED);
+                if parsed.is_empty() {
+                    lines.push(Line::from(Span::styled(text.clone(), style)));
+                } else {
+                    let styled: Vec<Span<'static>> = parsed
+                        .into_iter()
+                        .map(|mut s| {
+                            s.style = style.patch(s.style);
+                            s
+                        })
+                        .collect();
+                    lines.push(Line::from(styled));
+                }
+            }
+            MarkdownBlock::Heading2(text) => {
+                if let Some(h) = hooks {
+                    if let Some(custom) = h.heading2(text) {
+                        lines.push(custom);
+                        return;
                     }
                 }
-                MarkdownBlock::Heading3(text) => {
-                    let parsed = parse_inline_formatting(text, theme);
-                    let style = Style::default()
-                        .fg(theme.get_secondary_color())
-                        .add_modifier(Modifier::BOLD);
-                    if parsed.is_empty() {
-                        lines.push(Line::from(Span::styled(text.clone(), style)));
-                    } else {
-                        let styled: Vec<Span<'static>> = parsed
-                            .into_iter()
-                            .map(|mut s| {
-                                s.style = style.patch(s.style);
-                                s
-                            })
-                            .collect();
-                        lines.push(Line::from(styled));
+                let parsed = parse_inline_formatting(text, theme);
+                let style = Style::default()
+                    .fg(theme.get_text_color())
+                    .add_modifier(Modifier::BOLD);
+                if parsed.is_empty() {
+                    lines.push(Line::from(Span::styled(text.clone(), style)));
+                } else {
+                    let styled: Vec<Span<'static>> = parsed
+                        .into_iter()
+                        .map(|mut s| {
+                            s.style = style.patch(s.style);
+                            s
+                        })
+                        .collect();
+                    lines.push(Line::from(styled));
+                }
+            }
+            MarkdownBlock::Heading3(text) => {
+                if let Some(h) = hooks {
+                    if let Some(custom) = h.heading3(text) {
+                        lines.push(custom);
+                        return;
                     }
                 }
-                MarkdownBlock::Paragraph(paragraph_lines) => {
-                    for pline in paragraph_lines {
-                        let wrapped = self.wrap_text_with_inline_formatting(pline, theme);
-                        lines.extend(wrapped);
+                let parsed = parse_inline_formatting(text, theme);
+                let style = Style::default()
+                    .fg(theme.get_secondary_color())
+                    .add_modifier(Modifier::BOLD);
+                if parsed.is_empty() {
+                    lines.push(Line::from(Span::styled(text.clone(), style)));
+                } else {
+                    let styled: Vec<Span<'static>> = parsed
+                        .into_iter()
+                        .map(|mut s| {
+                            s.style = style.patch(s.style);
+                            s
+                        })
+                        .collect();
+                    lines.push(Line::from(styled));
+                }
+            }
+            MarkdownBlock::Paragraph(paragraph_lines) => {
+                if let Some(h) = hooks {
+                    if let Some(custom) = h.paragraph(paragraph_lines) {
+                        lines.extend(custom);
+                        return;
                     }
                 }
-                MarkdownBlock::CodeBlock(lang, content) => {
-                    if lang == LANG_MERMAID {
-                        // mermaid rendering not supported in this crate; skip
+                for pline in paragraph_lines {
+                    let wrapped = self.wrap_text_with_inline_formatting(pline, theme);
+                    lines.extend(wrapped);
+                }
+            }
+            MarkdownBlock::CodeBlock(lang, content) => {
+                if lang == LANG_MERMAID {
+                    return;
+                }
+
+                let content_lines: Vec<&str> = content.lines().collect();
+                let content_line_count = content_lines.len();
+
+                if let Some(h) = hooks {
+                    if let Some(custom) = h.code_block_header(lang) {
+                        lines.push(custom);
                     } else {
-                        if !lang.is_empty() {
-                            lines.push(Line::from(Span::styled(
-                                format!("{ROUNDED_TL}{HLINE} {} {HLINE}", lang),
-                                Style::default().fg(theme.get_muted_text_color()),
-                            )));
+                        lines.push(self.default_code_block_header(lang, theme));
+                    }
+
+                    for (idx, code_line) in content_lines.iter().enumerate() {
+                        if let Some(custom) = h.code_block_line(code_line, idx, content_line_count) {
+                            lines.push(custom);
                         } else {
-                            lines.push(Line::from(Span::styled(
-                                format!("{ROUNDED_TL}{HLINE}"),
-                                Style::default().fg(theme.get_muted_text_color()),
-                            )));
-                        }
-                        for code_line in content.lines() {
+                            let prefix = h
+                                .code_block_line_prefix(lang)
+                                .unwrap_or_else(|| format!("{VLINE} "));
                             lines.push(Line::from(vec![
-                                Span::styled(
-                                    format!("{VLINE} "),
-                                    Style::default().fg(theme.get_muted_text_color()),
-                                ),
+                                Span::styled(prefix, Style::default().fg(theme.get_muted_text_color())),
                                 Span::styled(
                                     code_line.to_string(),
                                     Style::default().fg(theme.get_accent_yellow()),
                                 ),
                             ]));
                         }
-                        lines.push(Line::from(Span::styled(
-                            format!("{ROUNDED_BL}{HLINE}"),
-                            Style::default().fg(theme.get_muted_text_color()),
-                        )));
                     }
-                }
-                MarkdownBlock::InlineCode(code) => {
-                    lines.push(Line::from(Span::styled(
-                        format!("`{}`", code),
-                        Style::default().fg(theme.get_accent_yellow()),
-                    )));
-                }
-                MarkdownBlock::ListItem(text, indent) => {
-                    let indent_str = "  ".repeat(*indent as usize);
-                    let wrapped = self.wrap_text_with_inline_formatting(
-                        &format!("{}\u{2022}  {}", indent_str, text),
-                        theme,
-                    );
-                    lines.extend(wrapped);
-                }
-                MarkdownBlock::Blockquote(text) => {
-                    let wrapped = self.wrap_text_with_inline_formatting(text, theme);
-                    for mut wline in wrapped {
-                        wline.spans.insert(
-                            0,
-                            Span::styled("> ", Style::default().fg(theme.get_muted_text_color())),
-                        );
-                        for span in wline.spans.iter_mut().skip(1) {
-                            let new_style = span
-                                .style
-                                .fg(theme.get_muted_text_color())
-                                .add_modifier(Modifier::ITALIC);
-                            span.style = new_style;
-                        }
-                        lines.push(wline);
+
+                    if let Some(custom) = h.code_block_footer(lang, content_line_count) {
+                        lines.push(custom);
+                    } else {
+                        lines.push(self.default_code_block_footer(theme));
                     }
-                }
-                MarkdownBlock::HorizontalRule => {
-                    lines.push(Line::from(Span::styled(
-                        HLINE.repeat(self.max_width.min(80)),
-                        Style::default().fg(theme.get_muted_text_color()),
-                    )));
-                }
-                MarkdownBlock::BlankLine => {
-                    lines.push(Line::raw(""));
-                }
-                MarkdownBlock::Table { headers, rows } => {
-                    let table_lines = self.render_table(headers, rows, theme);
-                    lines.extend(table_lines);
+                } else {
+                    lines.push(self.default_code_block_header(lang, theme));
+                    for code_line in &content_lines {
+                        lines.push(Line::from(vec![
+                            Span::styled(
+                                format!("{VLINE} "),
+                                Style::default().fg(theme.get_muted_text_color()),
+                            ),
+                            Span::styled(
+                                code_line.to_string(),
+                                Style::default().fg(theme.get_accent_yellow()),
+                            ),
+                        ]));
+                    }
+                    lines.push(self.default_code_block_footer(theme));
                 }
             }
-        }
+            MarkdownBlock::InlineCode(code) => {
+                if let Some(h) = hooks {
+                    if let Some(custom) = h.inline_code(code) {
+                        lines.push(custom);
+                        return;
+                    }
+                }
+                lines.push(Line::from(Span::styled(
+                    format!("`{}`", code),
+                    Style::default().fg(theme.get_accent_yellow()),
+                )));
+            }
+            MarkdownBlock::ListItem(text, indent) => {
+                let (is_last, ancestors_are_last, index_in_group) =
+                    Self::find_list_context(block_idx, list_groups);
 
-        lines
+                if let Some(h) = hooks {
+                    let marker = h.list_item_marker(*indent, is_last, &ancestors_are_last, index_in_group);
+                    if marker.is_some() || h.list_item_content(text, *indent).is_some() {
+                        let marker_str = marker.unwrap_or_else(|| "\u{2022} ".to_string());
+                        let indent_prefix = if ancestors_are_last.is_empty() {
+                            String::new()
+                        } else {
+                            let mut s = String::new();
+                            for is_last_ancestor in &ancestors_are_last {
+                                s.push_str(if *is_last_ancestor { "   " } else { "\u{2502}  " });
+                            }
+                            s
+                        };
+                        if let Some(custom_content) = h.list_item_content(text, *indent) {
+                            for mut cline in custom_content {
+                                let mut new_spans = vec![Span::raw(format!("{indent_prefix}{marker_str}"))];
+                                new_spans.append(&mut cline.spans);
+                                cline.spans = new_spans;
+                                lines.push(cline);
+                            }
+                        } else {
+                            let full_prefix = format!("{indent_prefix}{marker_str}");
+                            let wrapped =
+                                self.wrap_text_with_inline_formatting(&format!("{full_prefix}{text}"), theme);
+                            lines.extend(wrapped);
+                        }
+                        return;
+                    }
+                }
+
+                let indent_str = "  ".repeat(*indent as usize);
+                let wrapped = self.wrap_text_with_inline_formatting(
+                    &format!("{}\u{2022}  {}", indent_str, text),
+                    theme,
+                );
+                lines.extend(wrapped);
+            }
+            MarkdownBlock::Blockquote(text) => {
+                if let Some(h) = hooks {
+                    if let Some(custom) = h.blockquote(text) {
+                        lines.extend(custom);
+                        return;
+                    }
+                }
+                let wrapped = self.wrap_text_with_inline_formatting(text, theme);
+                for mut wline in wrapped {
+                    wline.spans.insert(
+                        0,
+                        Span::styled("> ", Style::default().fg(theme.get_muted_text_color())),
+                    );
+                    for span in wline.spans.iter_mut().skip(1) {
+                        let new_style = span
+                            .style
+                            .fg(theme.get_muted_text_color())
+                            .add_modifier(Modifier::ITALIC);
+                        span.style = new_style;
+                    }
+                    lines.push(wline);
+                }
+            }
+            MarkdownBlock::HorizontalRule => {
+                if let Some(h) = hooks {
+                    if let Some(custom) = h.horizontal_rule() {
+                        lines.push(custom);
+                        return;
+                    }
+                }
+                lines.push(Line::from(Span::styled(
+                    HLINE.repeat(self.max_width.min(80)),
+                    Style::default().fg(theme.get_muted_text_color()),
+                )));
+            }
+            MarkdownBlock::BlankLine => {
+                if let Some(h) = hooks {
+                    if let Some(custom) = h.blank_line() {
+                        lines.push(custom);
+                        return;
+                    }
+                }
+                lines.push(Line::raw(""));
+            }
+            MarkdownBlock::Table { headers, rows } => {
+                if let Some(h) = hooks {
+                    if let Some(custom) = h.table(headers, rows) {
+                        lines.extend(custom);
+                        return;
+                    }
+                }
+                let table_lines = self.render_table(headers, rows, theme);
+                lines.extend(table_lines);
+            }
+            MarkdownBlock::Image { alt, path } => {
+                if let Some(h) = hooks {
+                    if let Some(custom) = h.image_fallback(alt, path) {
+                        lines.extend(custom);
+                        return;
+                    }
+                }
+                lines.push(default_image_fallback(alt, path));
+            }
+        }
+    }
+
+    fn find_list_context(
+        block_idx: usize,
+        list_groups: &[ListGroupInfo],
+    ) -> (bool, Vec<bool>, usize) {
+        for group in list_groups {
+            if let Some(pos) = group.block_indices.iter().position(|&i| i == block_idx) {
+                let is_last = pos == group.block_indices.len() - 1;
+                return (is_last, Vec::new(), pos);
+            }
+        }
+        (true, Vec::new(), 0)
+    }
+
+    fn default_code_block_header(&self, lang: &str, theme: &impl RichTextTheme) -> Line<'static> {
+        if !lang.is_empty() {
+            Line::from(Span::styled(
+                format!("{ROUNDED_TL}{HLINE} {} {HLINE}", lang),
+                Style::default().fg(theme.get_muted_text_color()),
+            ))
+        } else {
+            Line::from(Span::styled(
+                format!("{ROUNDED_TL}{HLINE}"),
+                Style::default().fg(theme.get_muted_text_color()),
+            ))
+        }
+    }
+
+    fn default_code_block_footer(&self, theme: &impl RichTextTheme) -> Line<'static> {
+        Line::from(Span::styled(
+            format!("{ROUNDED_BL}{HLINE}"),
+            Style::default().fg(theme.get_muted_text_color()),
+        ))
     }
 
     fn render_table(

@@ -14,6 +14,10 @@ pub enum MarkdownBlock {
         headers: Vec<String>,
         rows: Vec<Vec<String>>,
     },
+    Image {
+        alt: String,
+        path: String,
+    },
 }
 
 impl MarkdownBlock {
@@ -34,6 +38,7 @@ impl MarkdownBlock {
                 let row_lines = rows.len() * 2 + 1;
                 header_lines + row_lines
             }
+            MarkdownBlock::Image { .. } => 1,
         }
     }
 }
