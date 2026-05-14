@@ -18,6 +18,9 @@ use crate::{
 };
 
 #[cfg(feature = "image")]
+use super::image::ImageResolver;
+
+#[cfg(feature = "image")]
 use super::image::MarkdownRenderOutput;
 
 const LANG_MERMAID: &str = "mermaid";
@@ -103,11 +106,14 @@ impl MarkdownRenderer {
     }
 
     #[cfg(feature = "image")]
-    pub fn render_full(
+    pub fn render_full<I: ImageResolver>(
         &self,
         blocks: &[MarkdownBlock],
         theme: &impl RichTextTheme,
         resolved_images: &[super::image::ResolvedImage],
+        resolver: &I,
+        max_image_width: u16,
+        max_image_height: u16,
     ) -> MarkdownRenderOutput {
         let mut output = MarkdownRenderOutput::new();
         let list_groups = compute_list_groups(blocks);
@@ -124,6 +130,9 @@ impl MarkdownRenderer {
                 &mut output.images,
                 resolved_images,
                 &mut next_image_idx,
+                resolver,
+                max_image_width,
+                max_image_height,
             );
         }
 
@@ -131,10 +140,10 @@ impl MarkdownRenderer {
     }
 
     #[cfg(feature = "image")]
-    fn render_block_with_images(
+    fn render_block_with_images<I: ImageResolver>(
         &self,
         block: &MarkdownBlock,
-        block_idx: usize,
+        _block_idx: usize,
         theme: &impl RichTextTheme,
         list_groups: &[ListGroupInfo],
         _blocks: &[MarkdownBlock],
@@ -142,31 +151,46 @@ impl MarkdownRenderer {
         placements: &mut Vec<super::image::ImagePlacement>,
         resolved_images: &[super::image::ResolvedImage],
         next_image_idx: &mut usize,
+        resolver: &I,
+        max_image_width: u16,
+        max_image_height: u16,
     ) {
         match block {
             MarkdownBlock::Image { alt, path } => {
-                if *next_image_idx < resolved_images.len() && resolved_images[*next_image_idx].path == *path {
+                if *next_image_idx < resolved_images.len()
+                    && resolved_images[*next_image_idx].path == *path
+                {
                     let ref_img = &resolved_images[*next_image_idx].image;
-                    let (w, h) = (ref_img.width(), ref_img.height());
-                    placements.push(super::image::ImagePlacement {
-                        row: lines.len(),
-                        col: 0,
-                        width_cells: w.min(80) as u16,
-                        height_cells: h.min(24) as u16,
-                        image: ref_img.clone(),
-                    });
-                    *next_image_idx += 1;
-                }
-                let hooks = self.hooks.as_deref();
-                if let Some(h) = hooks {
-                    if let Some(custom) = h.image_fallback(alt, path) {
-                        lines.extend(custom);
-                        return;
+                    let (w_cells, h_cells) =
+                        resolver.cell_dimensions(ref_img, max_image_width, max_image_height);
+                    if w_cells > 0 && h_cells > 0 {
+                        let row = lines.len();
+                        for _ in 0..h_cells {
+                            lines.push(Line::raw(""));
+                        }
+                        placements.push(super::image::ImagePlacement {
+                            row,
+                            col: 0,
+                            width_cells: w_cells,
+                            height_cells: h_cells,
+                            image: ref_img.clone(),
+                        });
+                    } else {
+                        lines.push(default_image_fallback(alt, path));
                     }
+                    *next_image_idx += 1;
+                } else {
+                    let hooks = self.hooks.as_deref();
+                    if let Some(h) = hooks {
+                        if let Some(custom) = h.image_fallback(alt, path) {
+                            lines.extend(custom);
+                            return;
+                        }
+                    }
+                    lines.push(Line::from(resolver.fallback(path, alt)));
                 }
-                lines.push(default_image_fallback(alt, path));
             }
-            _ => self.render_block(block, block_idx, theme, list_groups, _blocks, lines),
+            _ => self.render_block(block, _block_idx, theme, list_groups, _blocks, lines),
         }
     }
 

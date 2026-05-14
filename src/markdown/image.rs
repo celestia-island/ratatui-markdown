@@ -28,9 +28,45 @@ pub struct MarkdownRenderOutput {
     pub images: Vec<ImagePlacement>,
 }
 
+/// Approximate pixel-to-cell conversion for a typical monospace terminal font.
+/// These are defaults; override [`ImageResolver::cell_dimensions`] for precision.
+#[cfg(feature = "image")]
+const DEFAULT_PIXELS_PER_CELL_W: u32 = 9;
+#[cfg(feature = "image")]
+const DEFAULT_PIXELS_PER_CELL_H: u32 = 18;
+
 #[cfg(feature = "image")]
 pub trait ImageResolver {
     fn resolve(&mut self, path: &str) -> Option<image::DynamicImage>;
+
+    /// Determine the terminal **cell** dimensions for rendering a resolved image.
+    ///
+    /// Called by [`MarkdownRenderer::render_full`] after `resolve()` succeeds.
+    /// The returned `(width_cells, height_cells)` controls:
+    /// - How many blank lines are reserved in the text output so content doesn't overlap
+    /// - The `width_cells` / `height_cells` stored in [`ImagePlacement`] for your draw loop
+    ///
+    /// **Default**: fits to `max_width` preserving aspect ratio using
+    /// `~9 px / cell` width and `~18 px / cell` height heuristics.
+    /// Override this when you have exact knowledge of your terminal's cell size
+    /// or want to constrain images differently.
+    fn cell_dimensions(
+        &self,
+        img: &image::DynamicImage,
+        max_width: u16,
+        _max_height: u16,
+    ) -> (u16, u16) {
+        let pw = img.width();
+        let ph = img.height();
+        if pw == 0 || ph == 0 || max_width == 0 {
+            return (0, 0);
+        }
+        let w_cells = ((pw + DEFAULT_PIXELS_PER_CELL_W - 1) / DEFAULT_PIXELS_PER_CELL_W) as u16;
+        let w = w_cells.min(max_width);
+        let ratio = ph as u32 * w as u32 / ((pw as u32).max(1));
+        let h = ((ratio + DEFAULT_PIXELS_PER_CELL_H - 1) / DEFAULT_PIXELS_PER_CELL_H) as u16;
+        (w.max(1), h.max(1))
+    }
 
     fn fallback(&self, path: &str, alt: &str) -> Span<'static> {
         let label = if alt.is_empty() {

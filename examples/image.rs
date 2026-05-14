@@ -53,10 +53,7 @@ impl FsImageResolver {
 impl ImageResolver for FsImageResolver {
     fn resolve(&mut self, path: &str) -> Option<image::DynamicImage> {
         let full_path = self.base_dir.join(path);
-        image::ImageReader::open(&full_path)
-            .ok()?
-            .decode()
-            .ok()
+        image::ImageReader::open(&full_path).ok()?.decode().ok()
     }
 
     fn fallback(&self, path: &str, alt: &str) -> ratatui::text::Span<'static> {
@@ -71,7 +68,9 @@ impl ImageResolver for FsImageResolver {
 const MARKDOWN: &str = r#"
 # Image Rendering Example
 
-This example demonstrates image resolution and rendering.
+This example demonstrates image resolution and rendering via
+`ratatui-image`. The terminal's graphics protocol (kitty, iTerm2,
+sixels, or halfblocks) is auto-detected by `Picker`.
 
 ## Logo (loaded from disk)
 
@@ -85,21 +84,16 @@ This example demonstrates image resolution and rendering.
 
 ![Missing Image](nonexistent.webp)
 
-The first two images are loaded from the `examples/` directory.
-The third shows the fallback span for missing images.
-
-Images are resolved via the `ImageResolver` trait. When an image is
-found, its position is recorded in `MarkdownRenderOutput`. The example
-then renders each placement using `ratatui_image::Image`.
+The first two images are loaded from `examples/` using a filesystem
+resolver. The third shows the fallback span.
 
 Press `q` to quit.
 "#;
 
 fn main() -> anyhow::Result<()> {
     enable_raw_mode()?;
-    let mut stdout = std::io::stdout();
-    crossterm::execute!(stdout, EnterAlternateScreen)?;
-    let backend = CrosstermBackend::new(stdout);
+    crossterm::execute!(std::io::stdout(), EnterAlternateScreen)?;
+    let backend = CrosstermBackend::new(std::io::stdout());
     let mut terminal = Terminal::new(backend)?;
 
     let theme = Theme;
@@ -107,9 +101,24 @@ fn main() -> anyhow::Result<()> {
 
     let mut resolver = FsImageResolver::new(concat!(env!("CARGO_MANIFEST_DIR"), "/examples"));
     let (blocks, resolved) = renderer.parse_with_images(MARKDOWN, &mut resolver);
-    let output = renderer.render_full(&blocks, &theme, &resolved);
 
-    let mut picker = Picker::from_termios().map_err(|e| anyhow::anyhow!("picker error: {:?}", e))?;
+    let output = renderer.render_full(&blocks, &theme, &resolved, &resolver, 70, 20);
+
+    let mut picker =
+        Picker::from_termios().map_err(|e| anyhow::anyhow!("picker init failed: {:?}", e))?;
+
+    let mut protocols: Vec<Option<Box<dyn ratatui_image::protocol::Protocol>>> = Vec::new();
+    for placement in &output.images {
+        let rect = Rect::new(0, 0, placement.width_cells, placement.height_cells);
+        match picker.new_protocol(
+            placement.image.clone(),
+            rect,
+            ratatui_image::Resize::Fit(Some(image::imageops::FilterType::Triangle)),
+        ) {
+            Ok(p) => protocols.push(Some(p)),
+            Err(_) => protocols.push(None),
+        }
+    }
 
     loop {
         terminal.draw(|f| {
@@ -120,6 +129,7 @@ fn main() -> anyhow::Result<()> {
                 area.width.saturating_sub(2),
                 area.height.saturating_sub(2),
             );
+
             f.render_widget(
                 Paragraph::new(output.lines.clone())
                     .block(Block::default().borders(Borders::ALL).title(" Image Example "))
@@ -127,31 +137,25 @@ fn main() -> anyhow::Result<()> {
                 inner,
             );
 
-            let max_w = inner.width.saturating_sub(4);
-            let max_h = inner.height / 3;
-
-            for placement in &output.images {
-                let img_w = placement.image.width().min(max_w as u32) as u16;
-                let img_h = placement.image.height().min(max_h as u32) as u16;
-                if img_w < 2 || img_h < 2 {
+            for (i, placement) in output.images.iter().enumerate() {
+                let Some(ref proto) = protocols.get(i).and_then(|o| o.as_ref()) else {
+                    continue;
+                };
+                if placement.height_cells == 0 || placement.width_cells == 0 {
                     continue;
                 }
-                let proto_rect = Rect::new(0, 0, img_w, img_h);
-                let protocol = match picker.new_protocol(
-                    placement.image.clone(),
-                    proto_rect,
-                    ratatui_image::Resize::Fit(Some(image::imageops::FilterType::Triangle)),
-                ) {
-                    Ok(p) => p,
-                    Err(_) => continue,
-                };
-                let render_rect = Rect::new(
+                let render_h = placement.height_cells.min(inner.height);
+                let render_w = placement.width_cells.min(inner.width.saturating_sub(4));
+                if render_h < 2 || render_w < 2 {
+                    continue;
+                }
+                let rect = Rect::new(
                     inner.x + 2,
-                    inner.y + (placement.row as u16).min(inner.height.saturating_sub(img_h)),
-                    img_w,
-                    img_h,
+                    inner.y + (placement.row as u16).min(inner.height.saturating_sub(render_h)),
+                    render_w,
+                    render_h,
                 );
-                f.render_widget(ratatui_image::Image::new(protocol.as_ref()), render_rect);
+                f.render_widget(ratatui_image::Image::new(proto.as_ref()), rect);
             }
         })?;
 
