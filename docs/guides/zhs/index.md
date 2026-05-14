@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="../../../examples/logo.webp" alt="ratatui-markdown logo" width="200" />
+</div>
+
 # ratatui-markdown
 
 > 为 ratatui 提供 Markdown 渲染、可折叠 JSON/TOML 树以及丰富滚动组件的 Rust 库。

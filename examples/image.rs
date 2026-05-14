@@ -72,18 +72,20 @@ const MARKDOWN: &str = r#"
 
 This example demonstrates image resolution and rendering.
 
-## With Image
+## Logo (loaded from disk)
 
-![Rust Logo](rust-logo.png)
+![ratatui-markdown Logo](logo.webp)
 
-## Without Image (fallback)
+## Demo Screenshot (loaded from disk)
 
-![Missing Image](nonexistent.png)
+![Demo Screenshot](demo.webp)
 
-The first image shows a loaded file if `assets/rust-logo.png` exists.
-The second shows the fallback span for missing images.
+## Missing Image (fallback)
 
-## Regular content
+![Missing Image](nonexistent.webp)
+
+The first two images are loaded from the `examples/` directory.
+The third shows the fallback span for missing images.
 
 Images are resolved via the `ImageResolver` trait. When an image is
 found, its position is recorded in `MarkdownRenderOutput`. When not
@@ -102,7 +104,7 @@ fn main() -> anyhow::Result<()> {
     let theme = Theme;
     let renderer = MarkdownRenderer::new(76);
 
-    let mut resolver = FsImageResolver::new("./assets");
+    let mut resolver = FsImageResolver::new("./examples");
     let blocks = renderer.parse_with_images(MARKDOWN, &mut resolver);
     let output = renderer.render_full(&blocks, &theme);
 

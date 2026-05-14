@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="../../../examples/logo.webp" alt="ratatui-markdown logo" width="200" />
+</div>
+
 # ratatui-markdown
 
 > ratatui 向けの Markdown レンダリング、折りたたみ可能な JSON/TOML ツリー、そしてリッチなスクロールウィジェットを提供する Rust ライブラリです。

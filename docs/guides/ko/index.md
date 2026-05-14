@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="../../../examples/logo.webp" alt="ratatui-markdown logo" width="200" />
+</div>
+
 # ratatui-markdown
 
 > ratatui 를 위한 Markdown 렌더링, 접이식 JSON/TOML 트리, 그리고 풍부한 스크롤 위젯을 제공하는 Rust 라이브러리입니다.
