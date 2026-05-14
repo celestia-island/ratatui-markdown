@@ -11,16 +11,10 @@ pub struct LayoutNode {
     pub y: usize,
     pub width: usize,
     pub height: usize,
-    #[allow(dead_code)]
-    pub layer: usize,
 }
 
 #[derive(Debug, Clone)]
 pub struct LayoutEdge {
-    #[allow(dead_code)]
-    pub source_id: String,
-    #[allow(dead_code)]
-    pub target_id: String,
     pub label: Option<String>,
     pub edge_type: EdgeType,
     pub waypoints: Vec<(usize, usize)>,
@@ -67,7 +61,7 @@ pub fn compute_layout(
     );
 
     let mut y_offset = 0usize;
-    for (layer_idx, layer) in layers.iter().enumerate() {
+    for layer in &layers {
         let node_count = layer.len();
 
         let mut node_widths: Vec<usize> = layer
@@ -137,7 +131,6 @@ pub fn compute_layout(
                 y: ny,
                 width: w,
                 height: NODE_V_HEIGHT,
-                layer: layer_idx,
             });
             node_positions.insert(id.clone(), (nx + w / 2, ny + NODE_V_HEIGHT / 2));
             x += w + h_spacing;
@@ -156,8 +149,6 @@ pub fn compute_layout(
             h_spacing,
         );
         layout_edges.push(LayoutEdge {
-            source_id: edge.source.clone(),
-            target_id: edge.target.clone(),
             label: edge.label.clone(),
             edge_type: edge.edge_type.clone(),
             waypoints,
