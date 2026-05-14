@@ -1,0 +1,138 @@
+# ratatui-markdown
+
+> Una biblioteca Rust que ofrece renderizado de Markdown, árboles JSON/TOML colapsables y widgets de desplazamiento enriquecidos para ratatui.
+>
+> **Construido con**: [ratatui](https://github.com/ratatui/ratatui) 0.29 + Rust puro
+>
+> **Versión mínima de Rust**: 1.74
+
+## ¿Qué es ratatui-markdown?
+
+ratatui-markdown es una biblioteca de renderizado rica en funciones para interfaces de usuario de terminal construidas con [ratatui](https://github.com/ratatui/ratatui). Proporciona cuatro módulos funcionales principales que pueden usarse de forma independiente o combinarse a través del widget `MarkdownPreview`.
+
+## Módulos Principales
+
+### Renderizado de Markdown
+
+Analiza y renderiza texto Markdown como salida de terminal con estilo:
+
+- **Encabezados**: H1 (`#`), H2 (`##`), H3 (`###`)
+- **Párrafos** con ajuste de línea automático compatible con CJK
+- **Formato en línea**: `**negrita**`, `*cursiva*`, `***negrita+cursiva***`, `` `código en línea` ``
+- **Bloques de código** con etiquetas de lenguaje opcionales (los bloques mermaid se omiten)
+- **Citas** (`>`)
+- **Listas no ordenadas** (`-`, `*`, `+`) y ordenadas (`1.`, `2.`)
+- **Líneas horizontales** (`---`, `***`, `___`)
+- **Tablas** con anchos de columna proporcionales y ajuste de celdas
+
+### Vista de Árbol Colapsable
+
+Analiza y navega interactivamente por datos estructurados:
+
+- Analiza **JSON** y **TOML** en árboles colapsables
+- **Expandir / Colapsar** nodos individuales, expandir todo, colapsar todo, expandir por profundidad
+- **Claves estilizadas**: modo JSON (claves entre comillas + `:`) o modo TOML (claves simples + `=`)
+- **Navegación por teclado**: selección y alternancia basadas en cursor
+- **Color por tipo de valor**: cadenas, números, booleanos, null — cada uno con su color de tema
+
+### Sistema de Desplazamiento Híbrido
+
+Desplazamiento inteligente que maneja tanto la navegación libre como la navegación por elementos:
+
+- **Modo de desplazamiento libre**: recorra el contenido libremente
+- **Modo activado**: se activa automáticamente cuando elementos enfocables entran en la vista
+- **Navegación por cursor**: muévase entre elementos enfocables con el teclado
+- **Indicador de cursor**: prefijo visual `> ` en las líneas activadas
+- **Barra de desplazamiento**: superposición basada en flechas
+- **Paginación**: soporte de `page_up` / `page_down`
+
+### Widget MarkdownPreview
+
+El widget de alto nivel que integra todo:
+
+- Renderiza contenido Markdown, vistas de árbol y elementos de acción en un solo diseño desplazable
+- **Caché**: reconstruye la salida solo cuando cambia el contenido, el ancho o la generación del tema
+- **Eliminación de preámbulo TOML**: elimina automáticamente el preámbulo TOML delimitado por `+++`
+- **Elementos de acción**: elementos etiquetados seleccionables por teclado con IDs de acción
+- Delega toda la navegación a `HybridScrollView`
+
+## Inicio Rápido
+
+```toml
+[dependencies]
+ratatui-markdown = "0.1"
+```
+
+```rust
+use ratatui_markdown::preview::MarkdownPreview;
+
+let mut preview = MarkdownPreview::new();
+preview.set_content("# ¡Hola, mundo!\n\nEsto es un párrafo.");
+// renderiza y maneja la entrada en el bucle de la aplicación ratatui
+```
+
+## Banderas de Funcionalidades
+
+Todas las funcionalidades están habilitadas por defecto. Desactive las funcionalidades por defecto para habilitar solo lo necesario:
+
+```toml
+[dependencies]
+ratatui-markdown = { version = "0.1", default-features = false, features = ["markdown"] }
+```
+
+| Funcionalidad | Dependencias      | Descripción                                      |
+|---------------|--------------------|--------------------------------------------------|
+| `markdown`    | —                  | Analizador y renderizador de Markdown            |
+| `scroll`      | —                  | HybridScrollView, listas desplazables, barra     |
+| `tree`        | `scroll`, `serde_json`, `toml` | Árbol JSON/TOML colapsable          |
+| `preview`     | `markdown`, `scroll`, `tree` | Widget unificado MarkdownPreview      |
+
+## Estructura del Proyecto
+
+```
+ratatui-markdown/
+  src/
+   ├── lib.rs                  # Punto de entrada: módulos con puertas de funcionalidad
+   ├── theme.rs                # Trait RichTextTheme, token Generation
+   ├── constants/
+   │   ├── mod.rs              # Reexportaciones
+   │   ├── box_chars.rs        # Constantes de caracteres de caja
+   │   └── list_prefix.rs      # Conectores de árbol, flechas, marcadores
+   ├── markdown/
+   │   ├── mod.rs              # Estructura MarkdownRenderer
+   │   ├── parser.rs           # Analizador Markdown a nivel de bloque
+   │   ├── types.rs            # Enum MarkdownBlock, TextToken
+   │   ├── render.rs           # Renderizador a nivel de bloque (+ tablas)
+   │   ├── inline.rs           # Analizador de formato en línea
+   │   └── text.rs             # Ajuste de texto compatible CJK
+   ├── scroll/
+   │   ├── mod.rs              # Reexportaciones
+   │   ├── hybrid_scroll/      # HybridScrollView (widget principal)
+   │   ├── scrollable_list.rs  # ScrollableList<T> genérica
+   │   ├── scrollable_panel.rs # Asistente de desplazamiento simple
+   │   ├── focusable_list.rs   # Renderizador FocusableItemList
+   │   ├── follow_scroll.rs    # FollowScrollState
+   │   └── scrollbar.rs        # Widget ArrowScrollbar
+   ├── tree/
+   │   ├── mod.rs              # Reexportaciones
+   │   ├── tree_lines.rs       # Construcción de líneas de árbol
+   │   └── collapsible_tree/   # CollapsibleTree + operaciones + renderizado
+   └── preview/
+       └── mod.rs              # Widget unificado MarkdownPreview
+```
+
+## Documentación
+
+| Guía | Descripción |
+|------|-------------|
+| [Primeros Pasos](getting-started.md) | Instalación y primer renderizado |
+| [Markdown](markdown.md) | Análisis y renderizado de Markdown |
+| [Sistema de Desplazamiento](scroll.md) | Desplazamiento híbrido, navegación |
+| [Vista de Árbol](tree.md) | Árboles JSON/TOML, expandir/colapsar |
+| [Widget de Vista Previa](preview.md) | Combinar todo con MarkdownPreview |
+| [Tema](theme.md) | Implementación de RichTextTheme |
+| [Contribuir](contributing.md) | Guía de desarrollo y contribución |
+
+## Licencia
+
+Doble licencia MIT OR Apache-2.0.

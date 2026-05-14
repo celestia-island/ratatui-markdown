@@ -33,7 +33,7 @@ impl MarkdownBlock {
                 let header_lines = 2;
                 let row_lines = rows.len() * 2 + 1;
                 header_lines + row_lines
-            },
+            }
         }
     }
 }

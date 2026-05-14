@@ -1,0 +1,138 @@
+# ratatui-markdown
+
+> ratatui 를 위한 Markdown 렌더링, 접이식 JSON/TOML 트리, 그리고 풍부한 스크롤 위젯을 제공하는 Rust 라이브러리입니다.
+>
+> **빌드 기반**: [ratatui](https://github.com/ratatui/ratatui) 0.29 + 순수 Rust
+>
+> **최소 Rust 버전**: 1.74
+
+## ratatui-markdown 이란?
+
+ratatui-markdown 은 [ratatui](https://github.com/ratatui/ratatui) 위에 구축된 기능이 풍부한 터미널 UI 렌더링 라이브러리입니다. 4개의 주요 기능 모듈을 제공하며, 독립적으로 사용하거나 `MarkdownPreview` 위젯으로 결합할 수 있습니다.
+
+## 핵심 모듈
+
+### Markdown 렌더링
+
+Markdown 텍스트를 구문 분석하고 스타일이 적용된 터미널 출력으로 렌더링합니다:
+
+- **제목**: H1 (`#`), H2 (`##`), H3 (`###`)
+- **단락**: CJK 문자 너비를 고려한 자동 줄바꿈
+- **인라인 서식**: `**굵게**`, `*기울임*`, `***굵게+기울임***`, `` `인라인 코드` ``
+- **코드 블록**: 언어 레이블 포함 (mermaid 블록은 건너뜀)
+- **인용 블록** (`>`)
+- **순서 없는 리스트** (`-`, `*`, `+`) 와 순서 있는 리스트 (`1.`, `2.`)
+- **수평선** (`---`, `***`, `___`)
+- **테이블**: 열 너비 비례 할당, 셀 줄바꿈 지원
+
+### 접이식 트리 뷰
+
+구조화된 데이터를 구문 분석하고 대화형으로 탐색합니다:
+
+- **JSON** 과 **TOML** 을 접이식 트리로 구문 분석
+- **펼치기 / 접기**: 개별 노드, 전체 펼치기, 전체 접기, 깊이 지정 펼치기
+- **키 스타일**: JSON 모드(따옴표 키 + `:`) 또는 TOML 모드(베어 키 + `=`)
+- **키보드 탐색**: 커서 기반 선택 및 토글
+- **값 유형별 색상**: 문자열, 숫자, 불리언, null 각각에 테마 색상 적용
+
+### 하이브리드 스크롤 시스템
+
+자유로운 탐색과 아이템 내비게이션을 모두 처리하는 스마트 스크롤:
+
+- **자유 스크롤 모드**: 콘텐츠를 자유롭게 스크롤
+- **인게이지 모드**: 포커스 가능한 아이템이 뷰포트 중앙에 진입하면 자동 활성화
+- **커서 내비게이션**: 키보드로 포커스 가능 아이템 간 이동
+- **커서 표시기**: 인게이지된 행에 `> ` 접두사 표시
+- **스크롤바**: 화살표 기반 오버레이 표시
+- **페이지 이동**: `page_up` / `page_down` 지원
+
+### MarkdownPreview 위젯
+
+모든 것을 통합하는 고수준 위젯:
+
+- 마크다운 콘텐츠, 트리 뷰, 액션 아이템을 단일 스크롤 가능한 레이아웃으로 렌더링
+- **캐싱**: 콘텐츠, 너비 또는 테마 세대가 변경될 때만 출력 재구축
+- **TOML 프론트매터 제거**: `+++` 로 구분된 TOML 프론트매터 자동 제거
+- **액션 아이템**: 액션 ID가 있는 키보드 선택 가능한 레이블 아이템
+- 모든 탐색을 `HybridScrollView` 에 위임
+
+## 빠른 시작
+
+```toml
+[dependencies]
+ratatui-markdown = "0.1"
+```
+
+```rust
+use ratatui_markdown::preview::MarkdownPreview;
+
+let mut preview = MarkdownPreview::new();
+preview.set_content("# 안녕하세요, 세계!\n\n이것은 단락입니다.");
+// ratatui 앱 루프에서 렌더링 및 입력 처리
+```
+
+## 기능 플래그
+
+기본적으로 모든 기능이 활성화됩니다. 기본 기능을 비활성화하고 필요한 것만 활성화할 수 있습니다:
+
+```toml
+[dependencies]
+ratatui-markdown = { version = "0.1", default-features = false, features = ["markdown"] }
+```
+
+| 기능       | 의존성            | 설명                                   |
+|------------|-------------------|---------------------------------------|
+| `markdown` | —                 | Markdown 파서 및 렌더러                |
+| `scroll`   | —                 | HybridScrollView, 스크롤 가능 리스트    |
+| `tree`     | `scroll`, `serde_json`, `toml` | 접이식 JSON/TOML 트리      |
+| `preview`  | `markdown`, `scroll`, `tree` | MarkdownPreview 통합 위젯   |
+
+## 프로젝트 구조
+
+```
+ratatui-markdown/
+  src/
+   ├── lib.rs                  # 라이브러리 진입점: 기능 게이트 모듈
+   ├── theme.rs                # RichTextTheme 트레이트, Generation 토큰
+   ├── constants/
+   │   ├── mod.rs              # 재내보내기
+   │   ├── box_chars.rs        # 상자 그리기 문자 상수
+   │   └── list_prefix.rs      # 트리 커넥터, 화살표, 마커
+   ├── markdown/
+   │   ├── mod.rs              # MarkdownRenderer 구조체
+   │   ├── parser.rs           # 블록 레벨 Markdown 파서
+   │   ├── types.rs            # MarkdownBlock 열거형, TextToken
+   │   ├── render.rs           # 블록 레벨 렌더러 (테이블 포함)
+   │   ├── inline.rs           # 인라인 서식 파서
+   │   └── text.rs             # CJK 인식 텍스트 줄바꿈
+   ├── scroll/
+   │   ├── mod.rs              # 재내보내기
+   │   ├── hybrid_scroll/      # HybridScrollView (핵심 위젯)
+   │   ├── scrollable_list.rs  # 제네릭 ScrollableList<T>
+   │   ├── scrollable_panel.rs # 간단한 스크롤 헬퍼
+   │   ├── focusable_list.rs   # FocusableItemList 렌더러
+   │   ├── follow_scroll.rs    # FollowScrollState
+   │   └── scrollbar.rs        # ArrowScrollbar 위젯
+   ├── tree/
+   │   ├── mod.rs              # 재내보내기
+   │   ├── tree_lines.rs       # 트리 라인 구성
+   │   └── collapsible_tree/   # CollapsibleTree + 노드 조작 + 렌더링
+   └── preview/
+       └── mod.rs              # MarkdownPreview 통합 위젯
+```
+
+## 문서
+
+| 가이드 | 설명 |
+|--------|------|
+| [시작하기](getting-started.md) | 설치 및 첫 렌더링 |
+| [Markdown](markdown.md) | Markdown 구문 분석 및 렌더링 |
+| [스크롤 시스템](scroll.md) | 하이브리드 스크롤, 내비게이션 |
+| [트리 뷰](tree.md) | JSON/TOML 트리, 펼치기/접기 |
+| [프리뷰 위젯](preview.md) | MarkdownPreview 로 모든 것 통합 |
+| [테마](theme.md) | RichTextTheme 구현 |
+| [기여하기](contributing.md) | 개발 및 기여 가이드 |
+
+## 라이선스
+
+MIT OR Apache-2.0 듀얼 라이선스.

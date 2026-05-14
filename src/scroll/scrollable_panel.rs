@@ -1,7 +1,7 @@
-use ratatui::{Frame, layout::Rect, text::Line, widgets::Paragraph};
+use ratatui::{layout::Rect, text::Line, widgets::Paragraph, Frame};
 
 use crate::{
-    scroll::{ArrowScrollbar, anchored_panel_scrollbar_area},
+    scroll::{anchored_panel_scrollbar_area, ArrowScrollbar},
     theme::RichTextTheme,
 };
 
