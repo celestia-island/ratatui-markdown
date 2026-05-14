@@ -1370,7 +1370,7 @@ mod image_zoom_tests {
         }
 
         fn cell_dimensions(
-            &self,
+            &mut self,
             img: &image::DynamicImage,
             max_width: u16,
             _max_height: u16,
@@ -1396,7 +1396,7 @@ mod image_zoom_tests {
 
     #[test]
     fn cell_dimensions_100x100_with_10x20_font() {
-        let r = TestImageResolver::with_font(10, 20);
+        let mut r = TestImageResolver::with_font(10, 20);
         let img = make_test_img(100, 100);
         let (cw, ch) = r.cell_dimensions(&img, 80, 30);
         assert_eq!(cw, 10, "100px / 10px-per-cell = 10 cells wide");
@@ -1405,7 +1405,7 @@ mod image_zoom_tests {
 
     #[test]
     fn cell_dimensions_halfblocks_doubles_height() {
-        let r = TestImageResolver::halfblocks(10, 20);
+        let mut r = TestImageResolver::halfblocks(10, 20);
         let img = make_test_img(100, 500);
         let (_cw, ch) = r.cell_dimensions(&img, 80, 30);
         assert!(
@@ -1417,7 +1417,7 @@ mod image_zoom_tests {
 
     #[test]
     fn cell_dimensions_respects_max_width() {
-        let r = TestImageResolver::with_font(10, 20);
+        let mut r = TestImageResolver::with_font(10, 20);
         let img = make_test_img(500, 200);
         let (cw, _ch) = r.cell_dimensions(&img, 20, 30);
         assert!(cw <= 20, "width should not exceed max_width=20, got {}", cw);
@@ -1425,7 +1425,7 @@ mod image_zoom_tests {
 
     #[test]
     fn cell_dimensions_zero_image_returns_zero() {
-        let r = TestImageResolver::with_font(10, 20);
+        let mut r = TestImageResolver::with_font(10, 20);
         let img = make_test_img(0, 0);
         let (cw, ch) = r.cell_dimensions(&img, 80, 30);
         assert_eq!((cw, ch), (0, 0));
@@ -1433,7 +1433,7 @@ mod image_zoom_tests {
 
     #[test]
     fn cell_dimensions_tiny_image_at_least_one_cell() {
-        let r = TestImageResolver::with_font(10, 20);
+        let mut r = TestImageResolver::with_font(10, 20);
         let img = make_test_img(1, 1);
         let (cw, ch) = r.cell_dimensions(&img, 80, 30);
         assert!(cw >= 1, "at least 1 cell wide");
@@ -1453,7 +1453,7 @@ mod image_zoom_tests {
             path: "a.webp".into(),
             image: make_test_img(100, 60),
         }];
-        let output = renderer.render_full(&blocks, &TestTheme, &resolved, &r, 70, 20);
+        let output = renderer.render_full(&blocks, &TestTheme, &resolved, &mut r, 70, 20);
 
         assert!(output.lines.len() >= 3, "should have heading + blank lines + paragraph");
         assert_eq!(output.images.len(), 1, "one placement");
@@ -1470,14 +1470,14 @@ mod image_zoom_tests {
 
     #[test]
     fn render_full_fallback_for_unresolved_images() {
-        let r = TestImageResolver::with_font(10, 20);
+        let mut r = TestImageResolver::with_font(10, 20);
         let renderer = MarkdownRenderer::new(80);
         let blocks = vec![
             MarkdownBlock::Heading1("Title".into()),
             MarkdownBlock::Image { alt: "missing".into(), path: "gone.png".into() },
         ];
         let resolved: Vec<ResolvedImage> = Vec::new();
-        let output = renderer.render_full(&blocks, &TestTheme, &resolved, &r, 70, 20);
+        let output = renderer.render_full(&blocks, &TestTheme, &resolved, &mut r, 70, 20);
 
         assert_eq!(output.images.len(), 0, "no placements for unresolved images");
         let has_fallback = output.lines.iter()
@@ -1499,7 +1499,7 @@ mod image_zoom_tests {
             ResolvedImage { path: "a.webp".into(), image: make_test_img(50, 30) },
             ResolvedImage { path: "b.webp".into(), image: make_test_img(80, 40) },
         ];
-        let output = renderer.render_full(&blocks, &TestTheme, &resolved, &r, 70, 20);
+        let output = renderer.render_full(&blocks, &TestTheme, &resolved, &mut r, 70, 20);
 
         assert_eq!(output.images.len(), 2, "two placements for two images");
         assert!(
@@ -1522,7 +1522,7 @@ mod image_zoom_tests {
             path: "x.png".into(),
             image: make_test_img(64, 32),
         }];
-        let output = renderer.render_full(&blocks, &TestTheme, &resolved, &r, 70, 20);
+        let output = renderer.render_full(&blocks, &TestTheme, &resolved, &mut r, 70, 20);
 
         assert_eq!(output.images.len(), 1);
         let p = &output.images[0];
@@ -1692,7 +1692,7 @@ mod image_zoom_tests {
                 image: make_test_img(40 + i * 10, 20 + i * 5),
             })
             .collect();
-        let output = renderer.render_full(&blocks, &TestTheme, &resolved, &r, 70, 20);
+        let output = renderer.render_full(&blocks, &TestTheme, &resolved, &mut r, 70, 20);
 
         assert_eq!(output.images.len(), 5, "5 images => 5 placements");
         for (i, p) in output.images.iter().enumerate() {
@@ -1719,7 +1719,7 @@ mod image_zoom_tests {
             path: "m.webp".into(),
             image: make_test_img(80, 40),
         }];
-        let output = renderer.render_full(&blocks, &TestTheme, &resolved, &r, 70, 20);
+        let output = renderer.render_full(&blocks, &TestTheme, &resolved, &mut r, 70, 20);
 
         let first_line_has_before = output.lines.first()
             .map(|l| l.spans.iter().any(|s| s.content.contains("before")))

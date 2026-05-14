@@ -25,56 +25,33 @@ use super::image::MarkdownRenderOutput;
 
 const LANG_MERMAID: &str = "mermaid";
 
-struct ListGroupInfo {
-    block_indices: Vec<usize>,
-    #[allow(dead_code)]
-    indent: u8,
-}
-
-fn compute_list_groups(blocks: &[MarkdownBlock]) -> Vec<ListGroupInfo> {
-    use std::collections::HashMap;
-    let mut by_indent: HashMap<u8, Vec<usize>> = HashMap::new();
-    for (i, block) in blocks.iter().enumerate() {
-        if let MarkdownBlock::ListItem(_, indent) = block {
-            by_indent.entry(*indent).or_default().push(i);
+fn find_parent_pos(items: &[(usize, u8)], pos: usize) -> Option<usize> {
+    let indent = items[pos].1;
+    if indent == 0 {
+        return None;
+    }
+    let target = indent - 1;
+    for j in (0..pos).rev() {
+        if items[j].1 == target {
+            return Some(j);
+        } else if items[j].1 < target {
+            break;
         }
     }
-    let mut groups: Vec<ListGroupInfo> = by_indent
-        .into_iter()
-        .map(|(indent, indices)| ListGroupInfo { block_indices: indices, indent })
-        .collect();
-    groups.sort_by_key(|g| g.block_indices.first().copied().unwrap_or(0));
-    groups
+    None
 }
 
-#[allow(dead_code)]
-fn compute_ancestors_are_last(
-    block_idx: usize,
-    groups: &[ListGroupInfo],
-    blocks: &[MarkdownBlock],
-) -> Vec<bool> {
-    let mut ancestors = Vec::new();
-    let target_indent = match &blocks[block_idx] {
-        MarkdownBlock::ListItem(_, indent) => *indent,
-        _ => return ancestors,
-    };
-    if target_indent == 0 {
-        return ancestors;
-    }
-    for depth in 0..target_indent {
-        let check_indent = depth;
-        let mut found_last = false;
-        for group in groups {
-            if group.indent != check_indent {
-                continue;
-            }
-            if group.block_indices.last().map_or(false, |&idx| idx < block_idx) {
-                found_last = group.block_indices.last().copied() == Some(*group.block_indices.last().unwrap());
-            }
+fn has_sibling_after(items: &[(usize, u8)], pos: usize) -> bool {
+    let indent = items[pos].1;
+    let parent = find_parent_pos(items, pos);
+    for j in (pos + 1)..items.len() {
+        if items[j].1 == indent && find_parent_pos(items, j) == parent {
+            return true;
+        } else if items[j].1 < indent {
+            break;
         }
-        ancestors.push(found_last);
     }
-    ancestors
+    false
 }
 
 fn default_image_fallback(alt: &str, path: &str) -> Line<'static> {
@@ -96,10 +73,9 @@ impl MarkdownRenderer {
         theme: &impl RichTextTheme,
     ) -> Vec<Line<'static>> {
         let mut lines = Vec::new();
-        let list_groups = compute_list_groups(blocks);
 
         for (block_idx, block) in blocks.iter().enumerate() {
-            self.render_block(block, block_idx, theme, &list_groups, blocks, &mut lines);
+            self.render_block(block, block_idx, theme, blocks, &mut lines);
         }
 
         lines
@@ -111,12 +87,11 @@ impl MarkdownRenderer {
         blocks: &[MarkdownBlock],
         theme: &impl RichTextTheme,
         resolved_images: &[super::image::ResolvedImage],
-        resolver: &I,
+        resolver: &mut I,
         max_image_width: u16,
         max_image_height: u16,
     ) -> MarkdownRenderOutput {
         let mut output = MarkdownRenderOutput::new();
-        let list_groups = compute_list_groups(blocks);
         let mut next_image_idx = 0;
 
         for (block_idx, block) in blocks.iter().enumerate() {
@@ -124,7 +99,6 @@ impl MarkdownRenderer {
                 block,
                 block_idx,
                 theme,
-                &list_groups,
                 blocks,
                 &mut output.lines,
                 &mut output.images,
@@ -145,13 +119,12 @@ impl MarkdownRenderer {
         block: &MarkdownBlock,
         _block_idx: usize,
         theme: &impl RichTextTheme,
-        list_groups: &[ListGroupInfo],
         _blocks: &[MarkdownBlock],
         lines: &mut Vec<Line<'static>>,
         placements: &mut Vec<super::image::ImagePlacement>,
         resolved_images: &[super::image::ResolvedImage],
         next_image_idx: &mut usize,
-        resolver: &I,
+        resolver: &mut I,
         max_image_width: u16,
         max_image_height: u16,
     ) {
@@ -190,7 +163,7 @@ impl MarkdownRenderer {
                     lines.push(Line::from(resolver.fallback(path, alt)));
                 }
             }
-            _ => self.render_block(block, _block_idx, theme, list_groups, _blocks, lines),
+            _ => self.render_block(block, _block_idx, theme, _blocks, lines),
         }
     }
 
@@ -199,8 +172,7 @@ impl MarkdownRenderer {
         block: &MarkdownBlock,
         block_idx: usize,
         theme: &impl RichTextTheme,
-        list_groups: &[ListGroupInfo],
-        _blocks: &[MarkdownBlock],
+        blocks: &[MarkdownBlock],
         lines: &mut Vec<Line<'static>>,
     ) {
         let hooks = self.hooks.as_deref();
@@ -358,7 +330,7 @@ impl MarkdownRenderer {
             }
             MarkdownBlock::ListItem(text, indent) => {
                 let (is_last, ancestors_are_last, index_in_group) =
-                    Self::find_list_context(block_idx, list_groups);
+                    Self::find_list_context(block_idx, blocks);
 
                 if let Some(h) = hooks {
                     let marker = h.list_item_marker(*indent, is_last, &ancestors_are_last, index_in_group);
@@ -455,60 +427,43 @@ impl MarkdownRenderer {
 
     fn find_list_context(
         block_idx: usize,
-        list_groups: &[ListGroupInfo],
+        blocks: &[MarkdownBlock],
     ) -> (bool, Vec<bool>, usize) {
-        let (target_indent, is_last, pos) = {
-            let mut result = None;
-            for group in list_groups {
-                if let Some(p) = group.block_indices.iter().position(|&i| i == block_idx) {
-                    let is_last = p == group.block_indices.len() - 1;
-                    result = Some((group.indent, is_last, p));
-                    break;
-                }
-            }
-            match result {
-                Some(r) => r,
-                _ => return (true, Vec::new(), 0),
-            }
+        let items: Vec<(usize, u8)> = blocks
+            .iter()
+            .enumerate()
+            .filter_map(|(i, b)| match b {
+                MarkdownBlock::ListItem(_, indent) => Some((i, *indent)),
+                _ => None,
+            })
+            .collect();
+
+        let our_pos = match items.iter().position(|&(i, _)| i == block_idx) {
+            Some(p) => p,
+            None => return (true, Vec::new(), 0),
         };
-        if target_indent == 0 {
-            return (is_last, Vec::new(), pos);
-        }
+
+        let our_indent = items[our_pos].1;
+
+        let is_last = !has_sibling_after(&items, our_pos);
+
         let mut ancestors_are_last = Vec::new();
-        for depth in 0..target_indent {
-            let mut found = false;
-            for group in list_groups {
-                if group.indent != depth {
-                    continue;
-                }
-                let last_idx = *group.block_indices.last().unwrap();
-                if last_idx < block_idx {
-                    ancestors_are_last.push(true);
-                    found = true;
-                    break;
-                } else if group.block_indices.contains(&block_idx) {
-                    ancestors_are_last.push(false);
-                    found = true;
-                    break;
-                } else {
-                    let mut has_before = false;
-                    for &idx in &group.block_indices {
-                        if idx < block_idx {
-                            has_before = true;
-                        } else if idx > block_idx {
-                            break;
-                        }
-                    }
-                    ancestors_are_last.push(!has_before);
-                    found = true;
-                    break;
-                }
-            }
-            if !found {
-                ancestors_are_last.push(false);
-            }
+        let mut anc_pos = find_parent_pos(&items, our_pos);
+        while let Some(p) = anc_pos {
+            ancestors_are_last.push(!has_sibling_after(&items, p));
+            anc_pos = find_parent_pos(&items, p);
         }
-        (is_last, ancestors_are_last, pos)
+        ancestors_are_last.reverse();
+
+        let our_parent = find_parent_pos(&items, our_pos);
+        let index_in_group = items[..our_pos]
+            .iter()
+            .enumerate()
+            .filter(|&(_, &(_, ind))| ind == our_indent)
+            .filter(|&(pos, _)| find_parent_pos(&items, pos) == our_parent)
+            .count();
+
+        (is_last, ancestors_are_last, index_in_group)
     }
 
     fn default_code_block_header(&self, lang: &str, theme: &impl RichTextTheme) -> Line<'static> {

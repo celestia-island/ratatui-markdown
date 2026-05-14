@@ -52,6 +52,14 @@ pub trait RenderHooks {
         None
     }
 
+    fn tree_indent_width(&self) -> Option<usize> {
+        None
+    }
+
+    fn tree_text_gap(&self) -> Option<usize> {
+        None
+    }
+
     fn list_item_content(&self, _text: &str, _indent: u8) -> Option<Vec<Line<'static>>> {
         None
     }

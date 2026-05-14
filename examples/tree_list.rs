@@ -44,16 +44,43 @@ impl RenderHooks for TreeListHooks {
         &self,
         indent: u8,
         is_last_in_group: bool,
-        _ancestors_are_last: &[bool],
+        ancestors_are_last: &[bool],
         _index_in_group: usize,
     ) -> Option<String> {
+        let marker = if is_last_in_group { "\u{2514}\u{2500} " } else { "\u{251c}\u{2500} " };
         if indent == 0 {
-            let marker = if is_last_in_group { "\u{2514}\u{2500} " } else { "\u{251c}\u{2500} " };
-            Some(marker.to_string())
-        } else {
-            let marker = if is_last_in_group { "\u{2514}\u{2500} " } else { "\u{251c}\u{2500} " };
-            Some(format!("{}\u{2502}  {}", "   ".repeat(indent as usize - 1), marker))
+            return Some(marker.to_string());
         }
+        let mut prefix = String::new();
+        for (depth, &is_last_ancestor) in ancestors_are_last.iter().enumerate() {
+            if depth >= indent as usize - 1 {
+                break;
+            }
+            if is_last_ancestor {
+                push_repeat(&mut prefix, ' ', 3);
+            } else {
+                prefix.push_str("\u{2502}  ");
+            }
+        }
+        if (indent as usize - 1) > ancestors_are_last.len() {
+            let extra = (indent as usize - 1).saturating_sub(ancestors_are_last.len());
+            push_repeat(&mut prefix, ' ', 3 * extra);
+        }
+        Some(format!("{}{}", prefix, marker))
+    }
+
+    fn tree_indent_width(&self) -> Option<usize> {
+        Some(3)
+    }
+
+    fn tree_text_gap(&self) -> Option<usize> {
+        Some(0)
+    }
+}
+
+fn push_repeat(s: &mut String, ch: char, n: usize) {
+    for _ in 0..n {
+        s.push(ch);
     }
 }
 

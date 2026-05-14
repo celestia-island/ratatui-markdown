@@ -51,7 +51,7 @@ pub trait ImageResolver {
     /// Override this when you have exact knowledge of your terminal's cell size
     /// or want to constrain images differently.
     fn cell_dimensions(
-        &self,
+        &mut self,
         img: &image::DynamicImage,
         max_width: u16,
         _max_height: u16,
