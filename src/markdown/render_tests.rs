@@ -1750,3 +1750,768 @@ mod image_zoom_tests {
         }
     }
 }
+
+// ==================== Example Integration Tests ====================
+//
+// Tests that exercise the exact patterns used by each example in examples/.
+// These verify the library APIs work correctly for real-world usage.
+
+mod example_basic_tests {
+    use super::*;
+
+    const BASIC_MARKDOWN: &str = r#"
+# Getting Started
+
+This is a **basic** markdown rendering example using `ratatui-markdown`.
+
+## Features
+
+- Headings (H1, H2, H3)
+- **Bold**, *italic*, and `inline code`
+- Code blocks with syntax labels
+- Blockquotes
+- Tables
+
+### Code Example
+
+```rust
+fn main() {
+    println!("Hello, world!");
+}
+```
+
+> This is a blockquote. It supports *inline formatting* too.
+
+### Table
+
+| Feature | Status |
+|---------|--------|
+| Parser  | Done   |
+| Renderer| Done   |
+| Hooks   | Done   |
+
+---
+
+Press `q` to quit.
+"#;
+
+    #[test]
+    fn basic_example_parses_all_block_types() {
+        let renderer = MarkdownRenderer::new(76);
+        let blocks = renderer.parse(BASIC_MARKDOWN);
+        assert!(blocks.len() > 10, "should parse many blocks, got {}", blocks.len());
+
+        let has_heading1 = blocks.iter().any(|b| matches!(b, MarkdownBlock::Heading1(_)));
+        let has_heading2 = blocks.iter().any(|b| matches!(b, MarkdownBlock::Heading2(_)));
+        let has_heading3 = blocks.iter().any(|b| matches!(b, MarkdownBlock::Heading3(_)));
+        let has_paragraph = blocks.iter().any(|b| matches!(b, MarkdownBlock::Paragraph(_)));
+        let has_list = blocks.iter().any(|b| matches!(b, MarkdownBlock::ListItem(_, _)));
+        let has_code = blocks.iter().any(|b| matches!(b, MarkdownBlock::CodeBlock { .. }));
+        let has_quote = blocks.iter().any(|b| matches!(b, MarkdownBlock::Blockquote(_)));
+        let has_table = blocks.iter().any(|b| matches!(b, MarkdownBlock::Table { .. }));
+        let has_hr = blocks.iter().any(|b| matches!(b, MarkdownBlock::HorizontalRule));
+        assert!(has_heading1, "should have H1");
+        assert!(has_heading2, "should have H2");
+        assert!(has_heading3, "should have H3");
+        assert!(has_paragraph, "should have paragraphs");
+        assert!(has_list, "should have list items");
+        assert!(has_code, "should have code block");
+        assert!(has_quote, "should have blockquote");
+        assert!(has_table, "should have table");
+        assert!(has_hr, "should have horizontal rule");
+    }
+
+    #[test]
+    fn basic_example_render_produces_lines() {
+        let renderer = MarkdownRenderer::new(76);
+        let blocks = renderer.parse(BASIC_MARKDOWN);
+        let lines = renderer.render(&blocks, &TestTheme);
+        assert!(!lines.is_empty(), "should produce output lines");
+        assert!(lines.len() > 15, "should produce many lines for a rich document, got {}", lines.len());
+    }
+
+    #[test]
+    fn basic_example_render_to_buffer_no_panic() {
+        let renderer = MarkdownRenderer::new(76);
+        let blocks = renderer.parse(BASIC_MARKDOWN);
+        let lines = renderer.render(&blocks, &TestTheme);
+        let buffer = render_to_buffer(lines, 80, 40);
+        assert_eq!(buffer.area.width, 80);
+        assert_eq!(buffer.area.height, 40);
+    }
+
+    #[test]
+    fn basic_example_heading1_contains_getting_started() {
+        let renderer = MarkdownRenderer::new(76);
+        let blocks = renderer.parse(BASIC_MARKDOWN);
+        let lines = renderer.render(&blocks, &TestTheme);
+        let found = lines.iter().any(|l| {
+            l.spans.iter().any(|s| s.content.contains("Getting Started"))
+        });
+        assert!(found, "H1 'Getting Started' should appear in rendered output");
+    }
+
+    #[test]
+    fn basic_example_code_block_has_rust_label() {
+        let renderer = MarkdownRenderer::new(76);
+        let blocks = renderer.parse(BASIC_MARKDOWN);
+        let lines = renderer.render(&blocks, &TestTheme);
+        let found = lines.iter().any(|l| {
+            l.spans.iter().any(|s| s.content.contains("rust"))
+        });
+        assert!(found, "code block should have 'rust' language label");
+    }
+
+    #[test]
+    fn basic_example_table_has_borders() {
+        let renderer = MarkdownRenderer::new(76);
+        let blocks = renderer.parse(BASIC_MARKDOWN);
+        let lines = renderer.render(&blocks, &TestTheme);
+        let has_border = lines.iter().any(|l| {
+            l.spans.iter().any(|s| s.content.contains("│") || s.content.contains("─"))
+        });
+        assert!(has_border, "table should have border characters");
+    }
+}
+
+mod example_custom_code_block_tests {
+    use super::*;
+
+    struct TimelineCodeHooks;
+
+    impl RenderHooks for TimelineCodeHooks {
+        fn code_block_header(&self, lang: &str) -> Option<Line<'static>> {
+            Some(Line::from(vec![
+                Span::styled(
+                    format!("╭ [12:00:00] "),
+                    Style::default().fg(Color::DarkGray),
+                ),
+                Span::styled(
+                    lang.to_string(),
+                    Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                ),
+            ]))
+        }
+
+        fn code_block_footer(&self, _lang: &str, _content_line_count: usize) -> Option<Line<'static>> {
+            Some(Line::from(vec![
+                Span::styled("╰ ", Style::default().fg(Color::DarkGray)),
+                Span::styled("↑ ", Style::default().fg(Color::Green)),
+                Span::styled("156 ", Style::default().fg(Color::DarkGray)),
+            ]))
+        }
+
+        fn code_block_line_prefix(&self, _lang: &str) -> Option<String> {
+            Some("│ ".to_string())
+        }
+    }
+
+    const TIMELINE_MARKDOWN: &str = r#"
+# Timeline View
+
+## Agent Skill Execution
+
+```rust skill::read_file
+use std::fs;
+let content = fs::read_to_string("PLAN.md")?;
+println!("{}", content);
+```
+
+## Another Block
+
+```python skill::analyze
+def analyze(data):
+    for item in data:
+        yield process(item)
+```
+"#;
+
+    #[test]
+    fn timeline_hook_custom_header_appears() {
+        let renderer = MarkdownRenderer::new(76)
+            .with_render_hooks(Box::new(TimelineCodeHooks));
+        let blocks = renderer.parse(TIMELINE_MARKDOWN);
+        let lines = renderer.render(&blocks, &TestTheme);
+        let found = lines.iter().any(|l| {
+            l.spans.iter().any(|s| s.content.contains("12:00:00"))
+        });
+        assert!(found, "custom header with timestamp should appear");
+    }
+
+    #[test]
+    fn timeline_hook_custom_footer_appears() {
+        let renderer = MarkdownRenderer::new(76)
+            .with_render_hooks(Box::new(TimelineCodeHooks));
+        let blocks = renderer.parse(TIMELINE_MARKDOWN);
+        let lines = renderer.render(&blocks, &TestTheme);
+        let found = lines.iter().any(|l| {
+            l.spans.iter().any(|s| s.content.contains("↑"))
+        });
+        assert!(found, "custom footer with arrows should appear");
+    }
+
+    #[test]
+    fn timeline_hook_line_prefix_appears() {
+        let renderer = MarkdownRenderer::new(76)
+            .with_render_hooks(Box::new(TimelineCodeHooks));
+        let blocks = renderer.parse(TIMELINE_MARKDOWN);
+        let lines = renderer.render(&blocks, &TestTheme);
+        let found = lines.iter().any(|l| {
+            l.spans.iter().any(|s| s.content.contains("│ "))
+        });
+        assert!(found, "custom line prefix │ should appear");
+    }
+
+    #[test]
+    fn timeline_hook_lang_label_in_header() {
+        let renderer = MarkdownRenderer::new(76)
+            .with_render_hooks(Box::new(TimelineCodeHooks));
+        let blocks = renderer.parse(TIMELINE_MARKDOWN);
+        let lines = renderer.render(&blocks, &TestTheme);
+        let has_rust = lines.iter().any(|l| {
+            l.spans.iter().any(|s| s.content.contains("rust"))
+        });
+        let has_python = lines.iter().any(|l| {
+            l.spans.iter().any(|s| s.content.contains("python"))
+        });
+        assert!(has_rust, "rust language should appear in header");
+        assert!(has_python, "python language should appear in header");
+    }
+
+    #[test]
+    fn timeline_hook_two_code_blocks_both_customized() {
+        let renderer = MarkdownRenderer::new(76)
+            .with_render_hooks(Box::new(TimelineCodeHooks));
+        let blocks = renderer.parse(TIMELINE_MARKDOWN);
+        let lines = renderer.render(&blocks, &TestTheme);
+        let footer_count = lines.iter().filter(|l| {
+            l.spans.iter().any(|s| s.content.contains("↑"))
+        }).count();
+        assert_eq!(footer_count, 2, "both code blocks should have custom footer");
+    }
+
+    #[test]
+    fn timeline_hook_renders_to_buffer_without_panic() {
+        let renderer = MarkdownRenderer::new(76)
+            .with_render_hooks(Box::new(TimelineCodeHooks));
+        let blocks = renderer.parse(TIMELINE_MARKDOWN);
+        let lines = renderer.render(&blocks, &TestTheme);
+        let buffer = render_to_buffer(lines, 80, 30);
+        assert_eq!(buffer.area.width, 80);
+    }
+}
+
+mod example_tree_list_tests {
+    use super::*;
+
+    struct TreeListHooks;
+
+    impl RenderHooks for TreeListHooks {
+        fn list_item_marker(
+            &self,
+            indent: u8,
+            is_last_in_group: bool,
+            ancestors_are_last: &[bool],
+            _index_in_group: usize,
+        ) -> Option<String> {
+            let marker = if is_last_in_group { "└─ " } else { "├─ " };
+            if indent == 0 {
+                return Some(marker.to_string());
+            }
+            let mut prefix = String::new();
+            for (depth, &is_last_ancestor) in ancestors_are_last.iter().enumerate() {
+                if depth >= indent as usize - 1 {
+                    break;
+                }
+                if is_last_ancestor {
+                    for _ in 0..3 { prefix.push(' '); }
+                } else {
+                    prefix.push_str("│  ");
+                }
+            }
+            if (indent as usize - 1) > ancestors_are_last.len() {
+                let extra = (indent as usize - 1).saturating_sub(ancestors_are_last.len());
+                for _ in 0..3 * extra { prefix.push(' '); }
+            }
+            Some(format!("{}{}", prefix, marker))
+        }
+
+        fn tree_indent_width(&self) -> Option<usize> { Some(3) }
+        fn tree_text_gap(&self) -> Option<usize> { Some(0) }
+    }
+
+    const TREE_MARKDOWN: &str = r#"
+## Project TODO
+
+- Setup project structure
+  - Initialize Cargo workspace
+  - Add dependencies
+    - ratatui
+    - image crate
+- Implement core features
+  - Parser
+    - Heading detection
+    - Code block parsing
+  - Renderer
+- Write tests
+- Deploy to crates.io
+"#;
+
+    #[test]
+    fn tree_hook_root_items_have_tree_markers() {
+        let renderer = MarkdownRenderer::new(76)
+            .with_render_hooks(Box::new(TreeListHooks));
+        let blocks = renderer.parse(TREE_MARKDOWN);
+        let lines = renderer.render(&blocks, &TestTheme);
+        let has_tree_marker = lines.iter().any(|l| {
+            l.spans.iter().any(|s| s.content.contains("├─") || s.content.contains("└─"))
+        });
+        assert!(has_tree_marker, "tree markers should appear in output");
+    }
+
+    #[test]
+    fn tree_hook_nested_items_have_pipe_prefix() {
+        let renderer = MarkdownRenderer::new(76)
+            .with_render_hooks(Box::new(TreeListHooks));
+        let blocks = renderer.parse(TREE_MARKDOWN);
+        let lines = renderer.render(&blocks, &TestTheme);
+        let all_text: String = lines.iter()
+            .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
+            .collect::<Vec<&str>>()
+            .join("");
+        assert!(all_text.contains("│"), "nested items should have │ pipe prefix");
+    }
+
+    #[test]
+    fn tree_hook_last_item_uses_corner_marker() {
+        let renderer = MarkdownRenderer::new(76)
+            .with_render_hooks(Box::new(TreeListHooks));
+        let blocks = renderer.parse(TREE_MARKDOWN);
+        let lines = renderer.render(&blocks, &TestTheme);
+        let has_corner = lines.iter().any(|l| {
+            l.spans.iter().any(|s| s.content.contains("└─"))
+        });
+        assert!(has_corner, "last items should use └─ corner marker");
+    }
+
+    #[test]
+    fn tree_hook_all_list_content_preserved() {
+        let renderer = MarkdownRenderer::new(76)
+            .with_render_hooks(Box::new(TreeListHooks));
+        let blocks = renderer.parse(TREE_MARKDOWN);
+        let lines = renderer.render(&blocks, &TestTheme);
+        let all_text: String = lines.iter()
+            .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
+            .collect::<Vec<&str>>()
+            .join("");
+        assert!(all_text.contains("Setup project structure"), "content preserved");
+        assert!(all_text.contains("Initialize Cargo workspace"), "nested content preserved");
+        assert!(all_text.contains("ratatui"), "deeply nested content preserved");
+        assert!(all_text.contains("Deploy to crates.io"), "last item content preserved");
+    }
+
+    #[test]
+    fn tree_hook_render_to_buffer_no_panic() {
+        let renderer = MarkdownRenderer::new(76)
+            .with_render_hooks(Box::new(TreeListHooks));
+        let blocks = renderer.parse(TREE_MARKDOWN);
+        let lines = renderer.render(&blocks, &TestTheme);
+        let buffer = render_to_buffer(lines, 80, 40);
+        assert_eq!(buffer.area.height, 40);
+    }
+
+    #[test]
+    fn tree_hook_indent_depth_3_has_correct_prefix() {
+        let renderer = MarkdownRenderer::new(76)
+            .with_render_hooks(Box::new(TreeListHooks));
+        let md = "- A\n  - B\n    - C\n    - D\n  - E\n- F";
+        let blocks = renderer.parse(md);
+        let lines = renderer.render(&blocks, &TestTheme);
+        let all_text: String = lines.iter()
+            .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
+            .collect::<Vec<&str>>()
+            .join("");
+        assert!(all_text.contains("C"), "depth-3 item C should appear");
+        assert!(all_text.contains("D"), "depth-3 item D should appear");
+        assert!(all_text.contains("E"), "depth-1 item E should appear");
+    }
+}
+
+mod example_scrollable_tests {
+    use super::*;
+
+    struct ScrollState {
+        v_offset: usize,
+        h_offset: usize,
+        total_lines: usize,
+        max_line_width: usize,
+        pad_top: u16,
+        pad_bottom: u16,
+        pad_left: u16,
+        pad_right: u16,
+    }
+
+    impl ScrollState {
+        fn new(total_lines: usize, max_line_width: usize) -> Self {
+            Self {
+                v_offset: 0,
+                h_offset: 0,
+                total_lines,
+                max_line_width,
+                pad_top: 1,
+                pad_bottom: 1,
+                pad_left: 2,
+                pad_right: 2,
+            }
+        }
+
+        fn viewport_height(&self, area_height: u16) -> usize {
+            area_height.saturating_sub(self.pad_top + self.pad_bottom) as usize
+        }
+
+        fn viewport_width(&self, area_width: u16) -> usize {
+            area_width.saturating_sub(self.pad_left + self.pad_right) as usize
+        }
+
+        fn max_v_offset(&self, area_height: u16) -> usize {
+            self.total_lines.saturating_sub(self.viewport_height(area_height))
+        }
+
+        fn max_h_offset(&self, area_width: u16) -> usize {
+            self.max_line_width.saturating_sub(self.viewport_width(area_width))
+        }
+
+        fn clamp(&mut self, area: Rect) {
+            self.v_offset = self.v_offset.min(self.max_v_offset(area.height));
+            self.h_offset = self.h_offset.min(self.max_h_offset(area.width));
+        }
+
+        fn scroll_v(&mut self, delta: isize, area: Rect) {
+            if delta >= 0 {
+                self.v_offset = self.v_offset.saturating_add(delta as usize);
+            } else {
+                self.v_offset = self.v_offset.saturating_sub((-delta) as usize);
+            }
+            self.clamp(area);
+        }
+
+        fn scroll_h(&mut self, delta: isize, area: Rect) {
+            if delta >= 0 {
+                self.h_offset = self.h_offset.saturating_add(delta as usize);
+            } else {
+                self.h_offset = self.h_offset.saturating_sub((-delta) as usize);
+            }
+            self.clamp(area);
+        }
+
+        fn page_up(&mut self, area: Rect) {
+            let step = self.viewport_height(area.height).max(1);
+            self.scroll_v(-(step as isize), area);
+        }
+
+        fn page_down(&mut self, area: Rect) {
+            let step = self.viewport_height(area.height).max(1);
+            self.scroll_v(step as isize, area);
+        }
+    }
+
+    fn area(w: u16, h: u16) -> Rect { Rect::new(0, 0, w, h) }
+
+    #[test]
+    fn scroll_state_initial_offsets_zero() {
+        let s = ScrollState::new(100, 200);
+        assert_eq!(s.v_offset, 0);
+        assert_eq!(s.h_offset, 0);
+    }
+
+    #[test]
+    fn scroll_state_viewport_dimensions() {
+        let s = ScrollState::new(100, 200);
+        let vp_h = s.viewport_height(24);
+        let vp_w = s.viewport_width(80);
+        assert_eq!(vp_h, 22, "24 - pad_top(1) - pad_bottom(1) = 22");
+        assert_eq!(vp_w, 76, "80 - pad_left(2) - pad_right(2) = 76");
+    }
+
+    #[test]
+    fn scroll_state_max_v_offset() {
+        let s = ScrollState::new(100, 80);
+        let max_v = s.max_v_offset(24);
+        assert_eq!(max_v, 78, "100 - 22 viewport = 78");
+    }
+
+    #[test]
+    fn scroll_state_max_h_offset() {
+        let s = ScrollState::new(50, 200);
+        let max_h = s.max_h_offset(80);
+        assert_eq!(max_h, 124, "200 - 76 viewport = 124");
+    }
+
+    #[test]
+    fn scroll_state_clamp_v_offset() {
+        let mut s = ScrollState::new(50, 80);
+        s.v_offset = 100;
+        s.clamp(area(80, 24));
+        assert_eq!(s.v_offset, 28, "clamped to 50 - 22 = 28");
+    }
+
+    #[test]
+    fn scroll_state_clamp_h_offset() {
+        let mut s = ScrollState::new(50, 100);
+        s.h_offset = 200;
+        s.clamp(area(80, 24));
+        assert_eq!(s.h_offset, 24, "clamped to 100 - 76 = 24");
+    }
+
+    #[test]
+    fn scroll_state_scroll_down() {
+        let mut s = ScrollState::new(100, 80);
+        s.scroll_v(5, area(80, 24));
+        assert_eq!(s.v_offset, 5);
+    }
+
+    #[test]
+    fn scroll_state_scroll_up_from_zero() {
+        let mut s = ScrollState::new(100, 80);
+        s.scroll_v(-5, area(80, 24));
+        assert_eq!(s.v_offset, 0, "can't scroll above 0");
+    }
+
+    #[test]
+    fn scroll_state_scroll_down_clamps_at_max() {
+        let mut s = ScrollState::new(30, 80);
+        s.scroll_v(100, area(80, 24));
+        assert_eq!(s.v_offset, 8, "clamped to 30 - 22 = 8");
+    }
+
+    #[test]
+    fn scroll_state_scroll_horizontal() {
+        let mut s = ScrollState::new(50, 200);
+        s.scroll_h(10, area(80, 24));
+        assert_eq!(s.h_offset, 10);
+    }
+
+    #[test]
+    fn scroll_state_scroll_horizontal_clamps() {
+        let mut s = ScrollState::new(50, 100);
+        s.scroll_h(200, area(80, 24));
+        assert_eq!(s.h_offset, 24, "clamped to 100 - 76 = 24");
+    }
+
+    #[test]
+    fn scroll_state_page_down() {
+        let mut s = ScrollState::new(200, 80);
+        s.page_down(area(80, 24));
+        assert_eq!(s.v_offset, 22, "page down by viewport height");
+    }
+
+    #[test]
+    fn scroll_state_page_up() {
+        let mut s = ScrollState::new(200, 80);
+        s.v_offset = 50;
+        s.page_up(area(80, 24));
+        assert_eq!(s.v_offset, 28, "50 - 22 = 28");
+    }
+
+    #[test]
+    fn scroll_state_page_up_at_top() {
+        let mut s = ScrollState::new(200, 80);
+        s.page_up(area(80, 24));
+        assert_eq!(s.v_offset, 0);
+    }
+
+    #[test]
+    fn scroll_state_content_fits_viewport_no_scroll() {
+        let mut s = ScrollState::new(10, 50);
+        s.scroll_v(5, area(80, 24));
+        assert_eq!(s.v_offset, 0, "content fits, offset stays 0");
+    }
+
+    #[test]
+    fn scrollable_example_render_and_measure() {
+        let md = "# Scrollable\n\nLine 1\nLine 2\nLine 3\nLine 4\nLine 5\n";
+        let renderer = MarkdownRenderer::new(120);
+        let blocks = renderer.parse(md);
+        let lines = renderer.render(&blocks, &TestTheme);
+        let max_w = lines.iter().map(|l| {
+            l.spans.iter().map(|s| unicode_width::UnicodeWidthStr::width(s.content.as_ref())).sum::<usize>()
+        }).max().unwrap_or(0);
+        let mut scroll = ScrollState::new(lines.len(), max_w);
+        assert!(scroll.total_lines > 0);
+        assert!(scroll.max_line_width > 0);
+        scroll.scroll_v(1, area(80, 24));
+        assert!(scroll.v_offset <= scroll.max_v_offset(24));
+    }
+}
+
+#[cfg(feature = "image")]
+mod example_image_tests {
+    use super::*;
+    use crate::markdown::image::{ImageResolver, ResolvedImage};
+
+    struct PerImageResolver {
+        font_w: u16,
+        font_h: u16,
+        counter: usize,
+        max_heights: Vec<u16>,
+    }
+
+    impl PerImageResolver {
+        fn new(fw: u16, fh: u16, max_heights: Vec<u16>) -> Self {
+            Self { font_w: fw, font_h: fh, counter: 0, max_heights }
+        }
+        fn reset(&mut self) { self.counter = 0; }
+    }
+
+    impl ImageResolver for PerImageResolver {
+        fn resolve(&mut self, _path: &str) -> Option<image::DynamicImage> { None }
+
+        fn cell_dimensions(
+            &mut self,
+            img: &image::DynamicImage,
+            max_width: u16,
+            _max_height: u16,
+        ) -> (u16, u16) {
+            let max_h = self.max_heights.get(self.counter).copied().unwrap_or(3);
+            self.counter += 1;
+            let pw = img.width();
+            let ph = img.height();
+            if pw == 0 || ph == 0 || self.font_w == 0 || max_width == 0 {
+                return (0, 0);
+            }
+            let w_cells = (pw as f64 / self.font_w as f64).ceil() as u16;
+            let w = w_cells.min(max_width);
+            let h_cells = (ph as f64 * w as f64 / self.font_w as f64 / self.font_h as f64).ceil() as u16;
+            let h = h_cells.min(max_h);
+            (w.max(1), h.max(1))
+        }
+    }
+
+    fn make_img(w: u32, h: u32) -> image::DynamicImage {
+        let buf = image::ImageBuffer::from_fn(w, h, |_, _| image::Rgb([128u8, 128, 128]));
+        image::DynamicImage::ImageRgb8(buf)
+    }
+
+    #[test]
+    fn per_image_resolver_limits_logo_to_2_lines() {
+        let mut r = PerImageResolver::new(9, 18, vec![2, 3]);
+        let img = make_img(300, 300);
+        let (_, h) = r.cell_dimensions(&img, 70, 20);
+        assert_eq!(h, 2, "first image should be capped at 2 lines");
+    }
+
+    #[test]
+    fn per_image_resolver_limits_demo_to_3_lines() {
+        let mut r = PerImageResolver::new(9, 18, vec![2, 3]);
+        let img = make_img(300, 300);
+        let _ = r.cell_dimensions(&img, 70, 20);
+        let (_, h) = r.cell_dimensions(&img, 70, 20);
+        assert_eq!(h, 3, "second image should be capped at 3 lines");
+    }
+
+    #[test]
+    fn per_image_resolver_counter_resets() {
+        let mut r = PerImageResolver::new(9, 18, vec![2, 3]);
+        let img = make_img(300, 300);
+        let _ = r.cell_dimensions(&img, 70, 20);
+        let _ = r.cell_dimensions(&img, 70, 20);
+        r.reset();
+        let (_, h) = r.cell_dimensions(&img, 70, 20);
+        assert_eq!(h, 2, "after reset, first image cap (2) applies again");
+    }
+
+    #[test]
+    fn image_example_render_full_with_two_capped_images() {
+        let renderer = MarkdownRenderer::new(76);
+        let blocks = vec![
+            MarkdownBlock::Image { alt: "logo".into(), path: "logo.webp".into() },
+            MarkdownBlock::Paragraph(vec!["between".into()]),
+            MarkdownBlock::Image { alt: "demo".into(), path: "demo.webp".into() },
+        ];
+        let resolved = vec![
+            ResolvedImage { path: "logo.webp".into(), image: make_img(300, 300) },
+            ResolvedImage { path: "demo.webp".into(), image: make_img(600, 400) },
+        ];
+        let mut r = PerImageResolver::new(9, 18, vec![2, 3]);
+        let output = renderer.render_full(&blocks, &TestTheme, &resolved, &mut r, 70, 20);
+        assert_eq!(output.images.len(), 2);
+        assert_eq!(output.images[0].height_cells, 2, "logo capped at 2");
+        assert_eq!(output.images[1].height_cells, 3, "demo capped at 3");
+    }
+
+    #[test]
+    fn image_example_zoom_changes_placement_dimensions() {
+        let renderer = MarkdownRenderer::new(76);
+        let blocks = vec![
+            MarkdownBlock::Image { alt: "test".into(), path: "t.webp".into() },
+        ];
+
+        let img = make_img(100, 100);
+        let resolved_base = vec![
+            ResolvedImage { path: "t.webp".into(), image: img.clone() },
+        ];
+
+        let mut r1 = PerImageResolver::new(9, 18, vec![10]);
+        let output1 = renderer.render_full(&blocks, &TestTheme, &resolved_base, &mut r1, 70, 20);
+
+        let zoomed = img.resize_exact(200, 200, image::imageops::FilterType::Triangle);
+        let resolved_zoomed = vec![
+            ResolvedImage { path: "t.webp".into(), image: zoomed },
+        ];
+
+        let mut r2 = PerImageResolver::new(9, 18, vec![10]);
+        let output2 = renderer.render_full(&blocks, &TestTheme, &resolved_zoomed, &mut r2, 70, 20);
+
+        assert!(
+            output2.images[0].height_cells >= output1.images[0].height_cells,
+            "zoomed image should have >= height: {} vs {}",
+            output2.images[0].height_cells, output1.images[0].height_cells,
+        );
+    }
+
+    #[test]
+    fn image_example_rerender_on_resolver_reset() {
+        let renderer = MarkdownRenderer::new(76);
+        let blocks = vec![
+            MarkdownBlock::Image { alt: "a".into(), path: "a.webp".into() },
+            MarkdownBlock::Image { alt: "b".into(), path: "b.webp".into() },
+        ];
+        let resolved = vec![
+            ResolvedImage { path: "a.webp".into(), image: make_img(200, 100) },
+            ResolvedImage { path: "b.webp".into(), image: make_img(400, 300) },
+        ];
+
+        let mut r = PerImageResolver::new(9, 18, vec![2, 3]);
+        let out1 = renderer.render_full(&blocks, &TestTheme, &resolved, &mut r, 70, 20);
+        assert_eq!(out1.images[0].height_cells, 2);
+        assert_eq!(out1.images[1].height_cells, 3);
+
+        r.reset();
+        let out2 = renderer.render_full(&blocks, &TestTheme, &resolved, &mut r, 70, 20);
+        assert_eq!(out2.images[0].height_cells, 2, "after reset, same caps apply");
+        assert_eq!(out2.images[1].height_cells, 3);
+    }
+
+    #[test]
+    fn image_example_blank_lines_match_height_cells() {
+        let renderer = MarkdownRenderer::new(76);
+        let blocks = vec![
+            MarkdownBlock::Paragraph(vec!["before".into()]),
+            MarkdownBlock::Image { alt: "logo".into(), path: "logo.webp".into() },
+            MarkdownBlock::Paragraph(vec!["after".into()]),
+        ];
+        let resolved = vec![
+            ResolvedImage { path: "logo.webp".into(), image: make_img(200, 200) },
+        ];
+        let mut r = PerImageResolver::new(9, 18, vec![2]);
+        let output = renderer.render_full(&blocks, &TestTheme, &resolved, &mut r, 70, 20);
+
+        let img = &output.images[0];
+        let row = img.row;
+        let height = img.height_cells as usize;
+        let blank_count = output.lines[row..row + height].iter()
+            .filter(|l| l.spans.is_empty() || l.spans.iter().all(|s| s.content.is_empty()))
+            .count();
+        assert_eq!(blank_count, height, "should have {} blank lines for image, got {}", height, blank_count);
+    }
+}
