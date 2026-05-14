@@ -32,7 +32,7 @@ unicode-width = "^0.2"
 [dev-dependencies]
 anyhow = "^1"
 crossterm = "^0.28"
-ratatui-image = "^1.0"
+ratatui-image = { version = "9", default-features = false, features = ["crossterm"] }
 
 [[example]]
 name = "image"
