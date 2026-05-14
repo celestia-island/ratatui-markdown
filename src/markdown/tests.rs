@@ -265,7 +265,7 @@ fn table_hline_and_row_same_display_width() {
     let hline_w: usize = hline.chars().map(MarkdownRenderer::display_width).sum();
     assert_eq!(hline_w, 10 + 8 + 12 + 4);
 
-    let cells = vec!["abc".to_string(), "de".to_string(), "fgh".to_string()];
+    let cells = ["abc".to_string(), "de".to_string(), "fgh".to_string()];
     let theme = TestTheme;
     let cell_spans: Vec<Vec<Span<'static>>> = cells
         .iter()
@@ -290,7 +290,7 @@ fn table_hline_and_row_same_display_width() {
 fn table_cjk_cells_aligned() {
     let col_widths: Vec<usize> = vec![12, 12];
     let theme = TestTheme;
-    let cells = vec!["你好世界".to_string(), "テスト".to_string()];
+    let cells = ["你好世界".to_string(), "テスト".to_string()];
     let cell_spans: Vec<Vec<Span<'static>>> = cells
         .iter()
         .map(|s| {
