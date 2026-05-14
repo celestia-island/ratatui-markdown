@@ -31,3 +31,8 @@ unicode-width = "^0.2"
 
 [dev-dependencies]
 anyhow = "^1"
+crossterm = "^0.28"
+
+[[example]]
+name = "image"
+required-features = ["image"]

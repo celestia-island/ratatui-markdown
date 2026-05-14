@@ -1,0 +1,118 @@
+use ratatui::{
+    backend::CrosstermBackend,
+    crossterm::{
+        event::{self, Event, KeyCode},
+        terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    },
+    layout::Rect,
+    style::Color,
+    widgets::{Block, Borders, Paragraph, Wrap},
+    Terminal,
+};
+use ratatui_markdown::{
+    markdown::MarkdownRenderer,
+    theme::{Generation, RichTextTheme},
+};
+use ratatui_markdown::markdown::RenderHooks;
+
+struct Theme;
+
+impl RichTextTheme for Theme {
+    fn generation(&self) -> Generation { Generation(1) }
+    fn get_text_color(&self) -> Color { Color::White }
+    fn get_muted_text_color(&self) -> Color { Color::DarkGray }
+    fn get_primary_color(&self) -> Color { Color::Cyan }
+    fn get_secondary_color(&self) -> Color { Color::Blue }
+    fn get_info_color(&self) -> Color { Color::LightBlue }
+    fn get_background_color(&self) -> Color { Color::Black }
+    fn get_border_color(&self) -> Color { Color::DarkGray }
+    fn get_focused_border_color(&self) -> Color { Color::White }
+    fn get_popup_selected_background(&self) -> Color { Color::DarkGray }
+    fn get_popup_selected_text_color(&self) -> Color { Color::White }
+    fn get_json_key_color(&self) -> Color { Color::LightCyan }
+    fn get_json_string_color(&self) -> Color { Color::Green }
+    fn get_json_number_color(&self) -> Color { Color::Yellow }
+    fn get_json_bool_color(&self) -> Color { Color::Magenta }
+    fn get_json_null_color(&self) -> Color { Color::DarkGray }
+    fn get_accent_yellow(&self) -> Color { Color::Yellow }
+}
+
+struct TreeListHooks;
+
+impl RenderHooks for TreeListHooks {
+    fn list_item_marker(
+        &self,
+        indent: u8,
+        is_last_in_group: bool,
+        _ancestors_are_last: &[bool],
+        _index_in_group: usize,
+    ) -> Option<String> {
+        if indent == 0 {
+            let marker = if is_last_in_group { "\u{2514}\u{2500} " } else { "\u{251c}\u{2500} " };
+            Some(marker.to_string())
+        } else {
+            let marker = if is_last_in_group { "\u{2514}\u{2500} " } else { "\u{251c}\u{2500} " };
+            Some(format!("{}\u{2502}  {}", "   ".repeat(indent as usize - 1), marker))
+        }
+    }
+}
+
+const MARKDOWN: &str = r#"
+## Project TODO
+
+- Setup project structure
+  - Initialize Cargo workspace
+  - Add dependencies
+    - ratatui
+    - image crate
+- Implement core features
+  - Parser
+    - Heading detection
+    - Code block parsing
+    - Image syntax
+  - Renderer
+    - Inline formatting
+    - Code block borders
+  - Hooks system
+- Write tests
+- Deploy to crates.io
+
+Press `q` to quit.
+"#;
+
+fn main() -> anyhow::Result<()> {
+    enable_raw_mode()?;
+    let mut stdout = std::io::stdout();
+    crossterm::execute!(stdout, EnterAlternateScreen)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+
+    let theme = Theme;
+    let renderer = MarkdownRenderer::new(76)
+        .with_render_hooks(Box::new(TreeListHooks));
+    let blocks = renderer.parse(MARKDOWN);
+    let lines = renderer.render(&blocks, &theme);
+
+    loop {
+        terminal.draw(|f| {
+            let area = f.area();
+            let inner = Rect::new(area.x + 1, area.y + 1, area.width.saturating_sub(2), area.height.saturating_sub(2));
+            let paragraph = Paragraph::new(lines.clone())
+                .block(Block::default().borders(Borders::ALL).title(" Tree-Style List Example "))
+                .wrap(Wrap { trim: false });
+            f.render_widget(paragraph, inner);
+        })?;
+
+        if event::poll(std::time::Duration::from_millis(100))? {
+            if let Event::Key(key) = event::read()? {
+                if key.code == KeyCode::Char('q') {
+                    break;
+                }
+            }
+        }
+    }
+
+    disable_raw_mode()?;
+    crossterm::execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+    Ok(())
+}
