@@ -177,13 +177,23 @@ fn code_block_without_lang_renders_minimal_header() {
 }
 
 #[test]
-fn mermaid_code_block_is_skipped() {
+fn mermaid_code_block_is_rendered() {
     let md = "```mermaid\ngraph TD\nA-->B\n```";
     let lines = render_markdown(md, 80);
-    assert!(
-        lines.is_empty(),
-        "mermaid blocks should produce zero output lines"
-    );
+    #[cfg(feature = "mermaid")]
+    {
+        assert!(
+            !lines.is_empty(),
+            "mermaid blocks should produce rendered output with mermaid feature"
+        );
+    }
+    #[cfg(not(feature = "mermaid"))]
+    {
+        assert!(
+            lines.is_empty(),
+            "mermaid blocks should produce zero output lines without mermaid feature"
+        );
+    }
 }
 
 #[test]
@@ -245,7 +255,7 @@ fn blockquote_renders_with_prefix() {
     let lines = render_markdown("> quoted text", 80);
     assert_eq!(lines.len(), 1);
     let buf = render_to_buffer(lines, 80, 5);
-    assert_eq!(buf.cell((0, 0)).unwrap().symbol(), ">");
+    assert_eq!(buf.cell((0, 0)).unwrap().symbol(), "│");
 }
 
 #[test]
@@ -432,7 +442,7 @@ fn parse_mixed_block_types() {
             MarkdownBlock::Heading1(_) => "h1",
             MarkdownBlock::Paragraph(_) => "p",
             MarkdownBlock::ListItem(_, _) => "li",
-            MarkdownBlock::Blockquote(_) => "bq",
+            MarkdownBlock::Blockquote { .. } => "bq",
             MarkdownBlock::HorizontalRule => "hr",
             MarkdownBlock::BlankLine => "blank",
             _ => "other",
@@ -964,7 +974,19 @@ fn hooks_list_item_content_override() {
 struct BlockquoteOverrideHooks;
 
 impl RenderHooks for BlockquoteOverrideHooks {
-    fn blockquote(&self, text: &str) -> Option<Vec<Line<'static>>> {
+    fn blockquote(
+        &self,
+        _level: u8,
+        children: &[MarkdownBlock],
+    ) -> Option<Vec<Line<'static>>> {
+        let text: String = children
+            .iter()
+            .filter_map(|c| match c {
+                MarkdownBlock::Paragraph(lines) => Some(lines.join(" ")),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join(" ");
         Some(vec![Line::from(Span::styled(
             format!("QUOTE: {}", text),
             Style::default().fg(Color::Magenta),
@@ -1807,7 +1829,7 @@ Press `q` to quit.
         let has_paragraph = blocks.iter().any(|b| matches!(b, MarkdownBlock::Paragraph(_)));
         let has_list = blocks.iter().any(|b| matches!(b, MarkdownBlock::ListItem(_, _)));
         let has_code = blocks.iter().any(|b| matches!(b, MarkdownBlock::CodeBlock { .. }));
-        let has_quote = blocks.iter().any(|b| matches!(b, MarkdownBlock::Blockquote(_)));
+        let has_quote = blocks.iter().any(|b| matches!(b, MarkdownBlock::Blockquote { .. }));
         let has_table = blocks.iter().any(|b| matches!(b, MarkdownBlock::Table { .. }));
         let has_hr = blocks.iter().any(|b| matches!(b, MarkdownBlock::HorizontalRule));
         assert!(has_heading1, "should have H1");
@@ -2513,5 +2535,279 @@ mod example_image_tests {
             .filter(|l| l.spans.is_empty() || l.spans.iter().all(|s| s.content.is_empty()))
             .count();
         assert_eq!(blank_count, height, "should have {} blank lines for image, got {}", height, blank_count);
+    }
+}
+
+// ==================== Nested Blockquote Tests ====================
+
+#[test]
+fn blockquote_parsed_with_level_and_children() {
+    let renderer = MarkdownRenderer::new(80);
+    let blocks = renderer.parse("> quoted text");
+    assert_eq!(blocks.len(), 1);
+    match &blocks[0] {
+        MarkdownBlock::Blockquote { level, children } => {
+            assert_eq!(*level, 1);
+            assert!(!children.is_empty());
+        }
+        other => panic!("expected Blockquote, got {:?}", other),
+    }
+}
+
+#[test]
+fn blockquote_multiline_grouped() {
+    let renderer = MarkdownRenderer::new(80);
+    let blocks = renderer.parse("> line 1\n> line 2\n> line 3");
+    assert_eq!(blocks.len(), 1, "consecutive > lines should be grouped into one blockquote");
+    match &blocks[0] {
+        MarkdownBlock::Blockquote { level, children } => {
+            assert_eq!(*level, 1);
+            assert!(!children.is_empty());
+        }
+        other => panic!("expected single Blockquote, got {:?}", other),
+    }
+}
+
+#[test]
+fn nested_blockquote_parsed() {
+    let renderer = MarkdownRenderer::new(80);
+    let blocks = renderer.parse("> level 1\n> > level 2");
+    assert!(blocks.len() >= 1, "should parse nested blockquote");
+    match &blocks[0] {
+        MarkdownBlock::Blockquote { level, children } => {
+            assert_eq!(*level, 1);
+            let has_nested = children.iter().any(|c| matches!(c, MarkdownBlock::Blockquote { .. }));
+            assert!(has_nested, "level 1 should contain a nested level 2 blockquote");
+        }
+        other => panic!("expected Blockquote, got {:?}", other),
+    }
+}
+
+#[test]
+fn blockquote_renders_with_pipe_prefix() {
+    let lines = render_markdown("> hello", 80);
+    assert_eq!(lines.len(), 1);
+    let text: String = lines[0].spans.iter().map(|s| s.content.as_ref()).collect();
+    assert!(text.starts_with("│"), "blockquote should start with │: got '{}'", text);
+    assert!(text.contains("hello"), "blockquote should contain text: got '{}'", text);
+}
+
+#[test]
+fn nested_blockquote_renders_with_double_pipe() {
+    let lines = render_markdown("> outer\n> > inner", 80);
+    let all_text: String = lines.iter()
+        .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
+        .collect::<Vec<&str>>()
+        .join("");
+    assert!(all_text.contains("│ │"), "nested blockquote should have double pipe prefix");
+}
+
+#[test]
+fn blockquote_with_code_inside() {
+    let md = "> text before\n> ```rust\n> fn main() {}\n> ```\n> text after";
+    let renderer = MarkdownRenderer::new(80);
+    let blocks = renderer.parse(md);
+    let bq = blocks.iter().find(|b| matches!(b, MarkdownBlock::Blockquote { .. }));
+    assert!(bq.is_some(), "should parse blockquote");
+    if let Some(MarkdownBlock::Blockquote { children, .. }) = bq {
+        let has_code = children.iter().any(|c| matches!(c, MarkdownBlock::CodeBlock { .. }));
+        assert!(has_code, "blockquote children should contain a code block");
+    }
+}
+
+// ==================== CodeBlock Override Tests ====================
+
+#[test]
+fn code_block_override_header() {
+    let block = MarkdownBlock::CodeBlock {
+        lang: "rust".into(),
+        code: "fn main() {}".into(),
+        header_override: Some("╭─ Input ──".into()),
+        footer_override: None,
+        prefix_override: None,
+    };
+    let renderer = MarkdownRenderer::new(80);
+    let lines = renderer.render(&[block], &TestTheme);
+    let header_text: String = lines[0].spans.iter().map(|s| s.content.as_ref()).collect();
+    assert!(
+        header_text.contains("Input"),
+        "header override should be used: got '{}'",
+        header_text
+    );
+}
+
+#[test]
+fn code_block_override_footer() {
+    let block = MarkdownBlock::CodeBlock {
+        lang: "rust".into(),
+        code: "fn main() {}".into(),
+        header_override: None,
+        footer_override: Some("╰─ Output ──".into()),
+        prefix_override: None,
+    };
+    let renderer = MarkdownRenderer::new(80);
+    let lines = renderer.render(&[block], &TestTheme);
+    let last = lines.last().unwrap();
+    let footer_text: String = last.spans.iter().map(|s| s.content.as_ref()).collect();
+    assert!(
+        footer_text.contains("Output"),
+        "footer override should be used: got '{}'",
+        footer_text
+    );
+}
+
+#[test]
+fn code_block_override_prefix() {
+    let block = MarkdownBlock::CodeBlock {
+        lang: "json".into(),
+        code: r#"{"key": "value"}"#.into(),
+        header_override: None,
+        footer_override: None,
+        prefix_override: Some("║ ".into()),
+    };
+    let renderer = MarkdownRenderer::new(80);
+    let lines = renderer.render(&[block], &TestTheme);
+    let code_line = &lines[1];
+    let text: String = code_line.spans.iter().map(|s| s.content.as_ref()).collect();
+    assert!(
+        text.starts_with("║"),
+        "prefix override should be used: got '{}'",
+        text
+    );
+}
+
+#[test]
+fn code_block_constructor_helper() {
+    let block = MarkdownBlock::code_block("python", "print(1)");
+    match block {
+        MarkdownBlock::CodeBlock { lang, code, header_override, footer_override, prefix_override } => {
+            assert_eq!(lang, "python");
+            assert_eq!(code, "print(1)");
+            assert!(header_override.is_none());
+            assert!(footer_override.is_none());
+            assert!(prefix_override.is_none());
+        }
+        other => panic!("expected CodeBlock, got {:?}", other),
+    }
+}
+
+// ==================== Mermaid Rendering Tests ====================
+
+#[cfg(feature = "mermaid")]
+mod mermaid_render_tests {
+    use super::*;
+
+    #[test]
+    fn mermaid_simple_flowchart_renders() {
+        let md = "```mermaid\ngraph TD\nA[Start] --> B[End]\n```";
+        let lines = render_markdown(md, 80);
+        assert!(!lines.is_empty(), "mermaid flowchart should render output");
+        let all_text: String = lines.iter()
+            .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
+            .collect::<Vec<&str>>()
+            .join("");
+        assert!(all_text.contains("Start"), "rendered output should contain node label 'Start': got '{}'", all_text);
+        assert!(all_text.contains("End"), "rendered output should contain node label 'End': got '{}'", all_text);
+    }
+
+    #[test]
+    fn mermaid_lr_direction_renders() {
+        let md = "```mermaid\ngraph LR\nA --> B\n```";
+        let lines = render_markdown(md, 80);
+        assert!(!lines.is_empty(), "LR flowchart should render");
+    }
+
+    #[test]
+    fn mermaid_three_node_chain() {
+        let md = "```mermaid\ngraph TD\nA[First] --> B[Second] --> C[Third]\n```";
+        let lines = render_markdown(md, 80);
+        assert!(!lines.is_empty());
+        let all_text: String = lines.iter()
+            .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
+            .collect::<Vec<&str>>()
+            .join("");
+        assert!(all_text.contains("First"));
+        assert!(all_text.contains("Second"));
+        assert!(all_text.contains("Third"));
+    }
+
+    #[test]
+    fn mermaid_diamond_shape_renders() {
+        let md = "```mermaid\ngraph TD\nA{Decision} --> B[Result]\n```";
+        let lines = render_markdown(md, 80);
+        assert!(!lines.is_empty());
+        let all_text: String = lines.iter()
+            .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
+            .collect::<Vec<&str>>()
+            .join("");
+        assert!(all_text.contains("Decision"));
+    }
+
+    #[test]
+    fn mermaid_labeled_edge_renders() {
+        let md = "```mermaid\ngraph TD\nA -->|yes| B\n```";
+        let lines = render_markdown(md, 80);
+        assert!(!lines.is_empty());
+        let all_text: String = lines.iter()
+            .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
+            .collect::<Vec<&str>>()
+            .join("");
+        assert!(all_text.contains("yes"), "edge label should appear: got '{}'", all_text);
+    }
+
+    #[test]
+    fn mermaid_viewport_adaptation() {
+        let md = "```mermaid\ngraph TD\nA[Very Long Node Label Here] --> B[Another]\n```";
+        let lines_narrow = render_markdown(md, 30);
+        let lines_wide = render_markdown(md, 80);
+        assert!(!lines_narrow.is_empty());
+        assert!(!lines_wide.is_empty());
+    }
+
+    #[test]
+    fn mermaid_invalid_syntax_skipped() {
+        let md = "```mermaid\nnot a valid mermaid diagram\n```";
+        let lines = render_markdown(md, 80);
+        assert!(lines.is_empty(), "invalid mermaid should be skipped gracefully");
+    }
+
+    #[test]
+    fn mermaid_empty_nodes_render() {
+        let md = "```mermaid\ngraph TD\nA --> B\n```";
+        let lines = render_markdown(md, 80);
+        assert!(!lines.is_empty(), "unnamed nodes should still render");
+        let buf = render_to_buffer(lines, 80, 20);
+        assert!(buf.area.width > 0);
+    }
+
+    #[test]
+    fn mermaid_multiple_edges_render() {
+        let md = "```mermaid\ngraph TD\nA --> B\nA --> C\nB --> D\nC --> D\n```";
+        let lines = render_markdown(md, 80);
+        assert!(!lines.is_empty());
+    }
+
+    #[test]
+    fn mermaid_direct_render_api() {
+        let source = "graph TD\nA[Hello] --> B[World]";
+        let result = crate::mermaid::render_mermaid(source, 80, None, &TestTheme);
+        assert!(result.is_some());
+        let lines = result.unwrap();
+        assert!(!lines.is_empty());
+        let all_text: String = lines.iter()
+            .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
+            .collect::<Vec<&str>>()
+            .join("");
+        assert!(all_text.contains("Hello"));
+        assert!(all_text.contains("World"));
+    }
+
+    #[test]
+    fn mermaid_max_height_constraint() {
+        let source = "graph TD\nA --> B\nB --> C\nC --> D\nD --> E";
+        let result = crate::mermaid::render_mermaid(source, 80, Some(10), &TestTheme);
+        assert!(result.is_some());
+        let lines = result.unwrap();
+        assert!(lines.len() <= 25, "should try to respect max_height, got {} lines", lines.len());
     }
 }

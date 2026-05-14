@@ -1,5 +1,7 @@
 use ratatui::text::Line;
 
+use super::types::MarkdownBlock;
+
 pub trait RenderHooks: Send + Sync {
     fn heading1(&self, _text: &str) -> Option<Line<'static>> {
         None
@@ -14,6 +16,14 @@ pub trait RenderHooks: Send + Sync {
     }
 
     fn paragraph(&self, _lines: &[String]) -> Option<Vec<Line<'static>>> {
+        None
+    }
+
+    fn render_code_block(
+        &self,
+        _lang: &str,
+        _content: &str,
+    ) -> Option<Vec<Line<'static>>> {
         None
     }
 
@@ -64,7 +74,11 @@ pub trait RenderHooks: Send + Sync {
         None
     }
 
-    fn blockquote(&self, _text: &str) -> Option<Vec<Line<'static>>> {
+    fn blockquote(
+        &self,
+        _level: u8,
+        _children: &[MarkdownBlock],
+    ) -> Option<Vec<Line<'static>>> {
         None
     }
 

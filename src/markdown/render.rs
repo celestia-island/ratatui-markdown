@@ -75,7 +75,7 @@ impl MarkdownRenderer {
         let mut lines = Vec::new();
 
         for (block_idx, block) in blocks.iter().enumerate() {
-            self.render_block(block, block_idx, theme, blocks, &mut lines);
+            self.render_block(block, block_idx, theme, blocks, &mut lines, 0);
         }
 
         lines
@@ -163,7 +163,7 @@ impl MarkdownRenderer {
                     lines.push(Line::from(resolver.fallback(path, alt)));
                 }
             }
-            _ => self.render_block(block, _block_idx, theme, _blocks, lines),
+            _ => self.render_block(block, _block_idx, theme, _blocks, lines, 0),
         }
     }
 
@@ -174,6 +174,7 @@ impl MarkdownRenderer {
         theme: &impl RichTextTheme,
         blocks: &[MarkdownBlock],
         lines: &mut Vec<Line<'static>>,
+        base_indent: usize,
     ) {
         let hooks = self.hooks.as_deref();
 
@@ -262,57 +263,91 @@ impl MarkdownRenderer {
                     lines.extend(wrapped);
                 }
             }
-            MarkdownBlock::CodeBlock(lang, content) => {
+            MarkdownBlock::CodeBlock {
+                lang,
+                code,
+                header_override,
+                footer_override,
+                prefix_override,
+            } => {
+                if let Some(h) = hooks {
+                    if let Some(custom) = h.render_code_block(lang, code) {
+                        lines.extend(custom);
+                        return;
+                    }
+                }
+
                 if lang == LANG_MERMAID {
+                    #[cfg(feature = "mermaid")]
+                    {
+                        let rendered = crate::mermaid::render_mermaid(
+                            code,
+                            self.max_width,
+                            None,
+                            theme,
+                        );
+                        if let Some(mermaid_lines) = rendered {
+                            lines.extend(mermaid_lines);
+                            return;
+                        }
+                    }
                     return;
                 }
 
-                let content_lines: Vec<&str> = content.lines().collect();
+                let content_lines: Vec<&str> = code.lines().collect();
                 let content_line_count = content_lines.len();
 
-                if let Some(h) = hooks {
+                if let Some(ref hdr) = header_override {
+                    lines.push(Line::from(Span::styled(
+                        hdr.clone(),
+                        Style::default().fg(theme.get_muted_text_color()),
+                    )));
+                } else if let Some(h) = hooks {
                     if let Some(custom) = h.code_block_header(lang) {
                         lines.push(custom);
                     } else {
                         lines.push(self.default_code_block_header(lang, theme));
                     }
+                } else {
+                    lines.push(self.default_code_block_header(lang, theme));
+                }
 
-                    for (idx, code_line) in content_lines.iter().enumerate() {
+                let prefix = if let Some(ref pfx) = prefix_override {
+                    pfx.clone()
+                } else if let Some(h) = hooks {
+                    h.code_block_line_prefix(lang).unwrap_or_else(|| format!("{VLINE} "))
+                } else {
+                    format!("{VLINE} ")
+                };
+
+                for (idx, code_line) in content_lines.iter().enumerate() {
+                    if let Some(h) = hooks {
                         if let Some(custom) = h.code_block_line(code_line, idx, content_line_count) {
                             lines.push(custom);
-                        } else {
-                            let prefix = h
-                                .code_block_line_prefix(lang)
-                                .unwrap_or_else(|| format!("{VLINE} "));
-                            lines.push(Line::from(vec![
-                                Span::styled(prefix, Style::default().fg(theme.get_muted_text_color())),
-                                Span::styled(
-                                    code_line.to_string(),
-                                    Style::default().fg(theme.get_accent_yellow()),
-                                ),
-                            ]));
+                            continue;
                         }
                     }
+                    lines.push(Line::from(vec![
+                        Span::styled(prefix.clone(), Style::default().fg(theme.get_muted_text_color())),
+                        Span::styled(
+                            code_line.to_string(),
+                            Style::default().fg(theme.get_accent_yellow()),
+                        ),
+                    ]));
+                }
 
+                if let Some(ref ftr) = footer_override {
+                    lines.push(Line::from(Span::styled(
+                        ftr.clone(),
+                        Style::default().fg(theme.get_muted_text_color()),
+                    )));
+                } else if let Some(h) = hooks {
                     if let Some(custom) = h.code_block_footer(lang, content_line_count) {
                         lines.push(custom);
                     } else {
                         lines.push(self.default_code_block_footer(theme));
                     }
                 } else {
-                    lines.push(self.default_code_block_header(lang, theme));
-                    for code_line in &content_lines {
-                        lines.push(Line::from(vec![
-                            Span::styled(
-                                format!("{VLINE} "),
-                                Style::default().fg(theme.get_muted_text_color()),
-                            ),
-                            Span::styled(
-                                code_line.to_string(),
-                                Style::default().fg(theme.get_accent_yellow()),
-                            ),
-                        ]));
-                    }
                     lines.push(self.default_code_block_footer(theme));
                 }
             }
@@ -359,27 +394,39 @@ impl MarkdownRenderer {
                 );
                 lines.extend(wrapped);
             }
-            MarkdownBlock::Blockquote(text) => {
+            MarkdownBlock::Blockquote { level, children } => {
                 if let Some(h) = hooks {
-                    if let Some(custom) = h.blockquote(text) {
+                    if let Some(custom) = h.blockquote(*level, children) {
                         lines.extend(custom);
                         return;
                     }
                 }
-                let wrapped = self.wrap_text_with_inline_formatting(text, theme);
-                for mut wline in wrapped {
-                    wline.spans.insert(
-                        0,
-                        Span::styled("> ", Style::default().fg(theme.get_muted_text_color())),
+
+                let prefix_str = "│ ".repeat(*level as usize);
+                let prefix_style = Style::default().fg(theme.get_muted_text_color());
+
+                let mut inner_lines = Vec::new();
+                for (child_idx, child) in children.iter().enumerate() {
+                    self.render_block(
+                        child,
+                        child_idx,
+                        theme,
+                        children,
+                        &mut inner_lines,
+                        base_indent + *level as usize,
                     );
-                    for span in wline.spans.iter_mut().skip(1) {
+                }
+
+                for mut line in inner_lines {
+                    line.spans.insert(0, Span::styled(prefix_str.clone(), prefix_style));
+                    for span in line.spans.iter_mut().skip(1) {
                         let new_style = span
                             .style
                             .fg(theme.get_muted_text_color())
                             .add_modifier(Modifier::ITALIC);
                         span.style = new_style;
                     }
-                    lines.push(wline);
+                    lines.push(line);
                 }
             }
             MarkdownBlock::HorizontalRule => {

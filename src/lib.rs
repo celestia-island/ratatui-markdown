@@ -141,6 +141,9 @@
 //! | [`theme`] | always | `RichTextTheme` trait for theming |
 //! | [`constants`] | always | Box-drawing chars, tree connectors, arrows |
 
+#[cfg(feature = "mermaid")]
+pub mod mermaid;
+
 pub mod constants;
 #[cfg(feature = "markdown")]
 pub mod markdown;
