@@ -1,13 +1,14 @@
 use ratatui::{
     backend::CrosstermBackend,
     crossterm::{
-        event::{self, Event, KeyCode},
+        event::{self, Event, KeyCode, KeyEventKind},
         terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     },
     layout::Rect,
     prelude::Stylize,
-    style::Color,
-    widgets::{Block, Borders, Paragraph, Wrap},
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
+    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
     Terminal,
 };
 use ratatui_image::{
@@ -44,8 +45,7 @@ impl RichTextTheme for Theme {
 
 fn fix_protocol_override(picker: &mut Picker) {
     let caps = picker.capabilities();
-    let has_kitty = caps.contains(&Capability::Kitty);
-    if has_kitty && picker.protocol_type() != ProtocolType::Kitty {
+    if caps.contains(&Capability::Kitty) && picker.protocol_type() != ProtocolType::Kitty {
         picker.set_protocol_type(ProtocolType::Kitty);
     }
 }
@@ -115,19 +115,15 @@ impl ImageResolver for FsImageResolver {
 
     fn fallback(&self, path: &str, alt: &str) -> ratatui::text::Span<'static> {
         let label = if alt.is_empty() { path } else { alt };
-        ratatui::text::Span::styled(
-            format!("[no image: {label}]"),
-            ratatui::style::Style::default().italic().fg(Color::Gray),
-        )
+        Span::styled(format!("[no image: {label}]",), Style::default().italic().fg(Color::Gray))
     }
 }
 
 const MARKDOWN: &str = r#"
 # Image Rendering Example
 
-This example renders images via `ratatui-image` using the
-terminal's native graphics protocol (kitty, iTerm2, sixels, or
-halfblocks — auto-detected).
+Images render via `ratatui-image` using the terminal's native
+graphics protocol (kitty, iTerm2, sixels, or halfblocks).
 
 ## Logo (loaded from disk)
 
@@ -141,14 +137,60 @@ halfblocks — auto-detected).
 
 ![Missing Image](nonexistent.webp)
 
-Press `q` to quit.
+`[` / `]` — zoom selected image in/out
+`q` — quit
 "#;
 
 struct RenderedImage {
+    original_img: image::DynamicImage,
     protocol: Option<StatefulProtocol>,
-    cell_w: u16,
-    cell_h: u16,
+    natural_cell_w: u16,
+    natural_cell_h: u16,
+    scale: f64,
     failed: bool,
+}
+
+impl RenderedImage {
+    fn new(img: image::DynamicImage, picker: &Picker) -> Self {
+        let (cw, ch) = pixel_to_cell(img.width(), img.height(), picker);
+        Self {
+            original_img: img,
+            protocol: None,
+            natural_cell_w: cw,
+            natural_cell_h: ch,
+            scale: 1.0,
+            failed: false,
+        }
+    }
+
+    fn scaled_px(&self) -> (u32, u32) {
+        let w = self.original_img.width();
+        let h = self.original_img.height();
+        let sw = (w as f64 * self.scale) as u32;
+        let sh = (h as f64 * self.scale) as u32;
+        (sw.max(1), sh.max(1))
+    }
+
+    fn scaled_cells(&self, picker: &Picker) -> (u16, u16) {
+        let (sw, sh) = self.scaled_px();
+        pixel_to_cell(sw, sh, picker)
+    }
+
+    fn zoom_in(&mut self) { self.scale *= 1.25; self.protocol = None; }
+
+    fn zoom_out(&mut self) {
+        self.scale /= 1.25;
+        self.scale = self.scale.max(0.05);
+        self.protocol = None;
+    }
+
+    fn rebuild_proto(&mut self, picker: &mut Picker) {
+        let (sw, sh) = self.scaled_px();
+        let resized = self.original_img.resize_exact(
+            sw, sh, image::imageops::FilterType::Triangle,
+        );
+        self.protocol = Some(picker.new_resize_protocol(resized));
+    }
 }
 
 fn main() -> anyhow::Result<()> {
@@ -161,18 +203,9 @@ fn main() -> anyhow::Result<()> {
     let renderer = MarkdownRenderer::new(76);
 
     let mut picker = match Picker::from_query_stdio() {
-        Ok(mut p) => {
-            fix_protocol_override(&mut p);
-            p
-        },
+        Ok(mut p) => { fix_protocol_override(&mut p); p }
         Err(_) => Picker::halfblocks(),
     };
-
-    eprintln!(
-        "[image] protocol={:?}, font_size={:?}",
-        picker.protocol_type(),
-        picker.font_size()
-    );
 
     let mut resolver = FsImageResolver::new(
         concat!(env!("CARGO_MANIFEST_DIR"), "/examples"),
@@ -181,92 +214,183 @@ fn main() -> anyhow::Result<()> {
     let (blocks, resolved) = renderer.parse_with_images(MARKDOWN, &mut resolver);
     let output = renderer.render_full(&blocks, &theme, &resolved, &resolver, 70, 20);
 
-    let mut rendered_images: Vec<Option<RenderedImage>> = Vec::new();
+    let mut images: Vec<Option<RenderedImage>> = Vec::new();
     for placement in &output.images {
-        let proto = picker.new_resize_protocol(placement.image.clone());
-        let (cw, ch) =
-            pixel_to_cell(placement.image.width(), placement.image.height(), &picker);
-        rendered_images.push(Some(RenderedImage {
-            protocol: Some(proto),
-            cell_w: cw.min(placement.width_cells),
-            cell_h: ch.min(placement.height_cells),
-            failed: false,
-        }));
+        let mut ri = RenderedImage::new(placement.image.clone(), &picker);
+        ri.rebuild_proto(&mut picker);
+        images.push(Some(ri));
     }
 
+    let mut selected: usize = 0;
+    let v_scroll: usize = 0;
+    let h_scroll: usize = 0;
+
     loop {
+        let sel_count = images.iter().filter(|o| o.is_some()).count();
+        let selected_idx = if sel_count > 0 { selected % sel_count } else { 0 };
+
         terminal.draw(|f| {
             let area = f.area();
+            let pad_t: u16 = 1;
+            let pad_b: u16 = 3;
+            let pad_l: u16 = 1;
+            let pad_r: u16 = 2;
             let inner = Rect::new(
-                area.x + 1,
-                area.y + 1,
-                area.width.saturating_sub(2),
-                area.height.saturating_sub(2),
+                area.x + pad_l,
+                area.y + pad_t,
+                area.width.saturating_sub(pad_l + pad_r),
+                area.height.saturating_sub(pad_t + pad_b),
             );
 
             f.render_widget(
                 Paragraph::new(output.lines.clone())
                     .block(Block::default().borders(Borders::ALL).title(" Image Example "))
-                    .wrap(Wrap { trim: false }),
+                    .wrap(ratatui::widgets::Wrap { trim: false }),
                 inner,
             );
 
+            let mut img_idx = 0;
             for (i, placement) in output.images.iter().enumerate() {
-                let img = match rendered_images.get_mut(i) {
-                    Some(Some(ref mut img)) => img,
-                    _ => continue,
-                };
-                if img.failed || img.cell_h == 0 || img.cell_w == 0 {
-                    continue;
-                }
-                let render_h = img.cell_h.min(inner.height);
-                let render_w = img.cell_w.min(inner.width.saturating_sub(4));
-                if render_h < 2 || render_w < 2 {
-                    continue;
-                }
-                let mut proto = match img.protocol.take() {
-                    Some(p) => p,
-                    None => continue,
-                };
+                let img = match images.get_mut(i) { Some(Some(ref mut im)) => im, _ => continue };
+                if img.failed { continue; }
+                if img_idx != selected_idx { continue; }
 
-                let rect = Rect::new(
-                    inner.x + 2,
-                    inner.y
-                        + (placement.row as u16).min(inner.height.saturating_sub(render_h)),
-                    render_w,
-                    render_h,
-                );
+                let (cell_w, cell_h) = img.scaled_cells(&picker);
+                if cell_h < 1 || cell_w < 1 { continue; }
+
+                let vp_w = inner.width.saturating_sub(pad_l + pad_r + 1);
+                let vp_h = inner.height.saturating_sub(pad_t + pad_b);
+                let show_v_scroll = cell_h > vp_h && vp_h > 0;
+                let show_h_scroll = cell_w > vp_w && vp_w > 0;
+
+                let render_w = if show_h_scroll { vp_w } else { cell_w.min(vp_w) };
+                let render_h = if show_v_scroll { vp_h } else { cell_h.min(vp_h) };
+
+                if render_h < 1 || render_w < 1 { continue; }
+
+                let base_x = inner.x + pad_l;
+                let base_y = inner.y + pad_t
+                    + (placement.row as u16).min(inner.height.saturating_sub(render_h));
+
+                if img.protocol.is_none() {
+                    img.rebuild_proto(&mut picker);
+                }
+                let mut proto = match img.protocol.take() { Some(p) => p, None => continue };
+
+                let rect = Rect::new(base_x, base_y, render_w, render_h);
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     let widget = StatefulImage::default();
                     f.render_stateful_widget(widget, rect, &mut proto);
                 }));
 
-                if result.is_err() {
-                    img.failed = true;
-                    continue;
-                }
+                if result.is_err() { img.failed = true; continue; }
 
                 if let Some(enc_result) = proto.last_encoding_result() {
                     match enc_result {
-                        Ok(()) => {
-                            img.protocol = Some(proto);
-                        }
-                        Err(e) => {
-                            eprintln!("[image] encoding error: {}", e);
-                            img.failed = true;
-                        }
+                        Ok(()) => img.protocol = Some(proto),
+                        Err(_) => { img.failed = true; continue; }
                     }
                 } else {
                     img.protocol = Some(proto);
                 }
+
+                if show_v_scroll {
+                    let sb_area = Rect::new(inner.x + inner.width - 1, base_y, 1, render_h);
+                    let max_pos = cell_h.saturating_sub(1);
+                    let thumb_pos = if vp_h >= cell_h { 0 } else {
+                        let max_off = cell_h - vp_h;
+                        if max_off > 0 && max_pos > 0 {
+                            (v_scroll as u64 * max_pos as u64 / max_off as u64) as usize
+                        } else { 0 }
+                    };
+                    let sb = Scrollbar::default()
+                        .orientation(ScrollbarOrientation::VerticalRight)
+                        .thumb_symbol("█")
+                        .track_symbol(Some("│"))
+                        .style(Style::default().fg(Color::DarkGray))
+                        .thumb_style(Style::default().fg(Color::Cyan));
+                    let mut sb_state = ScrollbarState::default()
+                        .content_length(cell_h as usize)
+                        .viewport_content_length(vp_h as usize)
+                        .position(thumb_pos.min(max_pos as usize));
+                    f.render_stateful_widget(sb, sb_area, &mut sb_state);
+                }
+
+                if show_h_scroll {
+                    let sb_area = Rect::new(base_x, base_y + render_h, render_w, 1);
+                    let max_pos = cell_w.saturating_sub(1);
+                    let thumb_pos = if vp_w >= cell_w { 0 } else {
+                        let max_off = cell_w - vp_w;
+                        if max_off > 0 && max_pos > 0 {
+                            (h_scroll as u64 * max_pos as u64 / max_off as u64) as usize
+                        } else { 0 }
+                    };
+                    let sb = Scrollbar::default()
+                        .orientation(ScrollbarOrientation::HorizontalBottom)
+                        .thumb_symbol("█")
+                        .track_symbol(Some("─"))
+                        .style(Style::default().fg(Color::DarkGray))
+                        .thumb_style(Style::default().fg(Color::Cyan));
+                    let mut sb_state = ScrollbarState::default()
+                        .content_length(cell_w as usize)
+                        .viewport_content_length(vp_w as usize)
+                        .position(thumb_pos.min(max_pos as usize));
+                    f.render_stateful_widget(sb, sb_area, &mut sb_state);
+                }
+
+                break;
             }
+
+            let info_text = format!(
+                "img {}/{} | zoom {:.0}% | [ ] resize | q quit",
+                selected_idx + 1, sel_count,
+                images.iter()
+                    .filter_map(|o| o.as_ref())
+                    .nth(selected_idx)
+                    .map(|i| i.scale * 100.0)
+                    .unwrap_or(0.0),
+            );
+            let info_line = Line::from(vec![
+                Span::styled(info_text, Style::default().fg(Color::DarkGray)),
+            ]);
+            let info_y = area.y + area.height - 1;
+            f.render_widget(Paragraph::new(vec![info_line]), Rect::new(area.x + 1, info_y, area.width - 2, 1));
         })?;
 
-        if event::poll(std::time::Duration::from_millis(100))? {
-            if let Event::Key(key) = event::read()? {
-                if key.code == KeyCode::Char('q') {
-                    break;
-                }
+        if event::poll(std::time::Duration::from_millis(50))? {
+            match event::read()? {
+                Event::Key(key) if key.kind == KeyEventKind::Press => match key.code {
+                    KeyCode::Char('q') => break,
+                    KeyCode::Char('[') => {
+                        let mut idx = 0;
+                        for (i, opt) in images.iter_mut().enumerate() {
+                            if opt.is_some() {
+                                if idx == selected_idx {
+                                    opt.as_mut().unwrap().zoom_in();
+                                    break;
+                                }
+                                idx += 1;
+                            }
+                        }
+                    }
+                    KeyCode::Char(']') => {
+                        let mut idx = 0;
+                        for (i, opt) in images.iter_mut().enumerate() {
+                            if opt.is_some() {
+                                if idx == selected_idx {
+                                    opt.as_mut().unwrap().zoom_out();
+                                    break;
+                                }
+                                idx += 1;
+                            }
+                        }
+                    }
+                    KeyCode::Tab => {
+                        selected = if sel_count > 0 { (selected + 1) % sel_count } else { 0 };
+                    }
+                    _ => {}
+                },
+                _ => {}
             }
         }
     }
