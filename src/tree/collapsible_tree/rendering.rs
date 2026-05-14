@@ -68,7 +68,7 @@ impl CollapsibleTree {
                             ),
                             Span::styled(truncated, Style::default().fg(val_color)),
                         ])
-                    },
+                    }
                 }
             })
             .collect()

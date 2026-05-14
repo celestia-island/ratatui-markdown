@@ -19,15 +19,15 @@ impl CollapsibleTree {
                     };
                     paths.extend(Self::collect_expandable_paths(val, &child));
                 }
-            },
+            }
             serde_json::Value::Array(arr) if !arr.is_empty() => {
                 paths.insert(path.to_string());
                 for (i, item) in arr.iter().enumerate() {
                     let child = format!("{}[{}]", path, i);
                     paths.extend(Self::collect_expandable_paths(item, &child));
                 }
-            },
-            _ => {},
+            }
+            _ => {}
         }
         paths
     }
@@ -61,7 +61,7 @@ impl CollapsibleTree {
                         ));
                     }
                 }
-            },
+            }
             serde_json::Value::Array(arr) if !arr.is_empty() => {
                 paths.insert(path.to_string());
                 if current_depth < max_depth {
@@ -75,8 +75,8 @@ impl CollapsibleTree {
                         ));
                     }
                 }
-            },
-            _ => {},
+            }
+            _ => {}
         }
         paths
     }
@@ -161,7 +161,7 @@ impl CollapsibleTree {
                         is_last_stack.pop();
                     }
                 }
-            },
+            }
             serde_json::Value::Array(arr) if !arr.is_empty() => {
                 let is_expanded = expanded_paths.contains(path) || !render_header;
                 let count = arr.len();
@@ -210,7 +210,7 @@ impl CollapsibleTree {
                                     true,
                                     &item_label,
                                 );
-                            },
+                            }
                             serde_json::Value::Array(a) if !a.is_empty() => {
                                 Self::flatten_node(
                                     item,
@@ -222,7 +222,7 @@ impl CollapsibleTree {
                                     true,
                                     &item_label,
                                 );
-                            },
+                            }
                             _ => {
                                 let (value_str, value_type) = format_primitive(item);
                                 entries.push(FlatEntry {
@@ -235,12 +235,12 @@ impl CollapsibleTree {
                                         value_type,
                                     },
                                 });
-                            },
+                            }
                         }
                         is_last_stack.pop();
                     }
                 }
-            },
+            }
             serde_json::Value::Object(map) if map.is_empty() => {
                 entries.push(FlatEntry {
                     path: path.to_string(),
@@ -256,7 +256,7 @@ impl CollapsibleTree {
                         value_type: ValueType::Null,
                     },
                 });
-            },
+            }
             serde_json::Value::Array(arr) if arr.is_empty() => {
                 entries.push(FlatEntry {
                     path: path.to_string(),
@@ -272,7 +272,7 @@ impl CollapsibleTree {
                         value_type: ValueType::Null,
                     },
                 });
-            },
+            }
             _ => {
                 let (value_str, value_type) = format_primitive(value);
                 entries.push(FlatEntry {
@@ -289,7 +289,7 @@ impl CollapsibleTree {
                         value_type,
                     },
                 });
-            },
+            }
         }
     }
 }

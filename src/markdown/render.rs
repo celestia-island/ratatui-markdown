@@ -4,9 +4,9 @@ use ratatui::{
 };
 
 use super::{
-    MarkdownRenderer,
     inline::parse_inline_formatting,
     types::{MarkdownBlock, TextToken},
+    MarkdownRenderer,
 };
 use crate::{
     constants::list_prefix::{
@@ -45,7 +45,7 @@ impl MarkdownRenderer {
                             .collect();
                         lines.push(Line::from(styled));
                     }
-                },
+                }
                 MarkdownBlock::Heading2(text) => {
                     let parsed = parse_inline_formatting(text, theme);
                     let style = Style::default()
@@ -63,7 +63,7 @@ impl MarkdownRenderer {
                             .collect();
                         lines.push(Line::from(styled));
                     }
-                },
+                }
                 MarkdownBlock::Heading3(text) => {
                     let parsed = parse_inline_formatting(text, theme);
                     let style = Style::default()
@@ -81,13 +81,13 @@ impl MarkdownRenderer {
                             .collect();
                         lines.push(Line::from(styled));
                     }
-                },
+                }
                 MarkdownBlock::Paragraph(paragraph_lines) => {
                     for pline in paragraph_lines {
                         let wrapped = self.wrap_text_with_inline_formatting(pline, theme);
                         lines.extend(wrapped);
                     }
-                },
+                }
                 MarkdownBlock::CodeBlock(lang, content) => {
                     if lang == LANG_MERMAID {
                         // mermaid rendering not supported in this crate; skip
@@ -120,13 +120,13 @@ impl MarkdownRenderer {
                             Style::default().fg(theme.get_muted_text_color()),
                         )));
                     }
-                },
+                }
                 MarkdownBlock::InlineCode(code) => {
                     lines.push(Line::from(Span::styled(
                         format!("`{}`", code),
                         Style::default().fg(theme.get_accent_yellow()),
                     )));
-                },
+                }
                 MarkdownBlock::ListItem(text, indent) => {
                     let indent_str = "  ".repeat(*indent as usize);
                     let wrapped = self.wrap_text_with_inline_formatting(
@@ -134,7 +134,7 @@ impl MarkdownRenderer {
                         theme,
                     );
                     lines.extend(wrapped);
-                },
+                }
                 MarkdownBlock::Blockquote(text) => {
                     let wrapped = self.wrap_text_with_inline_formatting(text, theme);
                     for mut wline in wrapped {
@@ -151,20 +151,20 @@ impl MarkdownRenderer {
                         }
                         lines.push(wline);
                     }
-                },
+                }
                 MarkdownBlock::HorizontalRule => {
                     lines.push(Line::from(Span::styled(
                         HLINE.repeat(self.max_width.min(80)),
                         Style::default().fg(theme.get_muted_text_color()),
                     )));
-                },
+                }
                 MarkdownBlock::BlankLine => {
                     lines.push(Line::raw(""));
-                },
+                }
                 MarkdownBlock::Table { headers, rows } => {
                     let table_lines = self.render_table(headers, rows, theme);
                     lines.extend(table_lines);
-                },
+                }
             }
         }
 
@@ -445,10 +445,10 @@ impl MarkdownRenderer {
                         lines.push(std::mem::take(&mut current_line));
                         current_width = 0;
                         pending_space = false;
-                    },
+                    }
                     TextToken::Space => {
                         pending_space = true;
-                    },
+                    }
                     TextToken::Word(word) => {
                         let word_w = Self::string_width(&word);
                         let space_w: usize = if pending_space && current_width > 0 {
@@ -501,7 +501,7 @@ impl MarkdownRenderer {
                             current_line.push(Span::styled(word, style));
                             current_width += word_w;
                         }
-                    },
+                    }
                 }
             }
         }

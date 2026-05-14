@@ -1,4 +1,4 @@
-use super::{MarkdownRenderer, types::MarkdownBlock};
+use super::{types::MarkdownBlock, MarkdownRenderer};
 
 const MD_FENCE: &str = "```";
 const MD_HRULE_DASH: &str = "---";
@@ -118,7 +118,10 @@ impl MarkdownRenderer {
             }
 
             let list_indent = Self::count_list_indent(line);
-            if trimmed.starts_with(MD_LIST_DASH) || trimmed.starts_with(MD_LIST_STAR) || trimmed.starts_with(MD_LIST_PLUS) {
+            if trimmed.starts_with(MD_LIST_DASH)
+                || trimmed.starts_with(MD_LIST_STAR)
+                || trimmed.starts_with(MD_LIST_PLUS)
+            {
                 Self::flush_table(&mut table_buffer, &mut blocks, &mut paragraph_lines);
                 if !paragraph_lines.is_empty() {
                     blocks.push(MarkdownBlock::Paragraph(paragraph_lines.clone()));

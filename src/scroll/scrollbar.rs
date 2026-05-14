@@ -1,8 +1,8 @@
 use ratatui::{
-    Frame,
     layout::Rect,
     style::Style,
     widgets::{Scrollbar, ScrollbarOrientation, ScrollbarState},
+    Frame,
 };
 
 use crate::{
