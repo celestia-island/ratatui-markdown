@@ -26,7 +26,7 @@ impl FollowScrollState {
                     )
                     .min(max)
                 }
-            },
+            }
         }
     }
 

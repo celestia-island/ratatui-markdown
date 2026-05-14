@@ -134,7 +134,7 @@ fn toml_to_json(toml_value: &toml::Value) -> serde_json::Value {
                 .map(|(k, v)| (k.clone(), toml_to_json(v)))
                 .collect();
             serde_json::Value::Object(map)
-        },
+        }
         toml::Value::Datetime(dt) => serde_json::Value::String(dt.to_string()),
     }
 }

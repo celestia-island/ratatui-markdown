@@ -1,7 +1,7 @@
 use ratatui::text::{Line, Span};
 use unicode_width::UnicodeWidthChar;
 
-use super::{MarkdownRenderer, inline::parse_inline_formatting, types::TextToken};
+use super::{inline::parse_inline_formatting, types::TextToken, MarkdownRenderer};
 use crate::theme::RichTextTheme;
 
 impl MarkdownRenderer {
@@ -39,10 +39,10 @@ impl MarkdownRenderer {
                         lines.push(Line::from(std::mem::take(&mut current_line)));
                         current_width = 0;
                         pending_space = false;
-                    },
+                    }
                     TextToken::Space => {
                         pending_space = true;
-                    },
+                    }
                     TextToken::Word(word) => {
                         let word_w = Self::string_width(&word);
                         let space_w: usize = if pending_space && current_width > 0 {
@@ -98,7 +98,7 @@ impl MarkdownRenderer {
                             current_line.push(Span::styled(word, style));
                             current_width += word_w;
                         }
-                    },
+                    }
                 }
             }
         }
@@ -132,10 +132,10 @@ impl MarkdownRenderer {
                     current_line.clear();
                     current_width = 0;
                     pending_space = false;
-                },
+                }
                 TextToken::Space => {
                     pending_space = true;
-                },
+                }
                 TextToken::Word(word) => {
                     let word_width = Self::string_width(&word);
                     let space_width = if pending_space { 1 } else { 0 };
@@ -178,7 +178,7 @@ impl MarkdownRenderer {
                         current_line.push_str(&word);
                         current_width += word_width;
                     }
-                },
+                }
             }
         }
 
