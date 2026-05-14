@@ -6,6 +6,20 @@
 >
 > **Минимальная версия Rust**: 1.74
 
+<div align="center">
+  <p>
+    <a href="../../README.md">English</a> |
+    <a href="../zhs/index.md">简体中文</a> |
+    <a href="../zht/index.md">繁體中文</a> |
+    <a href="../ja/index.md">日本語</a> |
+    <a href="../ko/index.md">한국어</a> |
+    <a href="../fr/index.md">Français</a> |
+    <a href="../es/index.md">Español</a> |
+    <a href="../ru/index.md">Русский</a> |
+    <a href="../ar/index.md">العربية</a>
+  </p>
+</div>
+
 ## Что такое ratatui-markdown?
 
 ratatui-markdown — это многофункциональная библиотека рендеринга для терминальных пользовательских интерфейсов, построенная на [ratatui](https://github.com/ratatui/ratatui). Она предоставляет четыре основных функциональных модуля, которые можно использовать независимо или комбинировать через виджет `MarkdownPreview`.

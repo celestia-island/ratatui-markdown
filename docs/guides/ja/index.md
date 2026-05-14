@@ -6,6 +6,20 @@
 >
 > **最小 Rust バージョン**: 1.74
 
+<div align="center">
+  <p>
+    <a href="../../README.md">English</a> |
+    <a href="../zhs/index.md">简体中文</a> |
+    <a href="../zht/index.md">繁體中文</a> |
+    <a href="../ja/index.md">日本語</a> |
+    <a href="../ko/index.md">한국어</a> |
+    <a href="../fr/index.md">Français</a> |
+    <a href="../es/index.md">Español</a> |
+    <a href="../ru/index.md">Русский</a> |
+    <a href="../ar/index.md">العربية</a>
+  </p>
+</div>
+
 ## ratatui-markdown とは？
 
 ratatui-markdown は、[ratatui](https://github.com/ratatui/ratatui) 上に構築された、機能豊富なターミナル UI レンダリングライブラリです。4つの主要機能モジュールを提供し、独立して使用することも、`MarkdownPreview` ウィジェットで組み合わせることもできます。
