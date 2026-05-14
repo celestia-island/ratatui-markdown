@@ -2,14 +2,14 @@ use ratatui::{
     backend::TestBackend,
     buffer::Buffer,
     layout::Rect,
-    style::{Color, Modifier},
-    text::Line,
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
     widgets::Paragraph,
     Terminal,
 };
 
 use crate::{
-    markdown::{MarkdownBlock, MarkdownRenderer},
+    markdown::{MarkdownBlock, MarkdownRenderer, RenderHooks},
     theme::RichTextTheme,
 };
 
@@ -507,4 +507,829 @@ fn hr_star_syntax() {
 fn hr_underscore_syntax() {
     let lines = render_markdown("___", 80);
     assert_eq!(lines.len(), 1);
+}
+
+// ==================== Image Block Tests ====================
+
+#[test]
+fn image_block_parsed_from_standalone_line() {
+    let renderer = MarkdownRenderer::new(80);
+    let blocks = renderer.parse("![alt text](image.png)");
+    assert_eq!(blocks.len(), 1);
+    match &blocks[0] {
+        MarkdownBlock::Image { alt, path } => {
+            assert_eq!(alt, "alt text");
+            assert_eq!(path, "image.png");
+        }
+        other => panic!("expected Image block, got {:?}", other),
+    }
+}
+
+#[test]
+fn image_block_parsed_with_empty_alt() {
+    let renderer = MarkdownRenderer::new(80);
+    let blocks = renderer.parse("![](photo.jpg)");
+    assert_eq!(blocks.len(), 1);
+    match &blocks[0] {
+        MarkdownBlock::Image { alt, path } => {
+            assert_eq!(alt, "");
+            assert_eq!(path, "photo.jpg");
+        }
+        other => panic!("expected Image block, got {:?}", other),
+    }
+}
+
+#[test]
+fn image_block_between_paragraphs() {
+    let renderer = MarkdownRenderer::new(80);
+    let blocks = renderer.parse("text before\n\n![img](a.png)\n\ntext after");
+    let types: Vec<&str> = blocks
+        .iter()
+        .map(|b| match b {
+            MarkdownBlock::Paragraph(_) => "p",
+            MarkdownBlock::Image { .. } => "img",
+            MarkdownBlock::BlankLine => "blank",
+            _ => "other",
+        })
+        .collect();
+    assert!(types.contains(&"p"), "should have paragraph blocks");
+    assert!(types.contains(&"img"), "should have image block");
+}
+
+#[test]
+fn image_fallback_renders_gray_italic_span() {
+    let lines = render_markdown("![my alt](missing.png)", 80);
+    assert_eq!(lines.len(), 1, "image fallback should be a single line");
+    let buf = render_to_buffer(lines, 80, 5);
+    let first_char = buf.cell((0, 0)).unwrap().symbol();
+    assert_eq!(first_char, "[", "fallback should start with '['");
+    let text: String = (0..30)
+        .map(|x| buf.cell((x, 0)).unwrap().symbol())
+        .collect();
+    assert!(
+        text.contains("image"),
+        "fallback text should contain 'image': got '{}'",
+        text
+    );
+    let cell = buf.cell((0, 0)).unwrap();
+    assert_eq!(
+        cell.fg,
+        Color::Gray,
+        "fallback should be Gray colored"
+    );
+    assert!(
+        cell.style().add_modifier.contains(Modifier::ITALIC),
+        "fallback should be italic"
+    );
+}
+
+#[test]
+fn image_fallback_uses_alt_when_present() {
+    let lines = render_markdown("![screenshot](photo.png)", 80);
+    let buf = render_to_buffer(lines, 80, 5);
+    let text: String = (0..40)
+        .map(|x| buf.cell((x, 0)).unwrap().symbol())
+        .collect();
+    assert!(
+        text.contains("screenshot"),
+        "fallback should contain alt text 'screenshot': got '{}'",
+        text
+    );
+}
+
+#[test]
+fn image_fallback_uses_path_when_alt_empty() {
+    let lines = render_markdown("![](photo.png)", 80);
+    let buf = render_to_buffer(lines, 80, 5);
+    let text: String = (0..40)
+        .map(|x| buf.cell((x, 0)).unwrap().symbol())
+        .collect();
+    assert!(
+        text.contains("photo.png"),
+        "fallback should contain path when alt is empty: got '{}'",
+        text
+    );
+}
+
+#[test]
+fn image_inline_in_paragraph_not_treated_as_block() {
+    let renderer = MarkdownRenderer::new(80);
+    let blocks = renderer.parse("text ![inline](i.png) more");
+    for block in &blocks {
+        assert!(
+            !matches!(block, MarkdownBlock::Image { .. }),
+            "inline image inside text should not become a block-level Image"
+        );
+    }
+}
+
+#[test]
+fn image_line_count_is_1() {
+    let block = MarkdownBlock::Image {
+        alt: "test".to_string(),
+        path: "test.png".to_string(),
+    };
+    assert_eq!(block.line_count(), 1);
+}
+
+// ==================== RenderHooks Tests ====================
+
+struct HeadingOverrideHooks;
+
+impl RenderHooks for HeadingOverrideHooks {
+    fn heading1(&self, text: &str) -> Option<Line<'static>> {
+        Some(Line::from(Span::styled(
+            format!(">>> {}", text),
+            Style::default().fg(Color::Red),
+        )))
+    }
+}
+
+#[test]
+fn hooks_heading1_override() {
+    let renderer =
+        MarkdownRenderer::new(80).with_render_hooks(Box::new(HeadingOverrideHooks));
+    let blocks = renderer.parse("# Hello");
+    let lines = renderer.render(&blocks, &TestTheme);
+    assert_eq!(lines.len(), 1);
+    let buf = render_to_buffer(lines, 80, 5);
+    assert_eq!(buf.cell((0, 0)).unwrap().symbol(), ">");
+    assert_eq!(buf.cell((1, 0)).unwrap().symbol(), ">");
+    assert_eq!(buf.cell((2, 0)).unwrap().symbol(), ">");
+    assert_eq!(buf.cell((4, 0)).unwrap().symbol(), "H");
+    let cell = buf.cell((0, 0)).unwrap();
+    assert_eq!(cell.fg, Color::Red, "overridden heading should be Red");
+}
+
+struct Heading2PrefixHooks;
+
+impl RenderHooks for Heading2PrefixHooks {
+    fn heading2(&self, text: &str) -> Option<Line<'static>> {
+        Some(Line::from(Span::raw(format!("## {}", text))))
+    }
+}
+
+#[test]
+fn hooks_heading2_override() {
+    let renderer =
+        MarkdownRenderer::new(80).with_render_hooks(Box::new(Heading2PrefixHooks));
+    let blocks = renderer.parse("## Section");
+    let lines = renderer.render(&blocks, &TestTheme);
+    assert_eq!(lines.len(), 1);
+    let buf = render_to_buffer(lines, 80, 5);
+    assert_eq!(buf.cell((0, 0)).unwrap().symbol(), "#");
+    assert_eq!(buf.cell((1, 0)).unwrap().symbol(), "#");
+    let text: String = (0..10)
+        .map(|x| buf.cell((x, 0)).unwrap().symbol())
+        .collect();
+    assert!(text.starts_with("## Section"));
+}
+
+struct Heading3OverrideHooks;
+
+impl RenderHooks for Heading3OverrideHooks {
+    fn heading3(&self, text: &str) -> Option<Line<'static>> {
+        Some(Line::from(Span::styled(
+            format!("### {}", text),
+            Style::default().fg(Color::Magenta),
+        )))
+    }
+}
+
+#[test]
+fn hooks_heading3_override() {
+    let renderer =
+        MarkdownRenderer::new(80).with_render_hooks(Box::new(Heading3OverrideHooks));
+    let blocks = renderer.parse("### Sub");
+    let lines = renderer.render(&blocks, &TestTheme);
+    assert_eq!(lines.len(), 1);
+    let buf = render_to_buffer(lines, 80, 5);
+    assert_eq!(buf.cell((0, 0)).unwrap().fg, Color::Magenta);
+}
+
+struct ParagraphOverrideHooks;
+
+impl RenderHooks for ParagraphOverrideHooks {
+    fn paragraph(&self, lines: &[String]) -> Option<Vec<Line<'static>>> {
+        let text = lines.join(" | ");
+        Some(vec![Line::from(Span::styled(
+            format!("P: {}", text),
+            Style::default().fg(Color::Green),
+        ))])
+    }
+}
+
+#[test]
+fn hooks_paragraph_override() {
+    let renderer =
+        MarkdownRenderer::new(80).with_render_hooks(Box::new(ParagraphOverrideHooks));
+    let blocks = renderer.parse("Hello world");
+    let lines = renderer.render(&blocks, &TestTheme);
+    assert_eq!(lines.len(), 1);
+    let buf = render_to_buffer(lines, 80, 5);
+    let text: String = (0..15)
+        .map(|x| buf.cell((x, 0)).unwrap().symbol())
+        .collect();
+    assert!(
+        text.starts_with("P: Hello"),
+        "paragraph should be overridden with prefix: got '{}'",
+        text
+    );
+    assert_eq!(buf.cell((0, 0)).unwrap().fg, Color::Green);
+}
+
+struct CodeBlockCustomHooks;
+
+impl RenderHooks for CodeBlockCustomHooks {
+    fn code_block_header(&self, lang: &str) -> Option<Line<'static>> {
+        Some(Line::from(Span::styled(
+            format!("\u{256d} [{}] custom-header", lang),
+            Style::default().fg(Color::Cyan),
+        )))
+    }
+
+    fn code_block_footer(&self, _lang: &str, line_count: usize) -> Option<Line<'static>> {
+        Some(Line::from(Span::styled(
+            format!("\u{2570} {} lines", line_count),
+            Style::default().fg(Color::Cyan),
+        )))
+    }
+
+    fn code_block_line_prefix(&self, _lang: &str) -> Option<String> {
+        Some("  ".to_string())
+    }
+}
+
+#[test]
+fn hooks_code_block_header_footer_override() {
+    let renderer =
+        MarkdownRenderer::new(80).with_render_hooks(Box::new(CodeBlockCustomHooks));
+    let md = "```rust\nfn main() {}\n```";
+    let blocks = renderer.parse(md);
+    let lines = renderer.render(&blocks, &TestTheme);
+    assert_eq!(lines.len(), 3, "should have header + 1 content + footer");
+
+    let buf = render_to_buffer(lines.clone(), 80, 5);
+    assert_eq!(
+        buf.cell((0, 0)).unwrap().symbol(),
+        "\u{256d}",
+        "header should start with ╭"
+    );
+
+    let header_text: String = (0..30)
+        .map(|x| buf.cell((x, 0)).unwrap().symbol())
+        .collect();
+    assert!(
+        header_text.contains("custom-header"),
+        "header should contain custom text: got '{}'",
+        header_text
+    );
+
+    assert_eq!(
+        buf.cell((0, 2)).unwrap().symbol(),
+        "\u{2570}",
+        "footer should start with ╰"
+    );
+    let footer_text: String = (0..20)
+        .map(|x| buf.cell((x, 2)).unwrap().symbol())
+        .collect();
+    assert!(
+        footer_text.contains("1 lines"),
+        "footer should contain line count: got '{}'",
+        footer_text
+    );
+}
+
+#[test]
+fn hooks_code_block_line_prefix_override() {
+    let renderer =
+        MarkdownRenderer::new(80).with_render_hooks(Box::new(CodeBlockCustomHooks));
+    let md = "```rust\nhello\n```";
+    let blocks = renderer.parse(md);
+    let lines = renderer.render(&blocks, &TestTheme);
+    let buf = render_to_buffer(lines, 80, 5);
+    assert_eq!(
+        buf.cell((0, 1)).unwrap().symbol(),
+        " ",
+        "custom prefix should be spaces, not │"
+    );
+}
+
+struct CodeBlockLineOverrideHooks;
+
+impl RenderHooks for CodeBlockLineOverrideHooks {
+    fn code_block_line(&self, line: &str, idx: usize, _total: usize) -> Option<Line<'static>> {
+        Some(Line::from(Span::styled(
+            format!("{}: {}", idx, line),
+            Style::default().fg(Color::Yellow),
+        )))
+    }
+}
+
+#[test]
+fn hooks_code_block_line_override() {
+    let renderer =
+        MarkdownRenderer::new(80).with_render_hooks(Box::new(CodeBlockLineOverrideHooks));
+    let md = "```js\nline1\nline2\n```";
+    let blocks = renderer.parse(md);
+    let lines = renderer.render(&blocks, &TestTheme);
+    assert_eq!(lines.len(), 4, "header + 2 content + footer");
+    let buf = render_to_buffer(lines, 80, 5);
+    let line1_text: String = (0..10)
+        .map(|x| buf.cell((x, 1)).unwrap().symbol())
+        .collect();
+    assert!(
+        line1_text.starts_with("0:"),
+        "first code line should have index prefix: got '{}'",
+        line1_text
+    );
+    let line2_text: String = (0..10)
+        .map(|x| buf.cell((x, 2)).unwrap().symbol())
+        .collect();
+    assert!(
+        line2_text.starts_with("1:"),
+        "second code line should have index prefix: got '{}'",
+        line2_text
+    );
+}
+
+struct InlineCodeOverrideHooks;
+
+impl RenderHooks for InlineCodeOverrideHooks {
+    fn inline_code(&self, code: &str) -> Option<Line<'static>> {
+        Some(Line::from(Span::styled(
+            format!("CODE({})", code),
+            Style::default().fg(Color::Red),
+        )))
+    }
+}
+
+#[test]
+fn hooks_inline_code_override() {
+    let renderer =
+        MarkdownRenderer::new(80).with_render_hooks(Box::new(InlineCodeOverrideHooks));
+    let blocks = vec![MarkdownBlock::InlineCode("hello".to_string())];
+    let lines = renderer.render(&blocks, &TestTheme);
+    assert_eq!(lines.len(), 1);
+    let buf = render_to_buffer(lines, 80, 5);
+    let text: String = (0..15)
+        .map(|x| buf.cell((x, 0)).unwrap().symbol())
+        .collect();
+    assert!(
+        text.starts_with("CODE(hello)"),
+        "inline code block should be overridden: got '{}'",
+        text
+    );
+    assert_eq!(buf.cell((0, 0)).unwrap().fg, Color::Red);
+}
+
+struct TreeListHook;
+
+impl RenderHooks for TreeListHook {
+    fn list_item_marker(
+        &self,
+        _indent: u8,
+        is_last_in_group: bool,
+        _ancestors_are_last: &[bool],
+        _index_in_group: usize,
+    ) -> Option<String> {
+        let marker = if is_last_in_group {
+            "\u{2514}\u{2500} "
+        } else {
+            "\u{251c}\u{2500} "
+        };
+        Some(marker.to_string())
+    }
+}
+
+#[test]
+fn hooks_list_item_marker_tree_style() {
+    let renderer =
+        MarkdownRenderer::new(80).with_render_hooks(Box::new(TreeListHook));
+    let blocks = renderer.parse("- first\n- second\n- third");
+    let lines = renderer.render(&blocks, &TestTheme);
+    assert_eq!(lines.len(), 3, "should have 3 list items");
+    let buf = render_to_buffer(lines, 80, 5);
+    assert_eq!(
+        buf.cell((0, 0)).unwrap().symbol(),
+        "\u{251c}",
+        "first item (not last) should use ├"
+    );
+    assert_eq!(
+        buf.cell((0, 2)).unwrap().symbol(),
+        "\u{2514}",
+        "last item should use └"
+    );
+}
+
+struct ListItemContentHooks;
+
+impl RenderHooks for ListItemContentHooks {
+    fn list_item_content(&self, text: &str, _indent: u8) -> Option<Vec<Line<'static>>> {
+        Some(vec![Line::from(Span::styled(
+            format!("[{}]", text),
+            Style::default().fg(Color::Blue),
+        ))])
+    }
+
+    fn list_item_marker(
+        &self,
+        _indent: u8,
+        _is_last_in_group: bool,
+        _ancestors_are_last: &[bool],
+        _index_in_group: usize,
+    ) -> Option<String> {
+        Some("* ".to_string())
+    }
+}
+
+#[test]
+fn hooks_list_item_content_override() {
+    let renderer =
+        MarkdownRenderer::new(80).with_render_hooks(Box::new(ListItemContentHooks));
+    let blocks = renderer.parse("- hello");
+    let lines = renderer.render(&blocks, &TestTheme);
+    assert_eq!(lines.len(), 1);
+    let buf = render_to_buffer(lines, 80, 5);
+    let text: String = (0..12)
+        .map(|x| buf.cell((x, 0)).unwrap().symbol())
+        .collect();
+    assert!(
+        text.contains("[hello]"),
+        "list item content should be wrapped in brackets: got '{}'",
+        text
+    );
+}
+
+struct BlockquoteOverrideHooks;
+
+impl RenderHooks for BlockquoteOverrideHooks {
+    fn blockquote(&self, text: &str) -> Option<Vec<Line<'static>>> {
+        Some(vec![Line::from(Span::styled(
+            format!("QUOTE: {}", text),
+            Style::default().fg(Color::Magenta),
+        ))])
+    }
+}
+
+#[test]
+fn hooks_blockquote_override() {
+    let renderer =
+        MarkdownRenderer::new(80).with_render_hooks(Box::new(BlockquoteOverrideHooks));
+    let blocks = renderer.parse("> some quote");
+    let lines = renderer.render(&blocks, &TestTheme);
+    assert_eq!(lines.len(), 1);
+    let buf = render_to_buffer(lines, 80, 5);
+    let text: String = (0..20)
+        .map(|x| buf.cell((x, 0)).unwrap().symbol())
+        .collect();
+    assert!(
+        text.starts_with("QUOTE: some quote"),
+        "blockquote should be overridden: got '{}'",
+        text
+    );
+    assert_eq!(buf.cell((0, 0)).unwrap().fg, Color::Magenta);
+}
+
+struct HorizontalRuleOverrideHooks;
+
+impl RenderHooks for HorizontalRuleOverrideHooks {
+    fn horizontal_rule(&self) -> Option<Line<'static>> {
+        Some(Line::from(Span::styled(
+            "=".repeat(40),
+            Style::default().fg(Color::Cyan),
+        )))
+    }
+}
+
+#[test]
+fn hooks_horizontal_rule_override() {
+    let renderer =
+        MarkdownRenderer::new(80).with_render_hooks(Box::new(HorizontalRuleOverrideHooks));
+    let blocks = renderer.parse("---");
+    let lines = renderer.render(&blocks, &TestTheme);
+    assert_eq!(lines.len(), 1);
+    let buf = render_to_buffer(lines, 80, 5);
+    assert_eq!(
+        buf.cell((0, 0)).unwrap().symbol(),
+        "=",
+        "horizontal rule should be overridden to ="
+    );
+    assert_eq!(buf.cell((0, 0)).unwrap().fg, Color::Cyan);
+}
+
+struct BlankLineOverrideHooks;
+
+impl RenderHooks for BlankLineOverrideHooks {
+    fn blank_line(&self) -> Option<Line<'static>> {
+        Some(Line::from(Span::styled(
+            "\u{00b7}",
+            Style::default().fg(Color::DarkGray),
+        )))
+    }
+}
+
+#[test]
+fn hooks_blank_line_override() {
+    let renderer =
+        MarkdownRenderer::new(80).with_render_hooks(Box::new(BlankLineOverrideHooks));
+    let blocks = renderer.parse("a\n\nb");
+    let lines = renderer.render(&blocks, &TestTheme);
+    let blank = lines.iter().find(|l| {
+        l.spans.len() == 1 && l.spans[0].content == "\u{00b7}"
+    });
+    assert!(
+        blank.is_some(),
+        "blank line should be overridden to middle dot"
+    );
+}
+
+struct TableOverrideHooks;
+
+impl RenderHooks for TableOverrideHooks {
+    fn table(
+        &self,
+        headers: &[String],
+        rows: &[Vec<String>],
+    ) -> Option<Vec<Line<'static>>> {
+        let mut out = Vec::new();
+        out.push(Line::from(Span::styled(
+            format!("TABLE: {} headers", headers.len()),
+            Style::default().fg(Color::Cyan),
+        )));
+        for row in rows {
+            out.push(Line::from(Span::styled(
+                row.join(", "),
+                Style::default().fg(Color::White),
+            )));
+        }
+        Some(out)
+    }
+}
+
+#[test]
+fn hooks_table_override() {
+    let renderer =
+        MarkdownRenderer::new(80).with_render_hooks(Box::new(TableOverrideHooks));
+    let md = "| A | B |\n|---|---|\n| 1 | 2 |";
+    let blocks = renderer.parse(md);
+    let lines = renderer.render(&blocks, &TestTheme);
+    assert_eq!(lines.len(), 2, "should have header line + 1 data row");
+    let buf = render_to_buffer(lines, 80, 5);
+    let header: String = (0..20)
+        .map(|x| buf.cell((x, 0)).unwrap().symbol())
+        .collect();
+    assert!(
+        header.contains("TABLE: 2 headers"),
+        "table header should be overridden: got '{}'",
+        header
+    );
+}
+
+struct ImageFallbackHooks;
+
+impl RenderHooks for ImageFallbackHooks {
+    fn image_fallback(&self, alt: &str, path: &str) -> Option<Vec<Line<'static>>> {
+        Some(vec![Line::from(Span::styled(
+            format!("[IMG: {} ({})]", alt, path),
+            Style::default().fg(Color::Red),
+        ))])
+    }
+}
+
+#[test]
+fn hooks_image_fallback_override() {
+    let renderer =
+        MarkdownRenderer::new(80).with_render_hooks(Box::new(ImageFallbackHooks));
+    let blocks = renderer.parse("![logo](logo.png)");
+    let lines = renderer.render(&blocks, &TestTheme);
+    assert_eq!(lines.len(), 1);
+    let buf = render_to_buffer(lines, 80, 5);
+    let text: String = (0..30)
+        .map(|x| buf.cell((x, 0)).unwrap().symbol())
+        .collect();
+    assert!(
+        text.contains("IMG: logo (logo.png)"),
+        "image fallback should be overridden: got '{}'",
+        text
+    );
+    assert_eq!(buf.cell((0, 0)).unwrap().fg, Color::Red);
+}
+
+struct NoopHooks;
+
+impl RenderHooks for NoopHooks {}
+
+#[test]
+fn hooks_noop_does_not_change_output() {
+    let md = "# Title\n\nParagraph **bold**.\n\n- item\n\n> quote\n\n---";
+    let renderer_no_hooks = MarkdownRenderer::new(80);
+    let blocks = renderer_no_hooks.parse(md);
+    let lines_no_hooks = renderer_no_hooks.render(&blocks, &TestTheme);
+
+    let renderer_with_noop =
+        MarkdownRenderer::new(80).with_render_hooks(Box::new(NoopHooks));
+    let blocks2 = renderer_with_noop.parse(md);
+    let lines_with_noop = renderer_with_noop.render(&blocks2, &TestTheme);
+
+    assert_eq!(
+        lines_no_hooks.len(),
+        lines_with_noop.len(),
+        "noop hooks should produce same number of lines"
+    );
+    for (i, (a, b)) in lines_no_hooks.iter().zip(lines_with_noop.iter()).enumerate() {
+        let a_text: String = a.spans.iter().map(|s| s.content.as_ref()).collect();
+        let b_text: String = b.spans.iter().map(|s| s.content.as_ref()).collect();
+        assert_eq!(
+            a_text, b_text,
+            "line {} text should match with noop hooks",
+            i
+        );
+    }
+}
+
+#[test]
+fn hooks_selective_override_only_affects_target() {
+    let md = "# Title\n\nParagraph text.\n\n- item";
+    let renderer =
+        MarkdownRenderer::new(80).with_render_hooks(Box::new(HeadingOverrideHooks));
+    let blocks = renderer.parse(md);
+    let lines = renderer.render(&blocks, &TestTheme);
+
+    let heading_line = &lines[0];
+    let heading_text: String = heading_line.spans.iter().map(|s| s.content.as_ref()).collect();
+    assert!(
+        heading_text.starts_with(">>> "),
+        "heading should be overridden"
+    );
+
+    let paragraph_line = &lines[2];
+    let para_text: String = paragraph_line.spans.iter().map(|s| s.content.as_ref()).collect();
+    assert!(
+        para_text.contains("Paragraph text"),
+        "paragraph should NOT be overridden: got '{}'",
+        para_text
+    );
+    assert!(
+        !para_text.starts_with("P:"),
+        "paragraph should use default rendering, not hook override"
+    );
+}
+
+// ==================== Code block rendering detail tests ====================
+
+#[test]
+fn code_block_header_contains_lang_label() {
+    let md = "```rust\ncode\n```";
+    let lines = render_markdown(md, 80);
+    let buf = render_to_buffer(lines, 80, 5);
+    let header: String = (0..20)
+        .map(|x| buf.cell((x, 0)).unwrap().symbol())
+        .collect();
+    assert!(
+        header.contains("rust"),
+        "code block header should contain language label: got '{}'",
+        header
+    );
+}
+
+#[test]
+fn code_block_header_has_rounded_top_left() {
+    let md = "```js\nx\n```";
+    let lines = render_markdown(md, 80);
+    let buf = render_to_buffer(lines, 80, 5);
+    assert_eq!(buf.cell((0, 0)).unwrap().symbol(), "\u{256d}");
+}
+
+#[test]
+fn code_block_footer_has_rounded_bottom_left() {
+    let md = "```js\nx\n```";
+    let lines = render_markdown(md, 80);
+    let buf = render_to_buffer(lines, 80, 5);
+    assert_eq!(
+        buf.cell((0, 2)).unwrap().symbol(),
+        "\u{2570}",
+        "footer should have ╰"
+    );
+}
+
+#[test]
+fn code_block_content_line_has_pipe_prefix() {
+    let md = "```sh\necho hello\n```";
+    let lines = render_markdown(md, 80);
+    let buf = render_to_buffer(lines, 80, 5);
+    assert_eq!(
+        buf.cell((0, 1)).unwrap().symbol(),
+        "\u{2502}",
+        "content line should have │ prefix"
+    );
+}
+
+#[test]
+fn code_block_content_line_has_yellow_text() {
+    let md = "```sh\necho hello\n```";
+    let lines = render_markdown(md, 80);
+    let buf = render_to_buffer(lines, 80, 5);
+    let content_cell = buf.cell((2, 1)).unwrap();
+    assert_eq!(
+        content_cell.fg,
+        Color::Yellow,
+        "code content should be Yellow"
+    );
+}
+
+// ==================== Image parsing edge cases ====================
+
+#[test]
+fn image_not_confused_with_link() {
+    let renderer = MarkdownRenderer::new(80);
+    let blocks = renderer.parse("[link](url)");
+    for block in &blocks {
+        assert!(
+            !matches!(block, MarkdownBlock::Image { .. }),
+            "link syntax should not produce Image block"
+        );
+    }
+}
+
+#[test]
+fn image_with_special_chars_in_alt() {
+    let renderer = MarkdownRenderer::new(80);
+    let blocks = renderer.parse("![alt-text_here](path.png)");
+    assert_eq!(blocks.len(), 1);
+    match &blocks[0] {
+        MarkdownBlock::Image { alt, path } => {
+            assert_eq!(alt, "alt-text_here");
+            assert_eq!(path, "path.png");
+        }
+        other => panic!("expected Image, got {:?}", other),
+    }
+}
+
+#[test]
+fn image_with_url_path() {
+    let renderer = MarkdownRenderer::new(80);
+    let blocks = renderer.parse("![icon](https://example.com/icon.png)");
+    assert_eq!(blocks.len(), 1);
+    match &blocks[0] {
+        MarkdownBlock::Image { path, .. } => {
+            assert_eq!(path, "https://example.com/icon.png");
+        }
+        other => panic!("expected Image, got {:?}", other),
+    }
+}
+
+#[test]
+fn image_without_path_not_parsed_as_image() {
+    let renderer = MarkdownRenderer::new(80);
+    let blocks = renderer.parse("![]()");
+    for block in &blocks {
+        assert!(
+            !matches!(block, MarkdownBlock::Image { .. }),
+            "empty path should not produce Image block"
+        );
+    }
+}
+
+// ==================== Hook with complex markdown ====================
+
+struct MultiHook;
+
+impl RenderHooks for MultiHook {
+    fn heading1(&self, text: &str) -> Option<Line<'static>> {
+        Some(Line::from(Span::raw(format!("H1: {}", text))))
+    }
+
+    fn heading2(&self, text: &str) -> Option<Line<'static>> {
+        Some(Line::from(Span::raw(format!("H2: {}", text))))
+    }
+
+    fn horizontal_rule(&self) -> Option<Line<'static>> {
+        Some(Line::from(Span::raw("---HR---")))
+    }
+}
+
+#[test]
+fn hooks_multiple_overrides_in_same_document() {
+    let md = "# Title\n\n## Sub\n\n---\n\ntext";
+    let renderer =
+        MarkdownRenderer::new(80).with_render_hooks(Box::new(MultiHook));
+    let blocks = renderer.parse(md);
+    let lines = renderer.render(&blocks, &TestTheme);
+
+    let texts: Vec<String> = lines
+        .iter()
+        .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect())
+        .collect();
+
+    let h1 = texts.iter().find(|t| t.starts_with("H1:"));
+    assert!(h1.is_some(), "should find H1 override");
+    assert_eq!(h1.unwrap(), "H1: Title");
+
+    let h2 = texts.iter().find(|t| t.starts_with("H2:"));
+    assert!(h2.is_some(), "should find H2 override");
+    assert_eq!(h2.unwrap(), "H2: Sub");
+
+    let hr = texts.iter().find(|t| t.contains("HR"));
+    assert!(hr.is_some(), "should find HR override");
 }
