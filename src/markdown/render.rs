@@ -75,7 +75,7 @@ impl MarkdownRenderer {
         let mut lines = Vec::new();
 
         for (block_idx, block) in blocks.iter().enumerate() {
-            self.render_block(block, block_idx, theme, blocks, &mut lines, 0);
+            self.render_block(block, block_idx, theme, blocks, &mut lines);
         }
 
         lines
@@ -114,6 +114,7 @@ impl MarkdownRenderer {
     }
 
     #[cfg(feature = "image")]
+    #[allow(clippy::too_many_arguments)]
     fn render_block_with_images<I: ImageResolver>(
         &self,
         block: &MarkdownBlock,
@@ -163,7 +164,7 @@ impl MarkdownRenderer {
                     lines.push(Line::from(resolver.fallback(path, alt)));
                 }
             }
-            _ => self.render_block(block, _block_idx, theme, _blocks, lines, 0),
+            _ => self.render_block(block, _block_idx, theme, _blocks, lines),
         }
     }
 
@@ -174,7 +175,6 @@ impl MarkdownRenderer {
         theme: &impl RichTextTheme,
         blocks: &[MarkdownBlock],
         lines: &mut Vec<Line<'static>>,
-        base_indent: usize,
     ) {
         let hooks = self.hooks.as_deref();
 
@@ -413,7 +413,6 @@ impl MarkdownRenderer {
                         theme,
                         children,
                         &mut inner_lines,
-                        base_indent + *level as usize,
                     );
                 }
 

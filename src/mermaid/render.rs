@@ -84,8 +84,8 @@ fn draw_node(grid: &mut [Vec<Cell>], node: &LayoutNode, theme: &impl RichTextThe
         let row = &mut grid[y];
         row[x] = Cell { ch: tl, style: border_style };
         row[x + w - 1] = Cell { ch: tr, style: border_style };
-        for cx in (x + 1)..(x + w - 1) {
-            row[cx] = Cell { ch: HLINE, style: border_style };
+        for cell in row.iter_mut().take(x + w - 1).skip(x + 1) {
+            *cell = Cell { ch: HLINE, style: border_style };
         }
     }
 
@@ -144,8 +144,8 @@ fn draw_node(grid: &mut [Vec<Cell>], node: &LayoutNode, theme: &impl RichTextThe
                 ch: VLINE,
                 style: border_style,
             };
-            for cx in (x + 1)..(x + w - 1) {
-                row[cx] = Cell { ch: ' ', style: text_style };
+            for cell in row.iter_mut().take(x + w - 1).skip(x + 1) {
+                *cell = Cell { ch: ' ', style: text_style };
             }
         }
     }
@@ -155,8 +155,8 @@ fn draw_node(grid: &mut [Vec<Cell>], node: &LayoutNode, theme: &impl RichTextThe
         let row = &mut grid[bottom_row];
         row[x] = Cell { ch: bl, style: border_style };
         row[x + w - 1] = Cell { ch: br, style: border_style };
-        for cx in (x + 1)..(x + w - 1) {
-            row[cx] = Cell { ch: HLINE, style: border_style };
+        for cell in row.iter_mut().take(x + w - 1).skip(x + 1) {
+            *cell = Cell { ch: HLINE, style: border_style };
         }
     }
 }

@@ -54,33 +54,6 @@ fn is_line_only_image(text: &str) -> bool {
     false
 }
 
-#[allow(dead_code)]
-fn extract_inline_images(text: &str) -> Vec<(String, String)> {
-    let mut images = Vec::new();
-    let mut search_from = 0;
-    let chars: Vec<char> = text.chars().collect();
-
-    while search_from < chars.len() {
-        if chars[search_from] != '!' {
-            search_from += 1;
-            continue;
-        }
-        if search_from + 1 >= chars.len() || chars[search_from + 1] != '[' {
-            search_from += 1;
-            continue;
-        }
-        let remaining: String = chars[search_from..].iter().collect();
-        if let Some((alt, path)) = parse_image_syntax(&remaining) {
-            images.push((alt, path));
-            let close_paren = remaining.find(')').unwrap_or(0);
-            search_from += close_paren + 1;
-        } else {
-            search_from += 1;
-        }
-    }
-    images
-}
-
 impl MarkdownRenderer {
     pub fn parse(&self, markdown: &str) -> Vec<MarkdownBlock> {
         self.parse_inner(markdown, &mut Vec::new())
@@ -369,13 +342,7 @@ impl MarkdownRenderer {
     ) -> MarkdownBlock {
         let adjusted: Vec<(u8, String)> = lines
             .iter()
-            .map(|(level, content)| {
-                if *level >= target_level {
-                    (*level, content.clone())
-                } else {
-                    (*level, content.clone())
-                }
-            })
+            .map(|(level, content)| (*level, content.clone()))
             .collect();
 
         let has_deeper = adjusted.iter().any(|(l, _)| *l > target_level);

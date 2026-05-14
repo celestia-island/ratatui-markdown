@@ -61,10 +61,10 @@ pub trait ImageResolver {
         if pw == 0 || ph == 0 || max_width == 0 {
             return (0, 0);
         }
-        let w_cells = ((pw + DEFAULT_PIXELS_PER_CELL_W - 1) / DEFAULT_PIXELS_PER_CELL_W) as u16;
+        let w_cells = pw.div_ceil(DEFAULT_PIXELS_PER_CELL_W) as u16;
         let w = w_cells.min(max_width);
-        let ratio = ph as u32 * w as u32 / ((pw as u32).max(1));
-        let h = ((ratio + DEFAULT_PIXELS_PER_CELL_H - 1) / DEFAULT_PIXELS_PER_CELL_H) as u16;
+        let ratio = ph * w as u32 / (pw.max(1));
+        let h = ratio.div_ceil(DEFAULT_PIXELS_PER_CELL_H) as u16;
         (w.max(1), h.max(1))
     }
 

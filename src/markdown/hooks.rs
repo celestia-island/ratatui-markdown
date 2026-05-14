@@ -102,8 +102,3 @@ pub trait RenderHooks: Send + Sync {
         None
     }
 }
-
-#[allow(dead_code)]
-pub(crate) struct NoopRenderHooks;
-
-impl RenderHooks for NoopRenderHooks {}

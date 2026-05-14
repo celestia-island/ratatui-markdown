@@ -51,18 +51,4 @@ impl MarkdownRenderer {
         self.tree_text_gap = gap;
         self
     }
-
-    pub(crate) fn effective_tree_indent_width(&self) -> usize {
-        self.hooks
-            .as_deref()
-            .and_then(|h| h.tree_indent_width())
-            .unwrap_or(self.tree_indent_width)
-    }
-
-    pub(crate) fn effective_tree_text_gap(&self) -> usize {
-        self.hooks
-            .as_deref()
-            .and_then(|h| h.tree_text_gap())
-            .unwrap_or(self.tree_text_gap)
-    }
 }

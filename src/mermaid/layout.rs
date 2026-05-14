@@ -57,7 +57,6 @@ pub fn compute_layout(
     let (h_spacing, v_spacing) = adapt_spacing(diagram, max_width, max_height);
 
     let layers = assign_layers(diagram);
-    let layer_count = layers.len();
 
     let mut layout_nodes = Vec::new();
     let mut node_positions: HashMap<String, (usize, usize)> = HashMap::new();
@@ -68,14 +67,14 @@ pub fn compute_layout(
     );
 
     let mut y_offset = 0usize;
-    for layer_idx in 0..layer_count {
-        let layer = &layers[layer_idx];
+    for (layer_idx, layer) in layers.iter().enumerate() {
         let node_count = layer.len();
 
         let mut node_widths: Vec<usize> = layer
             .iter()
             .map(|id| {
-                let node = diagram.nodes.iter().find(|n| &n.id == id).unwrap();
+                let node = diagram.nodes.iter().find(|n| &n.id == id)
+                    .expect("layer node must exist in diagram nodes");
                 let text_w = unicode_width::UnicodeWidthStr::width(node.label.as_str());
                 (text_w + NODE_H_PADDING * 2).max(MIN_NODE_WIDTH)
             })
@@ -120,7 +119,8 @@ pub fn compute_layout(
 
         let mut x = x_start;
         for (i, id) in layer.iter().enumerate() {
-            let node = diagram.nodes.iter().find(|n| &n.id == id).unwrap();
+            let node = diagram.nodes.iter().find(|n| &n.id == id)
+                .expect("layer node must exist in diagram nodes");
             let w = node_widths[i];
 
             let (nx, ny) = if is_vertical {

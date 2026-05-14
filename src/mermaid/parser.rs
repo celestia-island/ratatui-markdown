@@ -58,21 +58,18 @@ fn parse_stmt(
     node_map: &mut std::collections::HashMap<String, usize>,
 ) {
     for inner in pair.into_inner() {
-        match inner.as_rule() {
-            Rule::stmt_inner => {
-                for inner2 in inner.into_inner() {
-                    match inner2.as_rule() {
-                        Rule::chain => {
-                            parse_chain(inner2, nodes, edges, node_map);
-                        }
-                        Rule::nodedef => {
-                            parse_nodedef(inner2, nodes, node_map);
-                        }
-                        _ => {}
+        if inner.as_rule() == Rule::stmt_inner {
+            for inner2 in inner.into_inner() {
+                match inner2.as_rule() {
+                    Rule::chain => {
+                        parse_chain(inner2, nodes, edges, node_map);
                     }
+                    Rule::nodedef => {
+                        parse_nodedef(inner2, nodes, node_map);
+                    }
+                    _ => {}
                 }
             }
-            _ => {}
         }
     }
 }
