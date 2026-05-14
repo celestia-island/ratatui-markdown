@@ -1,0 +1,41 @@
+name: Publish to crates.io
+on:
+  push:
+    tags: [v*]
+
+jobs:
+  verify-version:
+    name: Verify version matches tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract tag version
+        id: tag
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+      - name: Check Cargo.toml version matches tag
+        run: |
+          TAG_VERSION="${{ steps.tag.outputs.version }}"
+          CARGO_VERSION=$(grep -oP '^version\s*=\s*"\K[^"]+' Cargo.toml | head -1)
+          if [ "$CARGO_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::Cargo.toml version ($CARGO_VERSION) != tag ($TAG_VERSION)"
+            exit 1
+          fi
+          echo "Version $CARGO_VERSION matches tag v$TAG_VERSION"
+
+  publish:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: verify-version
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - run: rustc --version && cargo --version
+      - run: cargo login ${{ secrets.CRATES_IO_API_TOKEN }}
+
+      - run: cargo publish -p ratatui-markdown --allow-dirty -v
