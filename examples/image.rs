@@ -356,7 +356,7 @@ fn main() -> anyhow::Result<()> {
             let text_top = inner.y + 1;
             let text_bot = inner.y + inner.height.saturating_sub(2);
             let text_left = inner.x + 1;
-            let sb_col = inner.x + inner.width.saturating_sub(2);
+            let sb_col = inner.x + inner.width.saturating_sub(1);
             let text_right = sb_col.saturating_sub(1);
             let content_w = text_right.saturating_sub(text_left);
             let content_h = text_bot.saturating_sub(text_top).saturating_add(1);
@@ -483,10 +483,17 @@ fn main() -> anyhow::Result<()> {
                     .track_symbol(Some("│"))
                     .style(Style::default().fg(Color::DarkGray))
                     .thumb_style(Style::default().fg(Color::Cyan));
+                let max_pos = (doc_h as usize).saturating_sub(1);
+                let max_off = (doc_h as usize).saturating_sub(content_h as usize);
+                let thumb_pos = if max_off > 0 && max_pos > 0 {
+                    (state.scroll as u64 * max_pos as u64 / max_off as u64) as usize
+                } else {
+                    0
+                };
                 let mut sb_state = ScrollbarState::default()
                     .content_length(doc_h as usize)
                     .viewport_content_length(content_h as usize)
-                    .position(state.scroll as usize);
+                    .position(thumb_pos);
                 f.render_stateful_widget(sb, sb_area, &mut sb_state);
             }
 

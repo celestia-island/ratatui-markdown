@@ -154,7 +154,7 @@ fn main() -> anyhow::Result<()> {
             let total = lines.len();
             if total > content_h as usize && content_h > 0 {
                 let sb_area = Rect::new(
-                    inner.x + inner.width.saturating_sub(2),
+                    inner.x + inner.width.saturating_sub(1),
                     inner.y + 1,
                     1,
                     content_h,
