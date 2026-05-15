@@ -160,8 +160,8 @@ pub fn draw_frame(
     let blank = Line::from(Span::raw(" ".repeat(inner_w)));
     let mut padded: Vec<Line<'static>> = Vec::with_capacity(visible);
 
-    for i in scroll..scroll.saturating_add(visible).min(lines.len()) {
-        let spans = lines[i].spans.clone();
+    for line in lines.iter().skip(scroll).take(visible) {
+        let spans = line.spans.clone();
         let used: usize = spans.iter().map(|s| s.width()).sum();
         if used < inner_w {
             let mut s = spans;
