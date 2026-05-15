@@ -269,6 +269,7 @@ pub fn poll_and_handle(state: &mut AppState) -> anyhow::Result<bool> {
     Ok(false)
 }
 
+#[allow(dead_code)]
 pub fn lorem(words: usize) -> String {
     lipsum::lipsum(words)
 }

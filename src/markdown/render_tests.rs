@@ -2,8 +2,8 @@ use ratatui::{
     backend::TestBackend,
     buffer::Buffer,
     layout::Rect,
-    style::{Color, Modifier, Style},
-    text::{Line, Span},
+    style::{Color, Modifier},
+    text::Line,
     widgets::Paragraph,
     Terminal,
 };
