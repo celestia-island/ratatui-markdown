@@ -66,6 +66,17 @@ fn default_image_fallback(alt: &str, path: &str) -> Line<'static> {
     ))
 }
 
+#[cfg(feature = "image")]
+struct ImageRenderContext<'a, I: ImageResolver> {
+    lines: &'a mut Vec<Line<'static>>,
+    placements: &'a mut Vec<super::image::ImagePlacement>,
+    resolved_images: &'a [super::image::ResolvedImage],
+    next_image_idx: &'a mut usize,
+    resolver: &'a mut I,
+    max_image_width: u16,
+    max_image_height: u16,
+}
+
 impl MarkdownRenderer {
     pub fn render(
         &self,
@@ -94,55 +105,47 @@ impl MarkdownRenderer {
         let mut output = MarkdownRenderOutput::new();
         let mut next_image_idx = 0;
 
+        let mut ctx = ImageRenderContext {
+            lines: &mut output.lines,
+            placements: &mut output.images,
+            resolved_images,
+            next_image_idx: &mut next_image_idx,
+            resolver,
+            max_image_width,
+            max_image_height,
+        };
+
         for (block_idx, block) in blocks.iter().enumerate() {
-            self.render_block_with_images(
-                block,
-                block_idx,
-                theme,
-                blocks,
-                &mut output.lines,
-                &mut output.images,
-                resolved_images,
-                &mut next_image_idx,
-                resolver,
-                max_image_width,
-                max_image_height,
-            );
+            self.render_block_with_images(block, block_idx, theme, blocks, &mut ctx);
         }
 
         output
     }
 
     #[cfg(feature = "image")]
-    #[allow(clippy::too_many_arguments)]
     fn render_block_with_images<I: ImageResolver>(
         &self,
         block: &MarkdownBlock,
         _block_idx: usize,
         theme: &impl RichTextTheme,
         _blocks: &[MarkdownBlock],
-        lines: &mut Vec<Line<'static>>,
-        placements: &mut Vec<super::image::ImagePlacement>,
-        resolved_images: &[super::image::ResolvedImage],
-        next_image_idx: &mut usize,
-        resolver: &mut I,
-        max_image_width: u16,
-        max_image_height: u16,
+        ctx: &mut ImageRenderContext<I>,
     ) {
         match block {
             MarkdownBlock::Image { alt, path } => {
-                if *next_image_idx < resolved_images.len()
-                    && resolved_images[*next_image_idx].path == *path
+                if *ctx.next_image_idx < ctx.resolved_images.len()
+                    && ctx.resolved_images[*ctx.next_image_idx].path == *path
                 {
-                    let ref_img = &resolved_images[*next_image_idx].image;
+                    let ref_img = &ctx.resolved_images[*ctx.next_image_idx].image;
                     let (w_cells, h_cells) =
-                        resolver.cell_dimensions(ref_img, max_image_width, max_image_height);
+                        ctx.resolver
+                            .cell_dimensions(ref_img, ctx.max_image_width, ctx.max_image_height);
                     if w_cells > 0 && h_cells > 0 {
-                        let row = lines.len();
+                        let row = ctx.lines.len();
                         for _ in 0..h_cells {
-                            lines.push(Line::raw(""));
+                            ctx.lines.push(Line::raw(""));
                         }
-                        placements.push(super::image::ImagePlacement {
+                        ctx.placements.push(super::image::ImagePlacement {
                             row,
                             col: 0,
                             width_cells: w_cells,
@@ -150,21 +153,22 @@ impl MarkdownRenderer {
                             image: ref_img.clone(),
                         });
                     } else {
-                        lines.push(default_image_fallback(alt, path));
+                        ctx.lines.push(default_image_fallback(alt, path));
                     }
-                    *next_image_idx += 1;
+                    *ctx.next_image_idx += 1;
                 } else {
                     let hooks = self.hooks.as_deref();
                     if let Some(h) = hooks {
                         if let Some(custom) = h.image_fallback(alt, path) {
-                            lines.extend(custom);
+                            ctx.lines.extend(custom);
                             return;
                         }
                     }
-                    lines.push(Line::from(resolver.fallback(path, alt)));
+                    ctx.lines
+                        .push(Line::from(ctx.resolver.fallback(path, alt)));
                 }
             }
-            _ => self.render_block(block, _block_idx, theme, _blocks, lines),
+            _ => self.render_block(block, _block_idx, theme, _blocks, ctx.lines),
         }
     }
 

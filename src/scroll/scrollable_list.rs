@@ -11,6 +11,15 @@ use crate::{
     theme::RichTextTheme,
 };
 
+pub struct RenderParams<'a, 'f, R: RichTextTheme> {
+    pub frame: &'a mut Frame<'f>,
+    pub panel_area: Rect,
+    pub inner_area: Rect,
+    pub theme: &'a R,
+    pub is_focused: bool,
+    pub empty_text: &'a str,
+}
+
 pub trait ListItemRenderer {
     fn is_separator(&self) -> bool {
         false
@@ -276,31 +285,25 @@ impl<T: ListItemRenderer> ScrollableList<T> {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub fn render_with<'a, F, R>(
+    pub fn render_with<'a, 'f, F, R>(
         &mut self,
-        f: &mut Frame,
-        panel_area: Rect,
-        inner_area: Rect,
-        theme: &R,
-        is_focused: bool,
-        empty_text: &str,
+        params: RenderParams<'a, 'f, R>,
         renderer: F,
     ) where
         R: RichTextTheme,
         F: Fn(&T, &R, bool) -> Line<'a>,
     {
-        let visible_height = inner_area.height as usize;
+        let visible_height = params.inner_area.height as usize;
 
         if self.items.is_empty() {
             let placeholder = ratatui::widgets::Paragraph::new(Line::from(Span::styled(
-                format!("     {}", empty_text),
+                format!("     {}", params.empty_text),
                 Style::default()
-                    .fg(theme.get_muted_text_color())
+                    .fg(params.theme.get_muted_text_color())
                     .add_modifier(Modifier::ITALIC),
             )))
             .alignment(ratatui::layout::Alignment::Center);
-            f.render_widget(placeholder, inner_area);
+            params.frame.render_widget(placeholder, params.inner_area);
             return;
         }
 
@@ -326,9 +329,9 @@ impl<T: ListItemRenderer> ScrollableList<T> {
 
             let is_selectable = !item.is_separator();
             let is_selected =
-                is_focused && is_selectable && selectable_count == self.selected_index;
+                params.is_focused && is_selectable && selectable_count == self.selected_index;
 
-            let line = renderer(item, theme, is_selected);
+            let line = renderer(item, params.theme, is_selected);
             list_items.push(ListItem::new(line));
 
             if is_selectable {
@@ -337,17 +340,18 @@ impl<T: ListItemRenderer> ScrollableList<T> {
         }
 
         let list = List::new(list_items);
-        f.render_widget(list, inner_area);
+        params.frame.render_widget(list, params.inner_area);
 
         if total_lines > visible_height {
-            let scrollbar_area = anchored_panel_scrollbar_area(panel_area, inner_area);
+            let scrollbar_area =
+                anchored_panel_scrollbar_area(params.panel_area, params.inner_area);
             render_arrow_scrollbar(
-                f,
+                params.frame,
                 scrollbar_area,
                 total_lines,
                 visible_height,
                 self.scroll_offset,
-                theme,
+                params.theme,
             );
         }
     }

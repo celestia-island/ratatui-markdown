@@ -8,6 +8,8 @@ use ratatui::{
     Terminal,
 };
 
+use anyhow::Context as _;
+
 use crate::{
     markdown::{MarkdownBlock, MarkdownRenderer, RenderHooks},
     theme::RichTextTheme,
@@ -69,16 +71,15 @@ impl RichTextTheme for TestTheme {
     }
 }
 
-fn render_to_buffer(lines: Vec<Line<'static>>, width: u16, height: u16) -> Buffer {
+fn render_to_buffer(lines: Vec<Line<'static>>, width: u16, height: u16) -> anyhow::Result<Buffer> {
     let backend = TestBackend::new(width, height);
-    let mut terminal = Terminal::new(backend).unwrap();
+    let mut terminal = Terminal::new(backend)?;
     terminal
         .draw(|f| {
             let paragraph = Paragraph::new(lines);
             f.render_widget(paragraph, Rect::new(0, 0, width, height));
-        })
-        .unwrap();
-    terminal.backend().buffer().clone()
+        })?;
+    Ok(terminal.backend().buffer().clone())
 }
 
 fn render_markdown(markdown: &str, max_width: usize) -> Vec<Line<'static>> {
