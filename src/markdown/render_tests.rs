@@ -810,7 +810,7 @@ mod example_image_tests {
         image::DynamicImage::ImageRgb8(buf)
     }
 
-    fn scale_to_fit_rows(pw: u32, ph: u32, target_rows: u16, font_h: u16) -> f64 {
+    fn scale_to_fit_rows(_pw: u32, ph: u32, target_rows: u16, font_h: u16) -> f64 {
         if ph == 0 { return 1.0; }
         let natural_h = (ph as f64 / font_h as f64).ceil();
         if natural_h <= target_rows as f64 { return 1.0; }
@@ -1054,8 +1054,8 @@ mod example_image_tests {
         let scaled = img.resize_exact(360, 360, image::imageops::FilterType::Triangle);
         let fw: u16 = 9;
         let fh: u16 = 18;
-        let full_cw = (360u32.div_ceil(fw as u32)) as u16;
-        let full_ch = (360u32.div_ceil(fh as u32)) as u16;
+        let _full_cw = (360u32.div_ceil(fw as u32)) as u16;
+        let _full_ch = (360u32.div_ceil(fh as u32)) as u16;
         let vp_w = 20u16;
         let vp_h = 5u16;
         let scroll_x = 5u16;

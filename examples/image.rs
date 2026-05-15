@@ -21,7 +21,6 @@ use ratatui_image::{
 };
 use ratatui_markdown::{
     markdown::{ImageResolver, MarkdownRenderer},
-    theme::{Generation, RichTextTheme},
 };
 
 #[path = "utils/mod.rs"]

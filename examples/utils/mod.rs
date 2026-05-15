@@ -68,12 +68,14 @@ impl RichTextTheme for Theme {
     }
 }
 
+#[allow(dead_code)]
 pub struct AppState {
     pub scroll: u16,
     pub doc_h: u16,
     content_h: u16,
 }
 
+#[allow(dead_code)]
 impl AppState {
     pub fn new(total_lines: usize) -> Self {
         Self {
@@ -96,8 +98,10 @@ impl AppState {
     }
 }
 
+#[allow(dead_code)]
 pub type Term = Terminal<CrosstermBackend<std::io::Stdout>>;
 
+#[allow(dead_code)]
 pub fn setup_terminal() -> anyhow::Result<Term> {
     enable_raw_mode()?;
     crossterm::execute!(
@@ -109,6 +113,7 @@ pub fn setup_terminal() -> anyhow::Result<Term> {
     Ok(Terminal::new(backend)?)
 }
 
+#[allow(dead_code)]
 pub fn restore_terminal(terminal: &mut Term) -> anyhow::Result<()> {
     disable_raw_mode()?;
     crossterm::execute!(
@@ -119,6 +124,7 @@ pub fn restore_terminal(terminal: &mut Term) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn draw_frame(
     f: &mut Frame,
     title: &str,
@@ -225,6 +231,7 @@ pub fn draw_frame(
     );
 }
 
+#[allow(dead_code)]
 pub fn poll_and_handle(state: &mut AppState) -> anyhow::Result<bool> {
     if !event::poll(std::time::Duration::from_millis(50))? {
         return Ok(false);
