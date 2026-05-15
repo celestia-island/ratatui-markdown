@@ -77,6 +77,17 @@ pub trait RenderHooks: Send + Sync {
         None
     }
 
+    /// 换行续行的前缀（保留祖先层级的 `│` 延续线）。
+    /// 参数与 `list_item_marker` 相同，返回值用于文本换行后的第 2 行及之后。
+    /// 返回 `None` 时渲染器回退到等宽纯空格。
+    fn tree_continuation_prefix(
+        &self,
+        _indent: u8,
+        _ancestors_are_last: &[bool],
+    ) -> Option<String> {
+        None
+    }
+
     fn list_item_content(&self, _text: &str, _indent: u8) -> Option<Vec<Line<'static>>> {
         None
     }

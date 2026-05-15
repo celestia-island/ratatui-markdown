@@ -385,7 +385,9 @@ impl MarkdownRenderer {
                             }
                         } else {
                             let marker_width = Self::string_width(&marker_str);
-                            let cont_indent = " ".repeat(marker_width);
+                            let cont_indent = h
+                                .tree_continuation_prefix(*indent, &ancestors_are_last)
+                                .unwrap_or_else(|| " ".repeat(marker_width));
                             let content_width = self.max_width.saturating_sub(marker_width);
                             let wrapped = if content_width > 0 {
                                 let mut text_lines = Vec::new();

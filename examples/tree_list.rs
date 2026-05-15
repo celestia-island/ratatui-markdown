@@ -82,7 +82,35 @@ impl RenderHooks for TreeListHooks {
     }
 
     fn tree_indent_unit(&self) -> Option<usize> {
-        Some(4)
+        Some(3)
+    }
+
+    fn tree_continuation_prefix(
+        &self,
+        indent: u8,
+        ancestors_are_last: &[bool],
+    ) -> Option<String> {
+        let unit: usize = Self::tree_indent_unit(self).unwrap_or(3);
+        let mut prefix = String::new();
+        for (i, &is_last_anc) in ancestors_are_last.iter().enumerate() {
+            if i >= indent as usize {
+                break;
+            }
+            if is_last_anc {
+                for _ in 0..unit {
+                    prefix.push(' ');
+                }
+            } else {
+                prefix.push_str(VLINE);
+                for _ in 1..unit {
+                    prefix.push(' ');
+                }
+            }
+        }
+        for _ in 0..unit {
+            prefix.push(' ');
+        }
+        Some(prefix)
     }
 }
 
