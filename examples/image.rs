@@ -415,46 +415,67 @@ fn main() -> anyhow::Result<()> {
                     continue;
                 }
 
-                let abs_y = text_top + placement.row as u16;
-                let base_y_i32 = abs_y as i32 - state.scroll as i32;
-                let img_x = text_left;
+                // Image rect in screen coordinates (i32 so negatives = above/left of viewport)
+                let img_l = text_left as i32;
+                let img_t = text_top as i32 + placement.row as i32 - state.scroll as i32;
+                let img_r = img_l + img_w as i32 - 1;
+                let img_b = img_t + img_h as i32 - 1;
 
-                let img_bottom_i32 = base_y_i32 + img_h as i32 - 1;
-                if img_bottom_i32 < text_top as i32 || base_y_i32 > text_bot as i32 {
+                // Viewport rect
+                let vp_l = text_left as i32;
+                let vp_t = text_top as i32;
+                let vp_r = (text_left as i32 + content_w as i32 - 1).max(vp_l);
+                let vp_b = text_bot as i32;
+
+                // Skip if no overlap at all
+                if img_r < vp_l || img_l > vp_r || img_b < vp_t || img_t > vp_b {
                     continue;
                 }
 
-                let base_y = base_y_i32.max(0) as u16;
+                // Clipped rect = intersection of image and viewport
+                let clip_l = img_l.max(vp_l);
+                let clip_t = img_t.max(vp_t);
+                let clip_r = img_r.min(vp_r);
+                let clip_b = img_b.min(vp_b);
 
-                let visible_top = base_y.max(text_top);
-                let visible_bot = (base_y + img_h).min(text_bot.saturating_add(1));
-                let vis_h = visible_bot.saturating_sub(visible_top);
+                let vis_w = (clip_r - clip_l + 1) as u16;
+                let vis_h = (clip_b - clip_t + 1) as u16;
 
-                let render_w = img_w.min(content_w);
+                // Cells cropped from each edge of the image
+                let crop_cells_l = (clip_l - img_l) as u32;
+                let crop_cells_t = (clip_t - img_t) as u32;
+                let crop_cells_r = (img_r - clip_r) as u32;
+                let crop_cells_b = (img_b - clip_b) as u32;
+
+                let fw = state.font_w as u32;
+                let fh = state.font_h as u32;
+                let total_px_w = si.scaled.width();
+                let total_px_h = si.scaled.height();
 
                 if si.dirty || si.protocol.is_none() {
-                    let crop_y = if base_y < text_top {
-                        ((text_top - base_y) as u32 * state.font_h as u32)
-                            .min(si.scaled.height().saturating_sub(1))
-                    } else {
-                        0
-                    };
-                    let crop_px_h = (vis_h as u32 * state.font_h as u32)
-                        .min(si.scaled.height().saturating_sub(crop_y));
-                    let crop_px_w = (render_w as u32 * state.font_w as u32)
-                        .min(si.scaled.width());
+                    let crop_px_x = crop_cells_l * fw;
+                    let crop_px_y = crop_cells_t * fh;
+                    let crop_px_w = total_px_w
+                        .saturating_sub(crop_cells_l * fw)
+                        .saturating_sub(crop_cells_r * fw)
+                        .max(1);
+                    let crop_px_h = total_px_h
+                        .saturating_sub(crop_cells_t * fh)
+                        .saturating_sub(crop_cells_b * fh)
+                        .max(1);
 
-                    let img_for_proto = if crop_y > 0
-                        || crop_px_w < si.scaled.width()
-                        || crop_px_h < si.scaled.height()
-                    {
-                        si.scaled
-                            .crop_imm(0, crop_y, crop_px_w, crop_px_h.max(1))
+                    let need_crop = crop_cells_l > 0
+                        || crop_cells_t > 0
+                        || crop_cells_r > 0
+                        || crop_cells_b > 0;
+
+                    let img_for_proto = if need_crop {
+                        si.scaled.crop_imm(crop_px_x, crop_px_y, crop_px_w, crop_px_h)
                     } else {
                         si.scaled.clone()
                     };
 
-                    let rect_for_proto = Rect::new(0, 0, render_w, vis_h);
+                    let rect_for_proto = Rect::new(0, 0, vis_w, vis_h);
                     match state
                         .picker
                         .new_protocol(img_for_proto, rect_for_proto, Resize::Fit(None))
@@ -472,7 +493,7 @@ fn main() -> anyhow::Result<()> {
                     Some(p) => p,
                     None => continue,
                 };
-                let rect = Rect::new(img_x, visible_top, render_w, vis_h);
+                let rect = Rect::new(clip_l as u16, clip_t as u16, vis_w, vis_h);
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     let widget = Image::new(proto_ref);
                     f.render_widget(widget, rect);
