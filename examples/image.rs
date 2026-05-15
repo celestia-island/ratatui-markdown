@@ -374,7 +374,7 @@ fn main() -> anyhow::Result<()> {
             let text_top = inner.y;
             let text_bot = inner.y + inner.height.saturating_sub(1);
             let text_left = inner.x;
-            let sb_col = inner.x + inner.width;
+            let sb_col = block_area.x + block_area.width.saturating_sub(1);
             let content_w = inner.width;
             let content_h = inner.height;
 

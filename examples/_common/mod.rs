@@ -149,7 +149,7 @@ pub fn draw_frame(
     f.render_widget(paragraph, block_area);
 
     if state.doc_h > content_h && content_h > 0 {
-        let sb_col = inner.x + inner.width;
+        let sb_col = block_area.x + block_area.width.saturating_sub(1);
         let sb_area = Rect::new(sb_col, inner.y, 1, content_h);
         let ratatui_content_len = state
             .doc_h
