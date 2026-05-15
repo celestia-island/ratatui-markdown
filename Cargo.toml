@@ -42,4 +42,8 @@ name = "image"
 required-features = ["image"]
 
 [[example]]
+name = "mermaid"
+required-features = ["mermaid"]
+
+[[example]]
 name = "scrollable"
