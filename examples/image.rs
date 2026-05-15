@@ -24,7 +24,7 @@ use ratatui_markdown::{
     theme::{Generation, RichTextTheme},
 };
 
-#[path = "_common/mod.rs"]
+#[path = "utils/mod.rs"]
 mod common;
 
 use common::{Theme, lorem};

@@ -22,6 +22,29 @@ scroll = []
 tree = ["dep:serde_json", "dep:toml", "scroll"]
 preview = ["markdown", "scroll", "tree"]
 mermaid = ["markdown", "dep:pest", "dep:pest_derive"]
+viewer = ["markdown", "scroll"]
+
+highlight = ["dep:tree-sitter", "dep:tree-sitter-highlight"]
+highlight-lang-rust = ["highlight", "dep:tree-sitter-rust"]
+highlight-lang-python = ["highlight", "dep:tree-sitter-python"]
+highlight-lang-go = ["highlight", "dep:tree-sitter-go"]
+highlight-lang-java = ["highlight", "dep:tree-sitter-java"]
+highlight-lang-html = ["highlight", "dep:tree-sitter-html"]
+highlight-lang-css = ["highlight", "dep:tree-sitter-css"]
+highlight-lang-json = ["highlight", "dep:tree-sitter-json"]
+highlight-lang-toml = ["highlight", "dep:tree-sitter-toml-ng"]
+highlight-lang-sql = ["highlight", "dep:tree-sitter-sequel"]
+highlight-lang-all = [
+    "highlight-lang-rust",
+    "highlight-lang-python",
+    "highlight-lang-go",
+    "highlight-lang-java",
+    "highlight-lang-html",
+    "highlight-lang-css",
+    "highlight-lang-json",
+    "highlight-lang-toml",
+    "highlight-lang-sql",
+]
 
 [dependencies]
 image = { version = "^0.25", optional = true, default-features = false, features = ["png", "webp"] }
@@ -30,6 +53,17 @@ pest_derive = { version = "^2", optional = true }
 ratatui = "^0.29"
 serde_json = { version = "^1", optional = true }
 toml = { version = "^0.8", optional = true }
+tree-sitter = { version = "0.26", optional = true }
+tree-sitter-highlight = { version = "0.26", optional = true }
+tree-sitter-rust = { version = "0.24", optional = true }
+tree-sitter-python = { version = "0.25", optional = true }
+tree-sitter-go = { version = "0.25", optional = true }
+tree-sitter-java = { version = "0.23", optional = true }
+tree-sitter-html = { version = "0.23", optional = true }
+tree-sitter-css = { version = "0.25", optional = true }
+tree-sitter-json = { version = "0.24", optional = true }
+tree-sitter-toml-ng = { version = "0.7", optional = true }
+tree-sitter-sequel = { version = "0.3", optional = true }
 unicode-width = "^0.2"
 
 [dev-dependencies]
@@ -37,8 +71,6 @@ anyhow = "^1"
 crossterm = "^0.28"
 lipsum = "^0.9"
 ratatui-image = { version = "9", default-features = false, features = ["crossterm"] }
-syntect = "^5"
-syntect-tui = "^3"
 
 [[example]]
 name = "image"
@@ -50,3 +82,4 @@ required-features = ["mermaid"]
 
 [[example]]
 name = "code"
+required-features = ["highlight-lang-all"]

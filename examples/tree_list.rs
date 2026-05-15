@@ -1,4 +1,4 @@
-#[path = "_common/mod.rs"]
+#[path = "utils/mod.rs"]
 mod common;
 
 use common::{AppState, Theme, draw_frame, lorem, poll_and_handle, setup_terminal, restore_terminal};
