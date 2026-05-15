@@ -107,7 +107,7 @@ fn build_list(items: &[(usize, String)], out: &mut String) {
 }
 
 fn generate_tree_markdown() -> String {
-    let raw = lipsum::lipsum(120);
+    let raw = lipsum::lipsum(160);
     let words: Vec<String> = raw.split_whitespace().map(|w| capitalize(w)).collect();
     let mut wi = 0;
 
@@ -121,38 +121,38 @@ fn generate_tree_markdown() -> String {
     );
 
     build_list(&[
-        (0, format!("Setup project structure: {}", t(4))),
-        (1, format!("Initialize Cargo workspace: {}", t(3))),
-        (1, format!("Add core dependencies: {}", t(4))),
+        (0, t(8)),
+        (1, t(6)),
+        (1, t(6)),
         (2, t(5)),
         (2, t(5)),
         (2, t(5)),
-        (0, format!("Implement core features: {}", t(3))),
-        (1, format!("Parser module: {}", t(4))),
+        (0, t(8)),
+        (1, t(6)),
         (2, t(6)),
         (2, t(6)),
         (2, t(6)),
-        (1, format!("Renderer module: {}", t(4))),
+        (1, t(6)),
         (2, t(6)),
         (2, t(6)),
         (2, t(6)),
-        (1, format!("Hooks system: {}", t(4))),
+        (1, t(6)),
         (2, t(5)),
         (2, t(5)),
-        (0, format!("Write tests: {}", t(3))),
+        (0, t(6)),
         (1, t(6)),
         (1, t(6)),
         (1, t(6)),
-        (0, format!("Deploy to crates.io: {}", t(3))),
+        (0, t(6)),
         (1, t(5)),
         (1, t(5)),
         (1, t(5)),
-        (0, format!("Community building: {}", t(3))),
+        (0, t(6)),
         (1, t(5)),
         (1, t(5)),
         (1, t(5)),
         (1, t(5)),
-        (0, format!("Documentation: {}", t(3))),
+        (0, t(6)),
         (1, t(5)),
         (1, t(5)),
         (1, t(5)),
@@ -166,14 +166,14 @@ fn generate_tree_markdown() -> String {
     let mut t2 = |n: usize| -> String { take(&words, &mut wi2, n) };
 
     build_list(&[
-        (0, format!("Performance: {}", t2(4))),
+        (0, t2(8)),
         (1, t2(6)),
         (1, t2(6)),
         (1, t2(6)),
-        (0, format!("Accessibility: {}", t2(4))),
+        (0, t2(8)),
         (1, t2(6)),
         (1, t2(6)),
-        (0, format!("Internationalization: {}", t2(3))),
+        (0, t2(8)),
         (1, t2(5)),
         (1, t2(5)),
     ], &mut md);
