@@ -120,7 +120,8 @@ fn main() -> anyhow::Result<()> {
         .replace("LOREM_3", &lorem(150));
 
     let theme = Theme;
-    let renderer = MarkdownRenderer::new(76);
+    let content_width = terminal.size()?.width.saturating_sub(4) as usize;
+    let renderer = MarkdownRenderer::new(content_width);
     let blocks = renderer.parse(&md);
     let lines = renderer.render(&blocks, &theme);
     let mut state = AppState::new(lines.len());

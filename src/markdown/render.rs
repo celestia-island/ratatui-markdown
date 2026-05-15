@@ -285,9 +285,10 @@ impl MarkdownRenderer {
                 if lang == LANG_MERMAID {
                     #[cfg(feature = "mermaid")]
                     {
+                        let mermaid_width = self.max_width.saturating_sub(2);
                         let rendered = crate::mermaid::render_mermaid(
                             code,
-                            self.max_width,
+                            mermaid_width,
                             None,
                             theme,
                         );

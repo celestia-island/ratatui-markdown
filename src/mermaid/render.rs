@@ -22,6 +22,7 @@ const RBRC: char = '╯';
 struct Cell {
     ch: char,
     style: Style,
+    is_edge: bool,
 }
 
 pub fn render_layout(
@@ -42,7 +43,12 @@ pub fn render_layout(
         return Vec::new();
     }
 
-    let mut grid = vec![vec![Cell { ch: ' ', style: Style::default() }; gw]; gh];
+    let blank = Cell {
+        ch: ' ',
+        style: Style::default(),
+        is_edge: false,
+    };
+    let mut grid = vec![vec![blank; gw]; gh];
 
     for node in &layout.nodes {
         draw_node(&mut grid, node, theme);
@@ -53,7 +59,7 @@ pub fn render_layout(
         draw_edge(&mut grid, edge, is_vertical, theme);
     }
 
-    fix_all_junctions(&mut grid);
+    fix_edge_junctions(&mut grid);
 
     let mut lines = Vec::new();
     for row in grid.iter() {
@@ -88,15 +94,18 @@ fn draw_node(grid: &mut [Vec<Cell>], node: &LayoutNode, theme: &impl RichTextThe
         row[x] = Cell {
             ch: tl,
             style: border_style,
+            is_edge: false,
         };
         row[x + w - 1] = Cell {
             ch: tr,
             style: border_style,
+            is_edge: false,
         };
         for cell in row.iter_mut().take(x + w - 1).skip(x + 1) {
             *cell = Cell {
                 ch: HLINE,
                 style: border_style,
+                is_edge: false,
             };
         }
     }
@@ -107,10 +116,12 @@ fn draw_node(grid: &mut [Vec<Cell>], node: &LayoutNode, theme: &impl RichTextThe
         row[x] = Cell {
             ch: VLINE,
             style: border_style,
+            is_edge: false,
         };
         row[x + w - 1] = Cell {
             ch: VLINE,
             style: border_style,
+            is_edge: false,
         };
         let inner_w = w.saturating_sub(2);
         let label_chars: Vec<char> = node.label.chars().collect();
@@ -126,6 +137,7 @@ fn draw_node(grid: &mut [Vec<Cell>], node: &LayoutNode, theme: &impl RichTextThe
                 row[cx] = Cell {
                     ch: ' ',
                     style: text_style,
+                    is_edge: false,
                 };
                 cx += 1;
             }
@@ -135,6 +147,7 @@ fn draw_node(grid: &mut [Vec<Cell>], node: &LayoutNode, theme: &impl RichTextThe
                 row[cx] = Cell {
                     ch: *ch,
                     style: text_style,
+                    is_edge: false,
                 };
                 cx += 1;
             }
@@ -143,6 +156,7 @@ fn draw_node(grid: &mut [Vec<Cell>], node: &LayoutNode, theme: &impl RichTextThe
             row[cx] = Cell {
                 ch: ' ',
                 style: text_style,
+                is_edge: false,
             };
             cx += 1;
         }
@@ -157,15 +171,18 @@ fn draw_node(grid: &mut [Vec<Cell>], node: &LayoutNode, theme: &impl RichTextThe
             row[x] = Cell {
                 ch: VLINE,
                 style: border_style,
+                is_edge: false,
             };
             row[x + w - 1] = Cell {
                 ch: VLINE,
                 style: border_style,
+                is_edge: false,
             };
             for cell in row.iter_mut().take(x + w - 1).skip(x + 1) {
                 *cell = Cell {
                     ch: ' ',
                     style: text_style,
+                    is_edge: false,
                 };
             }
         }
@@ -177,15 +194,18 @@ fn draw_node(grid: &mut [Vec<Cell>], node: &LayoutNode, theme: &impl RichTextThe
         row[x] = Cell {
             ch: bl,
             style: border_style,
+            is_edge: false,
         };
         row[x + w - 1] = Cell {
             ch: br,
             style: border_style,
+            is_edge: false,
         };
         for cell in row.iter_mut().take(x + w - 1).skip(x + 1) {
             *cell = Cell {
                 ch: HLINE,
                 style: border_style,
+                is_edge: false,
             };
         }
     }
@@ -233,12 +253,10 @@ fn draw_edge(
             } else {
                 '▲'
             }
+        } else if tx > sx {
+            '►'
         } else {
-            if tx > sx {
-                '►'
-            } else {
-                '◄'
-            }
+            '◄'
         };
         force_set(grid, tx, ty, arrow_ch, arrow_style);
     }
@@ -269,31 +287,29 @@ fn set_if_empty(grid: &mut [Vec<Cell>], x: usize, y: usize, ch: char, style: Sty
         if cell.ch == ' ' {
             cell.ch = ch;
             cell.style = style;
+            cell.is_edge = true;
         }
     }
 }
 
 fn force_set(grid: &mut [Vec<Cell>], x: usize, y: usize, ch: char, style: Style) {
     if y < grid.len() && x < grid[0].len() {
-        grid[y][x] = Cell { ch, style };
+        grid[y][x] = Cell {
+            ch,
+            style,
+            is_edge: true,
+        };
     }
 }
 
 fn set_label_char(grid: &mut [Vec<Cell>], x: usize, y: usize, ch: char, style: Style) {
     if y < grid.len() && x < grid[0].len() {
         let cell = &mut grid[y][x];
-        if cell.ch == ' ' || is_edge_line(cell.ch) {
+        if cell.ch == ' ' || cell.is_edge {
             cell.ch = ch;
             cell.style = style;
         }
     }
-}
-
-fn is_edge_line(ch: char) -> bool {
-    matches!(
-        ch,
-        HLINE | VLINE | '┼' | TLC | TRC | BLC | BRC | '├' | '┤' | '┬' | '┴'
-    )
 }
 
 fn is_neighbor_connector(ch: char) -> bool {
@@ -306,7 +322,7 @@ fn is_neighbor_connector(ch: char) -> bool {
     )
 }
 
-fn fix_all_junctions(grid: &mut [Vec<Cell>]) {
+fn fix_edge_junctions(grid: &mut [Vec<Cell>]) {
     let gh = grid.len();
     if gh == 0 {
         return;
@@ -318,8 +334,11 @@ fn fix_all_junctions(grid: &mut [Vec<Cell>]) {
 
     for y in 0..gh {
         for x in 0..gw {
+            if !grid[y][x].is_edge {
+                continue;
+            }
             let ch = grid[y][x].ch;
-            if !is_edge_line(ch) {
+            if !matches!(ch, HLINE | VLINE) {
                 continue;
             }
 
