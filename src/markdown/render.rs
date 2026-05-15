@@ -275,8 +275,9 @@ impl MarkdownRenderer {
                 footer_override,
                 prefix_override,
             } => {
+                let code = code.replace('\t', "    ");
                 if let Some(h) = hooks {
-                    if let Some(custom) = h.render_code_block(lang, code) {
+                    if let Some(custom) = h.render_code_block(lang, &code) {
                         lines.extend(custom);
                         return;
                     }
