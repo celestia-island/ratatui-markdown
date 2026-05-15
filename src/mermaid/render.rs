@@ -24,14 +24,6 @@ struct Cell {
     style: Style,
 }
 
-#[derive(Clone, Copy, PartialEq)]
-enum Dir {
-    Up,
-    Down,
-    Left,
-    Right,
-}
-
 pub fn render_layout(
     layout: &Layout,
     direction: &Direction,
@@ -61,7 +53,7 @@ pub fn render_layout(
         draw_edge(&mut grid, edge, is_vertical, theme);
     }
 
-    fix_grid_junctions(&mut grid);
+    fix_all_junctions(&mut grid);
 
     let mut lines = Vec::new();
     for row in grid.iter() {
@@ -215,64 +207,37 @@ fn draw_edge(
         .fg(theme.get_primary_color())
         .add_modifier(Modifier::BOLD);
 
-    let dirs: Vec<Dir> = (0..wp.len() - 1)
-        .map(|i| {
-            let (x1, y1) = wp[i];
-            let (x2, y2) = wp[i + 1];
-            if x1 == x2 {
-                if y2 > y1 {
-                    Dir::Down
-                } else {
-                    Dir::Up
-                }
-            } else if x2 > x1 {
-                Dir::Right
-            } else {
-                Dir::Left
-            }
-        })
-        .collect();
-
-    for i in 0..dirs.len() {
+    for i in 0..wp.len() - 1 {
         let (x1, y1) = wp[i];
         let (x2, y2) = wp[i + 1];
-        let include_start = i == 0;
 
         if y1 == y2 {
             let (lo, hi) = if x1 < x2 { (x1, x2) } else { (x2, x1) };
-            let s = if include_start { lo } else { lo + 1 };
-            for x in s..hi {
+            for x in lo..=hi {
                 set_if_empty(grid, x, y1, HLINE, edge_style);
             }
-        } else {
+        } else if x1 == x2 {
             let (lo, hi) = if y1 < y2 { (y1, y2) } else { (y2, y1) };
-            let s = if include_start { lo } else { lo + 1 };
-            for y in s..hi {
+            for y in lo..=hi {
                 set_if_empty(grid, x1, y, VLINE, edge_style);
             }
         }
     }
 
-    for i in 1..wp.len() - 1 {
-        let (x, y) = wp[i];
-        let ch = junction_char(dirs[i - 1], dirs[i]);
-        set_if_empty(grid, x, y, ch, edge_style);
-    }
-
-    if edge.edge_type == EdgeType::Arrow && !dirs.is_empty() {
-        let last_dir = dirs[dirs.len() - 1];
+    if edge.edge_type == EdgeType::Arrow && wp.len() >= 2 {
+        let &(sx, sy) = &wp[wp.len() - 2];
         let &(tx, ty) = wp.last().unwrap();
         let arrow_ch = if is_vertical {
-            match last_dir {
-                Dir::Down => '▼',
-                Dir::Up => '▲',
-                _ => '▼',
+            if ty > sy {
+                '▼'
+            } else {
+                '▲'
             }
         } else {
-            match last_dir {
-                Dir::Right => '►',
-                Dir::Left => '◄',
-                _ => '►',
+            if tx > sx {
+                '►'
+            } else {
+                '◄'
             }
         };
         force_set(grid, tx, ty, arrow_ch, arrow_style);
@@ -298,18 +263,6 @@ fn draw_edge(
     }
 }
 
-fn junction_char(from: Dir, to: Dir) -> char {
-    match (from, to) {
-        (Dir::Down, Dir::Right) | (Dir::Left, Dir::Up) => RTLC,
-        (Dir::Down, Dir::Left) | (Dir::Right, Dir::Up) => RTRC,
-        (Dir::Up, Dir::Left) | (Dir::Right, Dir::Down) => RBRC,
-        (Dir::Up, Dir::Right) | (Dir::Left, Dir::Down) => RBLC,
-        (Dir::Up, Dir::Down) | (Dir::Down, Dir::Up) => VLINE,
-        (Dir::Left, Dir::Right) | (Dir::Right, Dir::Left) => HLINE,
-        _ => HLINE,
-    }
-}
-
 fn set_if_empty(grid: &mut [Vec<Cell>], x: usize, y: usize, ch: char, style: Style) {
     if y < grid.len() && x < grid[0].len() {
         let cell = &mut grid[y][x];
@@ -329,72 +282,73 @@ fn force_set(grid: &mut [Vec<Cell>], x: usize, y: usize, ch: char, style: Style)
 fn set_label_char(grid: &mut [Vec<Cell>], x: usize, y: usize, ch: char, style: Style) {
     if y < grid.len() && x < grid[0].len() {
         let cell = &mut grid[y][x];
-        if cell.ch == ' ' || is_line_drawing(cell.ch) {
+        if cell.ch == ' ' || is_edge_line(cell.ch) {
             cell.ch = ch;
             cell.style = style;
         }
     }
 }
 
-fn is_line_drawing(ch: char) -> bool {
+fn is_edge_line(ch: char) -> bool {
     matches!(
         ch,
-        HLINE
-            | VLINE
-            | '┼'
-            | TLC
-            | TRC
-            | BLC
-            | BRC
-            | '├'
-            | '┤'
-            | '┬'
-            | '┴'
-            | RTLC
-            | RTRC
-            | RBLC
-            | RBRC
-            | '▼'
-            | '▲'
-            | '►'
-            | '◄'
+        HLINE | VLINE | '┼' | TLC | TRC | BLC | BRC | '├' | '┤' | '┬' | '┴'
     )
 }
 
-fn fix_grid_junctions(grid: &mut [Vec<Cell>]) {
-    if grid.is_empty() || grid[0].is_empty() {
+fn is_neighbor_connector(ch: char) -> bool {
+    matches!(
+        ch,
+        HLINE | VLINE | '┼' | TLC | TRC | BLC | BRC | '├' | '┤' | '┬' | '┴'
+            | RTLC | RTRC | RBLC | RBRC
+            | '▼' | '▲' | '►' | '◄'
+            | '╌'
+    )
+}
+
+fn fix_all_junctions(grid: &mut [Vec<Cell>]) {
+    let gh = grid.len();
+    if gh == 0 {
         return;
     }
-    let gh = grid.len();
     let gw = grid[0].len();
-    for y in 1..gh.saturating_sub(1) {
-        for x in 1..gw.saturating_sub(1) {
-            if grid[y][x].ch == '┼' {
-                let up = is_line_drawing(grid[y - 1][x].ch);
-                let down = is_line_drawing(grid[y + 1][x].ch);
-                let left = is_line_drawing(grid[y][x - 1].ch);
-                let right = is_line_drawing(grid[y][x + 1].ch);
+    if gw == 0 {
+        return;
+    }
 
-                let style = grid[y][x].style;
-                let new_ch = match (up, down, left, right) {
-                    (true, true, true, true) => '┼',
-                    (true, true, true, false) => '├',
-                    (true, true, false, true) => '┤',
-                    (true, false, true, true) => '┴',
-                    (false, true, true, true) => '┬',
-                    (true, false, true, false) => RBLC,
-                    (true, false, false, true) => RBRC,
-                    (false, true, true, false) => RTLC,
-                    (false, true, false, true) => RTRC,
-                    (true, true, false, false) => VLINE,
-                    (false, false, true, true) => HLINE,
-                    _ => '┼',
-                };
-                grid[y][x] = Cell {
-                    ch: new_ch,
-                    style,
-                };
+    for y in 0..gh {
+        for x in 0..gw {
+            let ch = grid[y][x].ch;
+            if !is_edge_line(ch) {
+                continue;
+            }
+
+            let up = y > 0 && is_neighbor_connector(grid[y - 1][x].ch);
+            let down = y + 1 < gh && is_neighbor_connector(grid[y + 1][x].ch);
+            let left = x > 0 && is_neighbor_connector(grid[y][x - 1].ch);
+            let right = x + 1 < gw && is_neighbor_connector(grid[y][x + 1].ch);
+
+            let new_ch = pick_junction_char(up, down, left, right);
+            if new_ch != ch {
+                grid[y][x].ch = new_ch;
             }
         }
+    }
+}
+
+fn pick_junction_char(up: bool, down: bool, left: bool, right: bool) -> char {
+    match (up, down, left, right) {
+        (true, true, true, true) => '┼',
+        (true, true, true, false) => '├',
+        (true, true, false, true) => '┤',
+        (true, false, true, true) => '┴',
+        (false, true, true, true) => '┬',
+        (true, false, true, false) => BRC,
+        (true, false, false, true) => BLC,
+        (false, true, true, false) => TRC,
+        (false, true, false, true) => TLC,
+        (true, true, false, false) => VLINE,
+        (false, false, true, true) => HLINE,
+        _ => VLINE,
     }
 }

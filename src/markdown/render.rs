@@ -292,7 +292,28 @@ impl MarkdownRenderer {
                             theme,
                         );
                         if let Some(mermaid_lines) = rendered {
-                            lines.extend(mermaid_lines);
+                            let border_style =
+                                Style::default().fg(theme.get_muted_text_color());
+
+                            lines.push(Line::from(Span::styled(
+                                format!("{ROUNDED_TL}{HLINE} mermaid"),
+                                border_style,
+                            )));
+
+                            let prefix = format!("{VLINE} ");
+                            for ml in mermaid_lines {
+                                let mut spans: Vec<Span<'static>> = vec![Span::styled(
+                                    prefix.clone(),
+                                    border_style,
+                                )];
+                                spans.extend(ml.spans);
+                                lines.push(Line::from(spans));
+                            }
+
+                            lines.push(Line::from(Span::styled(
+                                format!("{ROUNDED_BL}{HLINE}"),
+                                border_style,
+                            )));
                             return;
                         }
                     }
