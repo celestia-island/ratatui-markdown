@@ -362,16 +362,25 @@ fn main() -> anyhow::Result<()> {
             let content_h = text_bot.saturating_sub(text_top).saturating_add(1);
 
             // Compute total document height (text lines + image extensions)
-            let total_lines = output.lines.len() as u16;
-            let mut doc_h = total_lines;
+            let mut doc_h = output.lines.len() as u16;
+            // Verify image placements don't exceed text lines
             for (i, placement) in output.images.iter().enumerate() {
                 let si = match state.scaled_images.get(i) {
                     Some(s) if !s.failed => s,
                     _ => continue,
                 };
-                let (_, img_h) = si.cell_size(state.font_w, state.font_h, state.proto);
+                let (_img_w, img_h) = si.cell_size(state.font_w, state.font_h, state.proto);
                 let img_end = placement.row as u16 + img_h;
                 if img_end > doc_h {
+                    use std::io::Write;
+                    if let Ok(mut f) = std::fs::OpenOptions::new()
+                        .append(true).create(true).open("/tmp/image_debug.log")
+                    {
+                        let _ = writeln!(f, "OVERFLOW img[{i}] row={} h_cells={} img_h={} doc_h={} content_h={content_h} target_rows={} zoom={} pw={} ph={}",
+                            placement.row, placement.height_cells, img_h, doc_h,
+                            si.target_rows, si.display_percent(),
+                            si.scaled.width(), si.scaled.height());
+                    }
                     doc_h = img_end;
                 }
             }
