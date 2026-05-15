@@ -24,33 +24,32 @@ pub fn render_mermaid(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::Context as _;
 
     #[test]
-    fn test_parse_simple_flowchart() {
-        let result = parser::parse("graph TD\nA[Start] --> B[End]");
-        if let Err(ref e) = result {
-            eprintln!("Parse error: {}", e);
-        }
-        assert!(result.is_ok(), "parse should succeed");
-        let diagram = result.unwrap();
+    fn test_parse_simple_flowchart() -> anyhow::Result<()> {
+        let diagram = parser::parse("graph TD\nA[Start] --> B[End]")
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
         assert_eq!(diagram.nodes.len(), 2, "expected 2 nodes, got {:?}", diagram.nodes);
         assert_eq!(diagram.edges.len(), 1, "expected 1 edge, got {:?}", diagram.edges);
         assert_eq!(diagram.direction, Direction::TopDown);
+        Ok(())
     }
 
     #[test]
-    fn test_parse_with_labels() {
-        let result = parser::parse("graph TD\nA -->|yes| B");
-        assert!(result.is_ok());
-        let diagram = result.unwrap();
+    fn test_parse_with_labels() -> anyhow::Result<()> {
+        let diagram = parser::parse("graph TD\nA -->|yes| B")
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
         assert_eq!(diagram.nodes.len(), 2);
         assert_eq!(diagram.edges[0].label.as_deref(), Some("yes"));
+        Ok(())
     }
 
     #[test]
-    fn test_parse_lr_direction() {
-        let result = parser::parse("graph LR\nA --> B");
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap().direction, Direction::LeftRight);
+    fn test_parse_lr_direction() -> anyhow::Result<()> {
+        let diagram = parser::parse("graph LR\nA --> B")
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        assert_eq!(diagram.direction, Direction::LeftRight);
+        Ok(())
     }
 }

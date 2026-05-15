@@ -15,6 +15,8 @@ use crate::{
     theme::RichTextTheme,
 };
 
+use anyhow::Context as _;
+
 struct TestTheme;
 
 impl RichTextTheme for TestTheme {
@@ -89,54 +91,58 @@ fn render_markdown(markdown: &str, max_width: usize) -> Vec<Line<'static>> {
 }
 
 #[test]
-fn heading1_renders_bold_underlined() {
+fn heading1_renders_bold_underlined() -> anyhow::Result<()> {
     let lines = render_markdown("# Hello World", 80);
     assert_eq!(lines.len(), 1);
-    let buf = render_to_buffer(lines, 80, 5);
-    let cell = buf.cell((0, 0)).unwrap();
+    let buf = render_to_buffer(lines, 80, 5)?;
+    let cell = buf.cell((0, 0)).context("cell at (0, 0)")?;
     assert_eq!(cell.symbol(), "H");
+    Ok(())
 }
 
 #[test]
-fn heading2_renders_bold() {
+fn heading2_renders_bold() -> anyhow::Result<()> {
     let lines = render_markdown("## Section", 80);
     assert_eq!(lines.len(), 1);
-    let buf = render_to_buffer(lines, 80, 5);
-    let cell = buf.cell((0, 0)).unwrap();
+    let buf = render_to_buffer(lines, 80, 5)?;
+    let cell = buf.cell((0, 0)).context("cell at (0, 0)")?;
     assert_eq!(cell.symbol(), "S");
+    Ok(())
 }
 
 #[test]
-fn heading3_renders_bold_secondary() {
+fn heading3_renders_bold_secondary() -> anyhow::Result<()> {
     let lines = render_markdown("### Subsection", 80);
     assert_eq!(lines.len(), 1);
-    let buf = render_to_buffer(lines, 80, 5);
-    assert_eq!(buf.cell((0, 0)).unwrap().symbol(), "S");
+    let buf = render_to_buffer(lines, 80, 5)?;
+    assert_eq!(buf.cell((0, 0)).context("cell at (0, 0)")?.symbol(), "S");
+    Ok(())
 }
 
 #[test]
-fn paragraph_renders_text() {
+fn paragraph_renders_text() -> anyhow::Result<()> {
     let lines = render_markdown("Hello, world!", 80);
     assert_eq!(lines.len(), 1);
-    let buf = render_to_buffer(lines, 80, 5);
+    let buf = render_to_buffer(lines, 80, 5)?;
     let text: String = (0..13)
-        .map(|x| buf.cell((x, 0)).unwrap().symbol())
-        .collect();
+        .map(|x| buf.cell((x, 0)).map(|c| c.symbol()).unwrap_or_default()).collect::<String>();
     assert_eq!(text, "Hello, world!");
+    Ok(())
 }
 
 #[test]
-fn paragraph_wraps_at_max_width() {
+fn paragraph_wraps_at_max_width() -> anyhow::Result<()> {
     let lines = render_markdown("abcdefghij klmnopqrst uvwxyz", 15);
     assert!(
         lines.len() >= 2,
         "expected wrapping, got {} lines",
         lines.len()
     );
+    Ok(())
 }
 
 #[test]
-fn blank_line_produces_empty_line() {
+fn blank_line_produces_empty_line() -> anyhow::Result<()> {
     let lines = render_markdown("Hello\n\nWorld", 80);
     let blank_idx = lines
         .iter()
@@ -145,18 +151,20 @@ fn blank_line_produces_empty_line() {
         blank_idx.is_some(),
         "expected a blank line between two paragraphs"
     );
+    Ok(())
 }
 
 #[test]
-fn horizontal_rule_renders_dashes() {
+fn horizontal_rule_renders_dashes() -> anyhow::Result<()> {
     let lines = render_markdown("---", 80);
     assert_eq!(lines.len(), 1);
-    let buf = render_to_buffer(lines, 80, 5);
-    assert_eq!(buf.cell((0, 0)).unwrap().symbol(), "─");
+    let buf = render_to_buffer(lines, 80, 5)?;
+    assert_eq!(buf.cell((0, 0)).context("cell at (0, 0)")?.symbol(), "─");
+    Ok(())
 }
 
 #[test]
-fn code_block_with_lang_renders_bordered_box() {
+fn code_block_with_lang_renders_bordered_box() -> anyhow::Result<()> {
     let md = "```rust\nfn main() {}\n```";
     let lines = render_markdown(md, 80);
     assert!(
@@ -164,21 +172,23 @@ fn code_block_with_lang_renders_bordered_box() {
         "expected header, content, footer; got {} lines",
         lines.len()
     );
-    let buf = render_to_buffer(lines, 80, 5);
-    assert_eq!(buf.cell((0, 0)).unwrap().symbol(), "╭");
+    let buf = render_to_buffer(lines, 80, 5)?;
+    assert_eq!(buf.cell((0, 0)).context("cell at (0, 0)")?.symbol(), "╭");
+    Ok(())
 }
 
 #[test]
-fn code_block_without_lang_renders_minimal_header() {
+fn code_block_without_lang_renders_minimal_header() -> anyhow::Result<()> {
     let md = "```\nsome code\n```";
     let lines = render_markdown(md, 80);
-    let buf = render_to_buffer(lines, 80, 5);
-    let header_sym = buf.cell((0, 0)).unwrap().symbol();
+    let buf = render_to_buffer(lines, 80, 5)?;
+    let header_sym = buf.cell((0, 0)).context("cell at (0, 0)")?.symbol();
     assert_eq!(header_sym, "╭");
+    Ok(())
 }
 
 #[test]
-fn mermaid_code_block_is_rendered() {
+fn mermaid_code_block_is_rendered() -> anyhow::Result<()> {
     let md = "```mermaid\ngraph TD\nA-->B\n```";
     let lines = render_markdown(md, 80);
     #[cfg(feature = "mermaid")]
@@ -195,44 +205,49 @@ fn mermaid_code_block_is_rendered() {
             "mermaid blocks should produce zero output lines without mermaid feature"
         );
     }
+    Ok(())
 }
 
 #[test]
-fn unordered_list_dash_renders_bullet() {
+fn unordered_list_dash_renders_bullet() -> anyhow::Result<()> {
     let lines = render_markdown("- item one", 80);
     assert_eq!(lines.len(), 1);
-    let buf = render_to_buffer(lines, 80, 5);
-    assert_eq!(buf.cell((0, 0)).unwrap().symbol(), "•");
+    let buf = render_to_buffer(lines, 80, 5)?;
+    assert_eq!(buf.cell((0, 0)).context("cell at (0, 0)")?.symbol(), "•");
+    Ok(())
 }
 
 #[test]
-fn unordered_list_star_renders_bullet() {
+fn unordered_list_star_renders_bullet() -> anyhow::Result<()> {
     let lines = render_markdown("* item one", 80);
     assert_eq!(lines.len(), 1);
-    let buf = render_to_buffer(lines, 80, 5);
-    assert_eq!(buf.cell((0, 0)).unwrap().symbol(), "•");
+    let buf = render_to_buffer(lines, 80, 5)?;
+    assert_eq!(buf.cell((0, 0)).context("cell at (0, 0)")?.symbol(), "•");
+    Ok(())
 }
 
 #[test]
-fn unordered_list_plus_renders_bullet() {
+fn unordered_list_plus_renders_bullet() -> anyhow::Result<()> {
     let lines = render_markdown("+ item one", 80);
     assert_eq!(lines.len(), 1);
-    let buf = render_to_buffer(lines, 80, 5);
-    assert_eq!(buf.cell((0, 0)).unwrap().symbol(), "•");
+    let buf = render_to_buffer(lines, 80, 5)?;
+    assert_eq!(buf.cell((0, 0)).context("cell at (0, 0)")?.symbol(), "•");
+    Ok(())
 }
 
 #[test]
-fn ordered_list_renders_items() {
+fn ordered_list_renders_items() -> anyhow::Result<()> {
     let lines = render_markdown("1. first\n2. second\n3. third", 80);
     assert_eq!(lines.len(), 3);
-    let buf = render_to_buffer(lines, 80, 10);
-    assert_eq!(buf.cell((0, 0)).unwrap().symbol(), "•");
-    assert_eq!(buf.cell((0, 1)).unwrap().symbol(), "•");
-    assert_eq!(buf.cell((0, 2)).unwrap().symbol(), "•");
+    let buf = render_to_buffer(lines, 80, 10)?;
+    assert_eq!(buf.cell((0, 0)).context("cell at (0, 0)")?.symbol(), "•");
+    assert_eq!(buf.cell((0, 1)).context("cell at (0, 1)")?.symbol(), "•");
+    assert_eq!(buf.cell((0, 2)).context("cell at (0, 2)")?.symbol(), "•");
+    Ok(())
 }
 
 #[test]
-fn nested_list_indents() {
+fn nested_list_indents() -> anyhow::Result<()> {
     let renderer = MarkdownRenderer::new(80);
     let blocks = renderer.parse("- outer\n  - inner");
     let inner_block = blocks
@@ -249,18 +264,20 @@ fn nested_list_indents() {
 
     let lines = render_markdown("- outer\n  - inner", 80);
     assert_eq!(lines.len(), 2);
+    Ok(())
 }
 
 #[test]
-fn blockquote_renders_with_prefix() {
+fn blockquote_renders_with_prefix() -> anyhow::Result<()> {
     let lines = render_markdown("> quoted text", 80);
     assert_eq!(lines.len(), 1);
-    let buf = render_to_buffer(lines, 80, 5);
-    assert_eq!(buf.cell((0, 0)).unwrap().symbol(), "│");
+    let buf = render_to_buffer(lines, 80, 5)?;
+    assert_eq!(buf.cell((0, 0)).context("cell at (0, 0)")?.symbol(), "│");
+    Ok(())
 }
 
 #[test]
-fn table_renders_with_borders() {
+fn table_renders_with_borders() -> anyhow::Result<()> {
     let md = "| A | B |\n|---|---|\n| 1 | 2 |";
     let lines = render_markdown(md, 80);
     assert!(
@@ -268,37 +285,41 @@ fn table_renders_with_borders() {
         "expected top border, header, separator, row, bottom; got {}",
         lines.len()
     );
-    let buf = render_to_buffer(lines, 80, 10);
-    assert_eq!(buf.cell((0, 0)).unwrap().symbol(), "┌");
+    let buf = render_to_buffer(lines, 80, 10)?;
+    assert_eq!(buf.cell((0, 0)).context("cell at (0, 0)")?.symbol(), "┌");
+    Ok(())
 }
 
 #[test]
-fn table_bottom_border_uses_bl_br_corners() {
+fn table_bottom_border_uses_bl_br_corners() -> anyhow::Result<()> {
     let md = "| A | B |\n|---|---|\n| 1 | 2 |";
     let lines = render_markdown(md, 80);
     let last = &lines[lines.len() - 1];
-    let buf = render_to_buffer(vec![last.clone()], 80, 1);
-    assert_eq!(buf.cell((0, 0)).unwrap().symbol(), "└");
+    let buf = render_to_buffer(vec![last.clone()], 80, 1)?;
+    assert_eq!(buf.cell((0, 0)).context("cell at (0, 0)")?.symbol(), "└");
+    Ok(())
 }
 
 #[test]
-fn inline_bold_renders() {
+fn inline_bold_renders() -> anyhow::Result<()> {
     let spans = crate::markdown::parse_inline_formatting("**bold**", &TestTheme);
     assert_eq!(spans.len(), 1);
     assert_eq!(spans[0].content, "bold");
     assert!(spans[0].style.add_modifier.contains(Modifier::BOLD));
+    Ok(())
 }
 
 #[test]
-fn inline_italic_renders() {
+fn inline_italic_renders() -> anyhow::Result<()> {
     let spans = crate::markdown::parse_inline_formatting("*italic*", &TestTheme);
     assert_eq!(spans.len(), 1);
     assert_eq!(spans[0].content, "italic");
     assert!(spans[0].style.add_modifier.contains(Modifier::ITALIC));
+    Ok(())
 }
 
 #[test]
-fn inline_bold_italic_renders() {
+fn inline_bold_italic_renders() -> anyhow::Result<()> {
     let spans = crate::markdown::parse_inline_formatting("***both***", &TestTheme);
     assert_eq!(spans.len(), 1);
     assert_eq!(spans[0].content, "both");
@@ -306,28 +327,31 @@ fn inline_bold_italic_renders() {
         .style
         .add_modifier
         .contains(Modifier::BOLD | Modifier::ITALIC));
+    Ok(())
 }
 
 #[test]
-fn inline_code_renders() {
+fn inline_code_renders() -> anyhow::Result<()> {
     let spans = crate::markdown::parse_inline_formatting("some `code` here", &TestTheme);
     assert!(spans.iter().any(|s| s.content == "code"));
-    let code_span = spans.iter().find(|s| s.content == "code").unwrap();
+    let code_span = spans.iter().find(|s| s.content == "code").context("find")?;
     assert_eq!(code_span.style.fg, Some(Color::Yellow));
+    Ok(())
 }
 
 #[test]
-fn mixed_inline_formatting() {
+fn mixed_inline_formatting() -> anyhow::Result<()> {
     let spans =
         crate::markdown::parse_inline_formatting("normal **bold** *italic* `code`", &TestTheme);
     assert!(
         spans.len() >= 4,
         "expected at least 4 spans for mixed formatting"
     );
+    Ok(())
 }
 
 #[test]
-fn complex_document_renders() {
+fn complex_document_renders() -> anyhow::Result<()> {
     let md = r#"# Title
 
 A paragraph with **bold** and *italic*.
@@ -355,86 +379,96 @@ code here
         "complex document should produce many lines, got {}",
         lines.len()
     );
-    let buf = render_to_buffer(lines, 80, 40);
-    assert_eq!(buf.cell((0, 0)).unwrap().symbol(), "T");
+    let buf = render_to_buffer(lines, 80, 40)?;
+    assert_eq!(buf.cell((0, 0)).context("cell at (0, 0)")?.symbol(), "T");
+    Ok(())
 }
 
 #[test]
-fn empty_input_produces_no_lines() {
+fn empty_input_produces_no_lines() -> anyhow::Result<()> {
     let lines = render_markdown("", 80);
     assert!(lines.is_empty());
+    Ok(())
 }
 
 #[test]
-fn only_blank_lines_produce_empty_lines() {
+fn only_blank_lines_produce_empty_lines() -> anyhow::Result<()> {
     let lines = render_markdown("\n\n\n", 80);
     assert_eq!(lines.len(), 3);
     for line in &lines {
         assert!(line.spans.is_empty() || line.spans.iter().all(|s| s.content.is_empty()));
     }
+    Ok(())
 }
 
 #[test]
-fn code_block_preserves_content() {
+fn code_block_preserves_content() -> anyhow::Result<()> {
     let md = "```python\nprint('hello')\nprint('world')\n```";
     let lines = render_markdown(md, 80);
-    let buf = render_to_buffer(lines, 80, 10);
+    let buf = render_to_buffer(lines, 80, 10)?;
     let row1: String = (0..20)
-        .map(|x| buf.cell((x, 1)).unwrap().symbol())
-        .collect();
+        .map(|x| buf.cell((x, 1)).map(|c| c.symbol()).unwrap_or_default()).collect::<String>();
     assert!(row1.contains("print"));
+    Ok(())
 }
 
 #[test]
-fn unclosed_code_block_still_renders() {
+fn unclosed_code_block_still_renders() -> anyhow::Result<()> {
     let md = "```js\nconst x = 1;";
     let lines = render_markdown(md, 80);
     assert!(!lines.is_empty(), "unclosed code block should still render");
+    Ok(())
 }
 
 #[test]
-fn table_with_single_column() {
+fn table_with_single_column() -> anyhow::Result<()> {
     let md = "| A |\n|---|\n| 1 |";
     let lines = render_markdown(md, 80);
     assert!(lines.len() >= 3);
+    Ok(())
 }
 
 #[test]
-fn table_with_wide_content_wraps() {
+fn table_with_wide_content_wraps() -> anyhow::Result<()> {
     let md = "| Header |\n|--------|\n| a_very_long_word_that_exceeds_width |";
     let lines = render_markdown(md, 20);
     assert!(lines.len() >= 3);
+    Ok(())
 }
 
 #[test]
-fn inline_formatting_unclosed_bold_treated_as_text() {
+fn inline_formatting_unclosed_bold_treated_as_text() -> anyhow::Result<()> {
     let spans = crate::markdown::parse_inline_formatting("**unclosed", &TestTheme);
     assert!(spans.iter().any(|s| s.content.contains("*")));
+    Ok(())
 }
 
 #[test]
-fn inline_formatting_unclosed_italic_treated_as_text() {
+fn inline_formatting_unclosed_italic_treated_as_text() -> anyhow::Result<()> {
     let spans = crate::markdown::parse_inline_formatting("*unclosed", &TestTheme);
     assert!(spans.iter().any(|s| s.content.contains("*")));
+    Ok(())
 }
 
 #[test]
-fn inline_formatting_unclosed_code_treated_as_text() {
+fn inline_formatting_unclosed_code_treated_as_text() -> anyhow::Result<()> {
     let spans = crate::markdown::parse_inline_formatting("`unclosed", &TestTheme);
     assert!(spans.iter().any(|s| s.content.contains("`")));
+    Ok(())
 }
 
 #[test]
-fn parse_heading_levels() {
+fn parse_heading_levels() -> anyhow::Result<()> {
     let renderer = MarkdownRenderer::new(80);
     let blocks = renderer.parse("# H1\n## H2\n### H3");
     assert!(matches!(blocks[0], MarkdownBlock::Heading1(ref t) if t == "H1"));
     assert!(matches!(blocks[1], MarkdownBlock::Heading2(ref t) if t == "H2"));
     assert!(matches!(blocks[2], MarkdownBlock::Heading3(ref t) if t == "H3"));
+    Ok(())
 }
 
 #[test]
-fn parse_mixed_block_types() {
+fn parse_mixed_block_types() -> anyhow::Result<()> {
     let renderer = MarkdownRenderer::new(80);
     let blocks = renderer.parse("# Title\n\ntext\n\n- item\n\n> quote\n\n---");
     let types: Vec<&str> = blocks
@@ -454,10 +488,11 @@ fn parse_mixed_block_types() {
     assert!(types.contains(&"li"));
     assert!(types.contains(&"bq"));
     assert!(types.contains(&"hr"));
+    Ok(())
 }
 
 #[test]
-fn multiple_paragraphs_separated_by_blank() {
+fn multiple_paragraphs_separated_by_blank() -> anyhow::Result<()> {
     let md = "First paragraph.\n\nSecond paragraph.";
     let lines = render_markdown(md, 80);
     let blank_count = lines
@@ -465,37 +500,42 @@ fn multiple_paragraphs_separated_by_blank() {
         .filter(|l| l.spans.is_empty() || l.spans.iter().all(|s| s.content.is_empty()))
         .count();
     assert!(blank_count >= 1, "should have at least one blank separator");
+    Ok(())
 }
 
 #[test]
-fn narrow_width_still_renders() {
+fn narrow_width_still_renders() -> anyhow::Result<()> {
     let lines = render_markdown("# Hi\nSome text here", 5);
     assert!(!lines.is_empty());
+    Ok(())
 }
 
 #[test]
-fn very_wide_horizontal_rule_capped_at_80() {
+fn very_wide_horizontal_rule_capped_at_80() -> anyhow::Result<()> {
     let lines = render_markdown("---", 200);
     assert_eq!(lines.len(), 1);
     let line = &lines[0];
     let content: String = line.spans.iter().map(|s| s.content.as_ref()).collect();
     assert_eq!(content.chars().count(), 80);
+    Ok(())
 }
 
 #[test]
-fn table_hline_builder() {
+fn table_hline_builder() -> anyhow::Result<()> {
     let hline = MarkdownRenderer::build_table_hline(&[5, 5, 5], "┌", "┬", "┐");
     assert_eq!(hline, "┌─────┬─────┬─────┐");
+    Ok(())
 }
 
 #[test]
-fn table_hline_single_column() {
+fn table_hline_single_column() -> anyhow::Result<()> {
     let hline = MarkdownRenderer::build_table_hline(&[3], "┌", "┬", "┐");
     assert_eq!(hline, "┌───┐");
+    Ok(())
 }
 
 #[test]
-fn blockquote_italic_style() {
+fn blockquote_italic_style() -> anyhow::Result<()> {
     let lines = render_markdown("> quoted", 80);
     assert_eq!(lines.len(), 1);
     let line = &lines[0];
@@ -504,26 +544,29 @@ fn blockquote_italic_style() {
         .iter()
         .any(|s| s.style.add_modifier.contains(Modifier::ITALIC));
     assert!(has_italic, "blockquote text should be italic");
+    Ok(())
 }
 
 #[test]
-fn hr_star_syntax() {
+fn hr_star_syntax() -> anyhow::Result<()> {
     let lines = render_markdown("***", 80);
     assert_eq!(lines.len(), 1);
-    let buf = render_to_buffer(lines, 80, 5);
-    assert_eq!(buf.cell((0, 0)).unwrap().symbol(), "─");
+    let buf = render_to_buffer(lines, 80, 5)?;
+    assert_eq!(buf.cell((0, 0)).context("cell at (0, 0)")?.symbol(), "─");
+    Ok(())
 }
 
 #[test]
-fn hr_underscore_syntax() {
+fn hr_underscore_syntax() -> anyhow::Result<()> {
     let lines = render_markdown("___", 80);
     assert_eq!(lines.len(), 1);
+    Ok(())
 }
 
 // ==================== Image Block Tests ====================
 
 #[test]
-fn image_block_parsed_from_standalone_line() {
+fn image_block_parsed_from_standalone_line() -> anyhow::Result<()> {
     let renderer = MarkdownRenderer::new(80);
     let blocks = renderer.parse("![alt text](image.png)");
     assert_eq!(blocks.len(), 1);
@@ -534,10 +577,11 @@ fn image_block_parsed_from_standalone_line() {
         }
         other => panic!("expected Image block, got {:?}", other),
     }
+    Ok(())
 }
 
 #[test]
-fn image_block_parsed_with_empty_alt() {
+fn image_block_parsed_with_empty_alt() -> anyhow::Result<()> {
     let renderer = MarkdownRenderer::new(80);
     let blocks = renderer.parse("![](photo.jpg)");
     assert_eq!(blocks.len(), 1);
@@ -548,10 +592,11 @@ fn image_block_parsed_with_empty_alt() {
         }
         other => panic!("expected Image block, got {:?}", other),
     }
+    Ok(())
 }
 
 #[test]
-fn image_block_between_paragraphs() {
+fn image_block_between_paragraphs() -> anyhow::Result<()> {
     let renderer = MarkdownRenderer::new(80);
     let blocks = renderer.parse("text before\n\n![img](a.png)\n\ntext after");
     let types: Vec<&str> = blocks
@@ -565,24 +610,24 @@ fn image_block_between_paragraphs() {
         .collect();
     assert!(types.contains(&"p"), "should have paragraph blocks");
     assert!(types.contains(&"img"), "should have image block");
+    Ok(())
 }
 
 #[test]
-fn image_fallback_renders_gray_italic_span() {
+fn image_fallback_renders_gray_italic_span() -> anyhow::Result<()> {
     let lines = render_markdown("![my alt](missing.png)", 80);
     assert_eq!(lines.len(), 1, "image fallback should be a single line");
-    let buf = render_to_buffer(lines, 80, 5);
-    let first_char = buf.cell((0, 0)).unwrap().symbol();
+    let buf = render_to_buffer(lines, 80, 5)?;
+    let first_char = buf.cell((0, 0)).context("cell at (0, 0)")?.symbol();
     assert_eq!(first_char, "[", "fallback should start with '['");
     let text: String = (0..30)
-        .map(|x| buf.cell((x, 0)).unwrap().symbol())
-        .collect();
+        .map(|x| buf.cell((x, 0)).map(|c| c.symbol()).unwrap_or_default()).collect::<String>();
     assert!(
         text.contains("image"),
         "fallback text should contain 'image': got '{}'",
         text
     );
-    let cell = buf.cell((0, 0)).unwrap();
+    let cell = buf.cell((0, 0)).context("cell at (0, 0)")?;
     assert_eq!(
         cell.fg,
         Color::Gray,
@@ -592,38 +637,39 @@ fn image_fallback_renders_gray_italic_span() {
         cell.style().add_modifier.contains(Modifier::ITALIC),
         "fallback should be italic"
     );
+    Ok(())
 }
 
 #[test]
-fn image_fallback_uses_alt_when_present() {
+fn image_fallback_uses_alt_when_present() -> anyhow::Result<()> {
     let lines = render_markdown("![screenshot](photo.png)", 80);
-    let buf = render_to_buffer(lines, 80, 5);
+    let buf = render_to_buffer(lines, 80, 5)?;
     let text: String = (0..40)
-        .map(|x| buf.cell((x, 0)).unwrap().symbol())
-        .collect();
+        .map(|x| buf.cell((x, 0)).map(|c| c.symbol()).unwrap_or_default()).collect::<String>();
     assert!(
         text.contains("screenshot"),
         "fallback should contain alt text 'screenshot': got '{}'",
         text
     );
+    Ok(())
 }
 
 #[test]
-fn image_fallback_uses_path_when_alt_empty() {
+fn image_fallback_uses_path_when_alt_empty() -> anyhow::Result<()> {
     let lines = render_markdown("![](photo.png)", 80);
-    let buf = render_to_buffer(lines, 80, 5);
+    let buf = render_to_buffer(lines, 80, 5)?;
     let text: String = (0..40)
-        .map(|x| buf.cell((x, 0)).unwrap().symbol())
-        .collect();
+        .map(|x| buf.cell((x, 0)).map(|c| c.symbol()).unwrap_or_default()).collect::<String>();
     assert!(
         text.contains("photo.png"),
         "fallback should contain path when alt is empty: got '{}'",
         text
     );
+    Ok(())
 }
 
 #[test]
-fn image_inline_in_paragraph_not_treated_as_block() {
+fn image_inline_in_paragraph_not_treated_as_block() -> anyhow::Result<()> {
     let renderer = MarkdownRenderer::new(80);
     let blocks = renderer.parse("text ![inline](i.png) more");
     for block in &blocks {
@@ -632,15 +678,17 @@ fn image_inline_in_paragraph_not_treated_as_block() {
             "inline image inside text should not become a block-level Image"
         );
     }
+    Ok(())
 }
 
 #[test]
-fn image_line_count_is_1() {
+fn image_line_count_is_1() -> anyhow::Result<()> {
     let block = MarkdownBlock::Image {
         alt: "test".to_string(),
         path: "test.png".to_string(),
     };
     assert_eq!(block.line_count(), 1);
+    Ok(())
 }
 
 // ==================== RenderHooks Tests ====================
@@ -657,19 +705,20 @@ impl RenderHooks for HeadingOverrideHooks {
 }
 
 #[test]
-fn hooks_heading1_override() {
+fn hooks_heading1_override() -> anyhow::Result<()> {
     let renderer =
         MarkdownRenderer::new(80).with_render_hooks(Box::new(HeadingOverrideHooks));
     let blocks = renderer.parse("# Hello");
     let lines = renderer.render(&blocks, &TestTheme);
     assert_eq!(lines.len(), 1);
-    let buf = render_to_buffer(lines, 80, 5);
-    assert_eq!(buf.cell((0, 0)).unwrap().symbol(), ">");
-    assert_eq!(buf.cell((1, 0)).unwrap().symbol(), ">");
-    assert_eq!(buf.cell((2, 0)).unwrap().symbol(), ">");
-    assert_eq!(buf.cell((4, 0)).unwrap().symbol(), "H");
-    let cell = buf.cell((0, 0)).unwrap();
+    let buf = render_to_buffer(lines, 80, 5)?;
+    assert_eq!(buf.cell((0, 0)).context("cell at (0, 0)")?.symbol(), ">");
+    assert_eq!(buf.cell((1, 0)).context("cell at (1, 0)")?.symbol(), ">");
+    assert_eq!(buf.cell((2, 0)).context("cell at (2, 0)")?.symbol(), ">");
+    assert_eq!(buf.cell((4, 0)).context("cell at (4, 0)")?.symbol(), "H");
+    let cell = buf.cell((0, 0)).context("cell at (0, 0)")?;
     assert_eq!(cell.fg, Color::Red, "overridden heading should be Red");
+    Ok(())
 }
 
 struct Heading2PrefixHooks;
@@ -681,19 +730,19 @@ impl RenderHooks for Heading2PrefixHooks {
 }
 
 #[test]
-fn hooks_heading2_override() {
+fn hooks_heading2_override() -> anyhow::Result<()> {
     let renderer =
         MarkdownRenderer::new(80).with_render_hooks(Box::new(Heading2PrefixHooks));
     let blocks = renderer.parse("## Section");
     let lines = renderer.render(&blocks, &TestTheme);
     assert_eq!(lines.len(), 1);
-    let buf = render_to_buffer(lines, 80, 5);
-    assert_eq!(buf.cell((0, 0)).unwrap().symbol(), "#");
-    assert_eq!(buf.cell((1, 0)).unwrap().symbol(), "#");
+    let buf = render_to_buffer(lines, 80, 5)?;
+    assert_eq!(buf.cell((0, 0)).context("cell at (0, 0)")?.symbol(), "#");
+    assert_eq!(buf.cell((1, 0)).context("cell at (1, 0)")?.symbol(), "#");
     let text: String = (0..10)
-        .map(|x| buf.cell((x, 0)).unwrap().symbol())
-        .collect();
+        .map(|x| buf.cell((x, 0)).map(|c| c.symbol()).unwrap_or_default()).collect::<String>();
     assert!(text.starts_with("## Section"));
+    Ok(())
 }
 
 struct Heading3OverrideHooks;
@@ -708,14 +757,15 @@ impl RenderHooks for Heading3OverrideHooks {
 }
 
 #[test]
-fn hooks_heading3_override() {
+fn hooks_heading3_override() -> anyhow::Result<()> {
     let renderer =
         MarkdownRenderer::new(80).with_render_hooks(Box::new(Heading3OverrideHooks));
     let blocks = renderer.parse("### Sub");
     let lines = renderer.render(&blocks, &TestTheme);
     assert_eq!(lines.len(), 1);
-    let buf = render_to_buffer(lines, 80, 5);
-    assert_eq!(buf.cell((0, 0)).unwrap().fg, Color::Magenta);
+    let buf = render_to_buffer(lines, 80, 5)?;
+    assert_eq!(buf.cell((0, 0)).context("cell at (0, 0)")?.fg, Color::Magenta);
+    Ok(())
 }
 
 struct ParagraphOverrideHooks;
@@ -731,22 +781,22 @@ impl RenderHooks for ParagraphOverrideHooks {
 }
 
 #[test]
-fn hooks_paragraph_override() {
+fn hooks_paragraph_override() -> anyhow::Result<()> {
     let renderer =
         MarkdownRenderer::new(80).with_render_hooks(Box::new(ParagraphOverrideHooks));
     let blocks = renderer.parse("Hello world");
     let lines = renderer.render(&blocks, &TestTheme);
     assert_eq!(lines.len(), 1);
-    let buf = render_to_buffer(lines, 80, 5);
+    let buf = render_to_buffer(lines, 80, 5)?;
     let text: String = (0..15)
-        .map(|x| buf.cell((x, 0)).unwrap().symbol())
-        .collect();
+        .map(|x| buf.cell((x, 0)).map(|c| c.symbol()).unwrap_or_default()).collect::<String>();
     assert!(
         text.starts_with("P: Hello"),
         "paragraph should be overridden with prefix: got '{}'",
         text
     );
-    assert_eq!(buf.cell((0, 0)).unwrap().fg, Color::Green);
+    assert_eq!(buf.cell((0, 0)).context("cell at (0, 0)")?.fg, Color::Green);
+    Ok(())
 }
 
 struct CodeBlockCustomHooks;
@@ -772,7 +822,7 @@ impl RenderHooks for CodeBlockCustomHooks {
 }
 
 #[test]
-fn hooks_code_block_header_footer_override() {
+fn hooks_code_block_header_footer_override() -> anyhow::Result<()> {
     let renderer =
         MarkdownRenderer::new(80).with_render_hooks(Box::new(CodeBlockCustomHooks));
     let md = "```rust\nfn main() {}\n```";
@@ -780,16 +830,15 @@ fn hooks_code_block_header_footer_override() {
     let lines = renderer.render(&blocks, &TestTheme);
     assert_eq!(lines.len(), 3, "should have header + 1 content + footer");
 
-    let buf = render_to_buffer(lines.clone(), 80, 5);
+    let buf = render_to_buffer(lines.clone(), 80, 5)?;
     assert_eq!(
-        buf.cell((0, 0)).unwrap().symbol(),
+        buf.cell((0, 0)).context("cell at (0, 0)")?.symbol(),
         "\u{256d}",
         "header should start with ╭"
     );
 
     let header_text: String = (0..30)
-        .map(|x| buf.cell((x, 0)).unwrap().symbol())
-        .collect();
+        .map(|x| buf.cell((x, 0)).map(|c| c.symbol()).unwrap_or_default()).collect::<String>();
     assert!(
         header_text.contains("custom-header"),
         "header should contain custom text: got '{}'",
@@ -797,33 +846,34 @@ fn hooks_code_block_header_footer_override() {
     );
 
     assert_eq!(
-        buf.cell((0, 2)).unwrap().symbol(),
+        buf.cell((0, 2)).context("cell at (0, 2)")?.symbol(),
         "\u{2570}",
         "footer should start with ╰"
     );
     let footer_text: String = (0..20)
-        .map(|x| buf.cell((x, 2)).unwrap().symbol())
-        .collect();
+        .map(|x| buf.cell((x, 2)).map(|c| c.symbol()).unwrap_or_default()).collect::<String>();
     assert!(
         footer_text.contains("1 lines"),
         "footer should contain line count: got '{}'",
         footer_text
     );
+    Ok(())
 }
 
 #[test]
-fn hooks_code_block_line_prefix_override() {
+fn hooks_code_block_line_prefix_override() -> anyhow::Result<()> {
     let renderer =
         MarkdownRenderer::new(80).with_render_hooks(Box::new(CodeBlockCustomHooks));
     let md = "```rust\nhello\n```";
     let blocks = renderer.parse(md);
     let lines = renderer.render(&blocks, &TestTheme);
-    let buf = render_to_buffer(lines, 80, 5);
+    let buf = render_to_buffer(lines, 80, 5)?;
     assert_eq!(
-        buf.cell((0, 1)).unwrap().symbol(),
+        buf.cell((0, 1)).context("cell at (0, 1)")?.symbol(),
         " ",
         "custom prefix should be spaces, not │"
     );
+    Ok(())
 }
 
 struct CodeBlockLineOverrideHooks;
@@ -838,30 +888,29 @@ impl RenderHooks for CodeBlockLineOverrideHooks {
 }
 
 #[test]
-fn hooks_code_block_line_override() {
+fn hooks_code_block_line_override() -> anyhow::Result<()> {
     let renderer =
         MarkdownRenderer::new(80).with_render_hooks(Box::new(CodeBlockLineOverrideHooks));
     let md = "```js\nline1\nline2\n```";
     let blocks = renderer.parse(md);
     let lines = renderer.render(&blocks, &TestTheme);
     assert_eq!(lines.len(), 4, "header + 2 content + footer");
-    let buf = render_to_buffer(lines, 80, 5);
+    let buf = render_to_buffer(lines, 80, 5)?;
     let line1_text: String = (0..10)
-        .map(|x| buf.cell((x, 1)).unwrap().symbol())
-        .collect();
+        .map(|x| buf.cell((x, 1)).map(|c| c.symbol()).unwrap_or_default()).collect::<String>();
     assert!(
         line1_text.starts_with("0:"),
         "first code line should have index prefix: got '{}'",
         line1_text
     );
     let line2_text: String = (0..10)
-        .map(|x| buf.cell((x, 2)).unwrap().symbol())
-        .collect();
+        .map(|x| buf.cell((x, 2)).map(|c| c.symbol()).unwrap_or_default()).collect::<String>();
     assert!(
         line2_text.starts_with("1:"),
         "second code line should have index prefix: got '{}'",
         line2_text
     );
+    Ok(())
 }
 
 struct InlineCodeOverrideHooks;
@@ -876,22 +925,22 @@ impl RenderHooks for InlineCodeOverrideHooks {
 }
 
 #[test]
-fn hooks_inline_code_override() {
+fn hooks_inline_code_override() -> anyhow::Result<()> {
     let renderer =
         MarkdownRenderer::new(80).with_render_hooks(Box::new(InlineCodeOverrideHooks));
     let blocks = vec![MarkdownBlock::InlineCode("hello".to_string())];
     let lines = renderer.render(&blocks, &TestTheme);
     assert_eq!(lines.len(), 1);
-    let buf = render_to_buffer(lines, 80, 5);
+    let buf = render_to_buffer(lines, 80, 5)?;
     let text: String = (0..15)
-        .map(|x| buf.cell((x, 0)).unwrap().symbol())
-        .collect();
+        .map(|x| buf.cell((x, 0)).map(|c| c.symbol()).unwrap_or_default()).collect::<String>();
     assert!(
         text.starts_with("CODE(hello)"),
         "inline code block should be overridden: got '{}'",
         text
     );
-    assert_eq!(buf.cell((0, 0)).unwrap().fg, Color::Red);
+    assert_eq!(buf.cell((0, 0)).context("cell at (0, 0)")?.fg, Color::Red);
+    Ok(())
 }
 
 struct TreeListHook;
@@ -914,23 +963,24 @@ impl RenderHooks for TreeListHook {
 }
 
 #[test]
-fn hooks_list_item_marker_tree_style() {
+fn hooks_list_item_marker_tree_style() -> anyhow::Result<()> {
     let renderer =
         MarkdownRenderer::new(80).with_render_hooks(Box::new(TreeListHook));
     let blocks = renderer.parse("- first\n- second\n- third");
     let lines = renderer.render(&blocks, &TestTheme);
     assert_eq!(lines.len(), 3, "should have 3 list items");
-    let buf = render_to_buffer(lines, 80, 5);
+    let buf = render_to_buffer(lines, 80, 5)?;
     assert_eq!(
-        buf.cell((0, 0)).unwrap().symbol(),
+        buf.cell((0, 0)).context("cell at (0, 0)")?.symbol(),
         "\u{251c}",
         "first item (not last) should use ├"
     );
     assert_eq!(
-        buf.cell((0, 2)).unwrap().symbol(),
+        buf.cell((0, 2)).context("cell at (0, 2)")?.symbol(),
         "\u{2514}",
         "last item should use └"
     );
+    Ok(())
 }
 
 struct ListItemContentHooks;
@@ -955,21 +1005,21 @@ impl RenderHooks for ListItemContentHooks {
 }
 
 #[test]
-fn hooks_list_item_content_override() {
+fn hooks_list_item_content_override() -> anyhow::Result<()> {
     let renderer =
         MarkdownRenderer::new(80).with_render_hooks(Box::new(ListItemContentHooks));
     let blocks = renderer.parse("- hello");
     let lines = renderer.render(&blocks, &TestTheme);
     assert_eq!(lines.len(), 1);
-    let buf = render_to_buffer(lines, 80, 5);
+    let buf = render_to_buffer(lines, 80, 5)?;
     let text: String = (0..12)
-        .map(|x| buf.cell((x, 0)).unwrap().symbol())
-        .collect();
+        .map(|x| buf.cell((x, 0)).map(|c| c.symbol()).unwrap_or_default()).collect::<String>();
     assert!(
         text.contains("[hello]"),
         "list item content should be wrapped in brackets: got '{}'",
         text
     );
+    Ok(())
 }
 
 struct BlockquoteOverrideHooks;
@@ -996,22 +1046,22 @@ impl RenderHooks for BlockquoteOverrideHooks {
 }
 
 #[test]
-fn hooks_blockquote_override() {
+fn hooks_blockquote_override() -> anyhow::Result<()> {
     let renderer =
         MarkdownRenderer::new(80).with_render_hooks(Box::new(BlockquoteOverrideHooks));
     let blocks = renderer.parse("> some quote");
     let lines = renderer.render(&blocks, &TestTheme);
     assert_eq!(lines.len(), 1);
-    let buf = render_to_buffer(lines, 80, 5);
+    let buf = render_to_buffer(lines, 80, 5)?;
     let text: String = (0..20)
-        .map(|x| buf.cell((x, 0)).unwrap().symbol())
-        .collect();
+        .map(|x| buf.cell((x, 0)).map(|c| c.symbol()).unwrap_or_default()).collect::<String>();
     assert!(
         text.starts_with("QUOTE: some quote"),
         "blockquote should be overridden: got '{}'",
         text
     );
-    assert_eq!(buf.cell((0, 0)).unwrap().fg, Color::Magenta);
+    assert_eq!(buf.cell((0, 0)).context("cell at (0, 0)")?.fg, Color::Magenta);
+    Ok(())
 }
 
 struct HorizontalRuleOverrideHooks;
@@ -1026,19 +1076,20 @@ impl RenderHooks for HorizontalRuleOverrideHooks {
 }
 
 #[test]
-fn hooks_horizontal_rule_override() {
+fn hooks_horizontal_rule_override() -> anyhow::Result<()> {
     let renderer =
         MarkdownRenderer::new(80).with_render_hooks(Box::new(HorizontalRuleOverrideHooks));
     let blocks = renderer.parse("---");
     let lines = renderer.render(&blocks, &TestTheme);
     assert_eq!(lines.len(), 1);
-    let buf = render_to_buffer(lines, 80, 5);
+    let buf = render_to_buffer(lines, 80, 5)?;
     assert_eq!(
-        buf.cell((0, 0)).unwrap().symbol(),
+        buf.cell((0, 0)).context("cell at (0, 0)")?.symbol(),
         "=",
         "horizontal rule should be overridden to ="
     );
-    assert_eq!(buf.cell((0, 0)).unwrap().fg, Color::Cyan);
+    assert_eq!(buf.cell((0, 0)).context("cell at (0, 0)")?.fg, Color::Cyan);
+    Ok(())
 }
 
 struct BlankLineOverrideHooks;
@@ -1053,7 +1104,7 @@ impl RenderHooks for BlankLineOverrideHooks {
 }
 
 #[test]
-fn hooks_blank_line_override() {
+fn hooks_blank_line_override() -> anyhow::Result<()> {
     let renderer =
         MarkdownRenderer::new(80).with_render_hooks(Box::new(BlankLineOverrideHooks));
     let blocks = renderer.parse("a\n\nb");
@@ -1065,6 +1116,7 @@ fn hooks_blank_line_override() {
         blank.is_some(),
         "blank line should be overridden to middle dot"
     );
+    Ok(())
 }
 
 struct TableOverrideHooks;
@@ -1091,22 +1143,22 @@ impl RenderHooks for TableOverrideHooks {
 }
 
 #[test]
-fn hooks_table_override() {
+fn hooks_table_override() -> anyhow::Result<()> {
     let renderer =
         MarkdownRenderer::new(80).with_render_hooks(Box::new(TableOverrideHooks));
     let md = "| A | B |\n|---|---|\n| 1 | 2 |";
     let blocks = renderer.parse(md);
     let lines = renderer.render(&blocks, &TestTheme);
     assert_eq!(lines.len(), 2, "should have header line + 1 data row");
-    let buf = render_to_buffer(lines, 80, 5);
+    let buf = render_to_buffer(lines, 80, 5)?;
     let header: String = (0..20)
-        .map(|x| buf.cell((x, 0)).unwrap().symbol())
-        .collect();
+        .map(|x| buf.cell((x, 0)).map(|c| c.symbol()).unwrap_or_default()).collect::<String>();
     assert!(
         header.contains("TABLE: 2 headers"),
         "table header should be overridden: got '{}'",
         header
     );
+    Ok(())
 }
 
 struct ImageFallbackHooks;
@@ -1121,22 +1173,22 @@ impl RenderHooks for ImageFallbackHooks {
 }
 
 #[test]
-fn hooks_image_fallback_override() {
+fn hooks_image_fallback_override() -> anyhow::Result<()> {
     let renderer =
         MarkdownRenderer::new(80).with_render_hooks(Box::new(ImageFallbackHooks));
     let blocks = renderer.parse("![logo](logo.png)");
     let lines = renderer.render(&blocks, &TestTheme);
     assert_eq!(lines.len(), 1);
-    let buf = render_to_buffer(lines, 80, 5);
+    let buf = render_to_buffer(lines, 80, 5)?;
     let text: String = (0..30)
-        .map(|x| buf.cell((x, 0)).unwrap().symbol())
-        .collect();
+        .map(|x| buf.cell((x, 0)).map(|c| c.symbol()).unwrap_or_default()).collect::<String>();
     assert!(
         text.contains("IMG: logo (logo.png)"),
         "image fallback should be overridden: got '{}'",
         text
     );
-    assert_eq!(buf.cell((0, 0)).unwrap().fg, Color::Red);
+    assert_eq!(buf.cell((0, 0)).context("cell at (0, 0)")?.fg, Color::Red);
+    Ok(())
 }
 
 struct NoopHooks;
@@ -1144,7 +1196,7 @@ struct NoopHooks;
 impl RenderHooks for NoopHooks {}
 
 #[test]
-fn hooks_noop_does_not_change_output() {
+fn hooks_noop_does_not_change_output() -> anyhow::Result<()> {
     let md = "# Title\n\nParagraph **bold**.\n\n- item\n\n> quote\n\n---";
     let renderer_no_hooks = MarkdownRenderer::new(80);
     let blocks = renderer_no_hooks.parse(md);
@@ -1169,10 +1221,11 @@ fn hooks_noop_does_not_change_output() {
             i
         );
     }
+    Ok(())
 }
 
 #[test]
-fn hooks_selective_override_only_affects_target() {
+fn hooks_selective_override_only_affects_target() -> anyhow::Result<()> {
     let md = "# Title\n\nParagraph text.\n\n- item";
     let renderer =
         MarkdownRenderer::new(80).with_render_hooks(Box::new(HeadingOverrideHooks));
@@ -1197,74 +1250,79 @@ fn hooks_selective_override_only_affects_target() {
         !para_text.starts_with("P:"),
         "paragraph should use default rendering, not hook override"
     );
+    Ok(())
 }
 
 // ==================== Code block rendering detail tests ====================
 
 #[test]
-fn code_block_header_contains_lang_label() {
+fn code_block_header_contains_lang_label() -> anyhow::Result<()> {
     let md = "```rust\ncode\n```";
     let lines = render_markdown(md, 80);
-    let buf = render_to_buffer(lines, 80, 5);
+    let buf = render_to_buffer(lines, 80, 5)?;
     let header: String = (0..20)
-        .map(|x| buf.cell((x, 0)).unwrap().symbol())
-        .collect();
+        .map(|x| buf.cell((x, 0)).map(|c| c.symbol()).unwrap_or_default()).collect::<String>();
     assert!(
         header.contains("rust"),
         "code block header should contain language label: got '{}'",
         header
     );
+    Ok(())
 }
 
 #[test]
-fn code_block_header_has_rounded_top_left() {
+fn code_block_header_has_rounded_top_left() -> anyhow::Result<()> {
     let md = "```js\nx\n```";
     let lines = render_markdown(md, 80);
-    let buf = render_to_buffer(lines, 80, 5);
-    assert_eq!(buf.cell((0, 0)).unwrap().symbol(), "\u{256d}");
+    let buf = render_to_buffer(lines, 80, 5)?;
+    assert_eq!(buf.cell((0, 0)).context("cell at (0, 0)")?.symbol(), "\u{256d}");
+    Ok(())
 }
 
 #[test]
-fn code_block_footer_has_rounded_bottom_left() {
+fn code_block_footer_has_rounded_bottom_left() -> anyhow::Result<()> {
     let md = "```js\nx\n```";
     let lines = render_markdown(md, 80);
-    let buf = render_to_buffer(lines, 80, 5);
+    let buf = render_to_buffer(lines, 80, 5)?;
     assert_eq!(
-        buf.cell((0, 2)).unwrap().symbol(),
+        buf.cell((0, 2)).context("cell at (0, 2)")?.symbol(),
         "\u{2570}",
         "footer should have ╰"
     );
+    Ok(())
 }
 
 #[test]
-fn code_block_content_line_has_pipe_prefix() {
+fn code_block_content_line_has_pipe_prefix() -> anyhow::Result<()> {
     let md = "```sh\necho hello\n```";
     let lines = render_markdown(md, 80);
-    let buf = render_to_buffer(lines, 80, 5);
+    let buf = render_to_buffer(lines, 80, 5)?;
     assert_eq!(
-        buf.cell((0, 1)).unwrap().symbol(),
+        buf.cell((0, 1)).context("cell at (0, 1)")?.symbol(),
         "\u{2502}",
         "content line should have │ prefix"
     );
+    Ok(())
 }
 
 #[test]
-fn code_block_content_line_has_yellow_text() {
+fn code_block_content_line_has_yellow_text() -> anyhow::Result<()> {
     let md = "```sh\necho hello\n```";
     let lines = render_markdown(md, 80);
-    let buf = render_to_buffer(lines, 80, 5);
-    let content_cell = buf.cell((2, 1)).unwrap();
+    let buf = render_to_buffer(lines, 80, 5)?;
+    let content_cell = buf.cell((2, 1)).context("cell at (2, 1)")?;
     assert_eq!(
         content_cell.fg,
         Color::Yellow,
         "code content should be Yellow"
     );
+    Ok(())
 }
 
 // ==================== Image parsing edge cases ====================
 
 #[test]
-fn image_not_confused_with_link() {
+fn image_not_confused_with_link() -> anyhow::Result<()> {
     let renderer = MarkdownRenderer::new(80);
     let blocks = renderer.parse("[link](url)");
     for block in &blocks {
@@ -1273,10 +1331,11 @@ fn image_not_confused_with_link() {
             "link syntax should not produce Image block"
         );
     }
+    Ok(())
 }
 
 #[test]
-fn image_with_special_chars_in_alt() {
+fn image_with_special_chars_in_alt() -> anyhow::Result<()> {
     let renderer = MarkdownRenderer::new(80);
     let blocks = renderer.parse("![alt-text_here](path.png)");
     assert_eq!(blocks.len(), 1);
@@ -1287,10 +1346,11 @@ fn image_with_special_chars_in_alt() {
         }
         other => panic!("expected Image, got {:?}", other),
     }
+    Ok(())
 }
 
 #[test]
-fn image_with_url_path() {
+fn image_with_url_path() -> anyhow::Result<()> {
     let renderer = MarkdownRenderer::new(80);
     let blocks = renderer.parse("![icon](https://example.com/icon.png)");
     assert_eq!(blocks.len(), 1);
@@ -1300,10 +1360,11 @@ fn image_with_url_path() {
         }
         other => panic!("expected Image, got {:?}", other),
     }
+    Ok(())
 }
 
 #[test]
-fn image_without_path_not_parsed_as_image() {
+fn image_without_path_not_parsed_as_image() -> anyhow::Result<()> {
     let renderer = MarkdownRenderer::new(80);
     let blocks = renderer.parse("![]()");
     for block in &blocks {
@@ -1312,6 +1373,7 @@ fn image_without_path_not_parsed_as_image() {
             "empty path should not produce Image block"
         );
     }
+    Ok(())
 }
 
 // ==================== Hook with complex markdown ====================
@@ -1333,7 +1395,7 @@ impl RenderHooks for MultiHook {
 }
 
 #[test]
-fn hooks_multiple_overrides_in_same_document() {
+fn hooks_multiple_overrides_in_same_document() -> anyhow::Result<()> {
     let md = "# Title\n\n## Sub\n\n---\n\ntext";
     let renderer =
         MarkdownRenderer::new(80).with_render_hooks(Box::new(MultiHook));
@@ -1345,16 +1407,15 @@ fn hooks_multiple_overrides_in_same_document() {
         .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect())
         .collect();
 
-    let h1 = texts.iter().find(|t| t.starts_with("H1:"));
-    assert!(h1.is_some(), "should find H1 override");
-    assert_eq!(h1.unwrap(), "H1: Title");
+    let h1 = texts.iter().find(|t| t.starts_with("H1:")).context("find H1")?;
+    assert_eq!(h1, "H1: Title");
 
-    let h2 = texts.iter().find(|t| t.starts_with("H2:"));
-    assert!(h2.is_some(), "should find H2 override");
-    assert_eq!(h2.unwrap(), "H2: Sub");
+    let h2 = texts.iter().find(|t| t.starts_with("H2:")).context("find H2")?;
+    assert_eq!(h2, "H2: Sub");
 
-    let hr = texts.iter().find(|t| t.contains("HR"));
-    assert!(hr.is_some(), "should find HR override");
+    let hr = texts.iter().find(|t| t.contains("HR")).context("find HR")?;
+    assert!(hr.contains("HR"), "should find HR override");
+    Ok(())
 }
 
 // ==================== Image render_full + Zoom Tests ====================
@@ -1854,13 +1915,14 @@ Press `q` to quit.
     }
 
     #[test]
-    fn basic_example_render_to_buffer_no_panic() {
+    fn basic_example_render_to_buffer_no_panic() -> anyhow::Result<()> {
         let renderer = MarkdownRenderer::new(76);
         let blocks = renderer.parse(BASIC_MARKDOWN);
         let lines = renderer.render(&blocks, &TestTheme);
-        let buffer = render_to_buffer(lines, 80, 40);
+        let buffer = render_to_buffer(lines, 80, 40)?;
         assert_eq!(buffer.area.width, 80);
         assert_eq!(buffer.area.height, 40);
+    Ok(())
     }
 
     #[test]
@@ -2014,13 +2076,14 @@ def analyze(data):
     }
 
     #[test]
-    fn timeline_hook_renders_to_buffer_without_panic() {
+    fn timeline_hook_renders_to_buffer_without_panic() -> anyhow::Result<()> {
         let renderer = MarkdownRenderer::new(76)
             .with_render_hooks(Box::new(TimelineCodeHooks));
         let blocks = renderer.parse(TIMELINE_MARKDOWN);
         let lines = renderer.render(&blocks, &TestTheme);
-        let buffer = render_to_buffer(lines, 80, 30);
+        let buffer = render_to_buffer(lines, 80, 30)?;
         assert_eq!(buffer.area.width, 80);
+    Ok(())
     }
 }
 
@@ -2134,13 +2197,14 @@ mod example_tree_list_tests {
     }
 
     #[test]
-    fn tree_hook_render_to_buffer_no_panic() {
+    fn tree_hook_render_to_buffer_no_panic() -> anyhow::Result<()> {
         let renderer = MarkdownRenderer::new(76)
             .with_render_hooks(Box::new(TreeListHooks));
         let blocks = renderer.parse(TREE_MARKDOWN);
         let lines = renderer.render(&blocks, &TestTheme);
-        let buffer = render_to_buffer(lines, 80, 40);
+        let buffer = render_to_buffer(lines, 80, 40)?;
         assert_eq!(buffer.area.height, 40);
+    Ok(())
     }
 
     #[test]
@@ -2542,7 +2606,7 @@ mod example_image_tests {
 // ==================== Nested Blockquote Tests ====================
 
 #[test]
-fn blockquote_parsed_with_level_and_children() {
+fn blockquote_parsed_with_level_and_children() -> anyhow::Result<()> {
     let renderer = MarkdownRenderer::new(80);
     let blocks = renderer.parse("> quoted text");
     assert_eq!(blocks.len(), 1);
@@ -2553,10 +2617,11 @@ fn blockquote_parsed_with_level_and_children() {
         }
         other => panic!("expected Blockquote, got {:?}", other),
     }
+    Ok(())
 }
 
 #[test]
-fn blockquote_multiline_grouped() {
+fn blockquote_multiline_grouped() -> anyhow::Result<()> {
     let renderer = MarkdownRenderer::new(80);
     let blocks = renderer.parse("> line 1\n> line 2\n> line 3");
     assert_eq!(blocks.len(), 1, "consecutive > lines should be grouped into one blockquote");
@@ -2567,10 +2632,11 @@ fn blockquote_multiline_grouped() {
         }
         other => panic!("expected single Blockquote, got {:?}", other),
     }
+    Ok(())
 }
 
 #[test]
-fn nested_blockquote_parsed() {
+fn nested_blockquote_parsed() -> anyhow::Result<()> {
     let renderer = MarkdownRenderer::new(80);
     let blocks = renderer.parse("> level 1\n> > level 2");
     assert!(blocks.len() >= 1, "should parse nested blockquote");
@@ -2582,29 +2648,32 @@ fn nested_blockquote_parsed() {
         }
         other => panic!("expected Blockquote, got {:?}", other),
     }
+    Ok(())
 }
 
 #[test]
-fn blockquote_renders_with_pipe_prefix() {
+fn blockquote_renders_with_pipe_prefix() -> anyhow::Result<()> {
     let lines = render_markdown("> hello", 80);
     assert_eq!(lines.len(), 1);
     let text: String = lines[0].spans.iter().map(|s| s.content.as_ref()).collect();
     assert!(text.starts_with("│"), "blockquote should start with │: got '{}'", text);
     assert!(text.contains("hello"), "blockquote should contain text: got '{}'", text);
+    Ok(())
 }
 
 #[test]
-fn nested_blockquote_renders_with_double_pipe() {
+fn nested_blockquote_renders_with_double_pipe() -> anyhow::Result<()> {
     let lines = render_markdown("> outer\n> > inner", 80);
     let all_text: String = lines.iter()
         .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
         .collect::<Vec<&str>>()
         .join("");
     assert!(all_text.contains("│ │"), "nested blockquote should have double pipe prefix");
+    Ok(())
 }
 
 #[test]
-fn blockquote_with_code_inside() {
+fn blockquote_with_code_inside() -> anyhow::Result<()> {
     let md = "> text before\n> ```rust\n> fn main() {}\n> ```\n> text after";
     let renderer = MarkdownRenderer::new(80);
     let blocks = renderer.parse(md);
@@ -2614,12 +2683,13 @@ fn blockquote_with_code_inside() {
         let has_code = children.iter().any(|c| matches!(c, MarkdownBlock::CodeBlock { .. }));
         assert!(has_code, "blockquote children should contain a code block");
     }
+    Ok(())
 }
 
 // ==================== CodeBlock Override Tests ====================
 
 #[test]
-fn code_block_override_header() {
+fn code_block_override_header() -> anyhow::Result<()> {
     let block = MarkdownBlock::CodeBlock {
         lang: "rust".into(),
         code: "fn main() {}".into(),
@@ -2635,10 +2705,11 @@ fn code_block_override_header() {
         "header override should be used: got '{}'",
         header_text
     );
+    Ok(())
 }
 
 #[test]
-fn code_block_override_footer() {
+fn code_block_override_footer() -> anyhow::Result<()> {
     let block = MarkdownBlock::CodeBlock {
         lang: "rust".into(),
         code: "fn main() {}".into(),
@@ -2648,17 +2719,18 @@ fn code_block_override_footer() {
     };
     let renderer = MarkdownRenderer::new(80);
     let lines = renderer.render(&[block], &TestTheme);
-    let last = lines.last().unwrap();
+    let last = lines.last().context("last line")?;
     let footer_text: String = last.spans.iter().map(|s| s.content.as_ref()).collect();
     assert!(
         footer_text.contains("Output"),
         "footer override should be used: got '{}'",
         footer_text
     );
+    Ok(())
 }
 
 #[test]
-fn code_block_override_prefix() {
+fn code_block_override_prefix() -> anyhow::Result<()> {
     let block = MarkdownBlock::CodeBlock {
         lang: "json".into(),
         code: r#"{"key": "value"}"#.into(),
@@ -2675,10 +2747,11 @@ fn code_block_override_prefix() {
         "prefix override should be used: got '{}'",
         text
     );
+    Ok(())
 }
 
 #[test]
-fn code_block_constructor_helper() {
+fn code_block_constructor_helper() -> anyhow::Result<()> {
     let block = MarkdownBlock::code_block("python", "print(1)");
     match block {
         MarkdownBlock::CodeBlock { lang, code, header_override, footer_override, prefix_override } => {
@@ -2690,6 +2763,7 @@ fn code_block_constructor_helper() {
         }
         other => panic!("expected CodeBlock, got {:?}", other),
     }
+    Ok(())
 }
 
 // ==================== Mermaid Rendering Tests ====================
@@ -2773,12 +2847,13 @@ mod mermaid_render_tests {
     }
 
     #[test]
-    fn mermaid_empty_nodes_render() {
+    fn mermaid_empty_nodes_render() -> anyhow::Result<()> {
         let md = "```mermaid\ngraph TD\nA --> B\n```";
         let lines = render_markdown(md, 80);
         assert!(!lines.is_empty(), "unnamed nodes should still render");
-        let buf = render_to_buffer(lines, 80, 20);
+        let buf = render_to_buffer(lines, 80, 20)?;
         assert!(buf.area.width > 0);
+    Ok(())
     }
 
     #[test]
@@ -2789,11 +2864,11 @@ mod mermaid_render_tests {
     }
 
     #[test]
-    fn mermaid_direct_render_api() {
+    fn mermaid_direct_render_api() -> anyhow::Result<()> {
         let source = "graph TD\nA[Hello] --> B[World]";
         let result = crate::mermaid::render_mermaid(source, 80, None, &TestTheme);
         assert!(result.is_some());
-        let lines = result.unwrap();
+        let lines = result.context("parse result")?;
         assert!(!lines.is_empty());
         let all_text: String = lines.iter()
             .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
@@ -2801,14 +2876,16 @@ mod mermaid_render_tests {
             .join("");
         assert!(all_text.contains("Hello"));
         assert!(all_text.contains("World"));
+    Ok(())
     }
 
     #[test]
-    fn mermaid_max_height_constraint() {
+    fn mermaid_max_height_constraint() -> anyhow::Result<()> {
         let source = "graph TD\nA --> B\nB --> C\nC --> D\nD --> E";
         let result = crate::mermaid::render_mermaid(source, 80, Some(10), &TestTheme);
         assert!(result.is_some());
-        let lines = result.unwrap();
+        let lines = result.context("parse result")?;
         assert!(lines.len() <= 25, "should try to respect max_height, got {} lines", lines.len());
+    Ok(())
     }
 }
