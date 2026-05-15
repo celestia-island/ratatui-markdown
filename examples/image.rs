@@ -56,6 +56,38 @@ fn safe_font_size(picker: &Picker) -> (u16, u16) {
     if fw == 0 || fh == 0 { (8, 16) } else { (fw, fh) }
 }
 
+fn pixel_to_cell(pw: u32, ph: u32, font_w: u16, font_h: u16, proto: ProtocolType) -> (u16, u16) {
+    if pw == 0 || ph == 0 || font_w == 0 || font_h == 0 {
+        return (0, 0);
+    }
+    let height_div = match proto {
+        ProtocolType::Halfblocks => font_h as f64 * 2.0,
+        _ => font_h as f64,
+    };
+    let cw = (pw as f64 / font_w as f64).ceil() as u16;
+    let ch = (ph as f64 / height_div).ceil() as u16;
+    (cw.max(1), ch.max(1))
+}
+
+fn scale_to_fit_rows(
+    pw: u32, ph: u32, target_rows: u16,
+    font_w: u16, font_h: u16, proto: ProtocolType, max_w: u16,
+) -> f64 {
+    let height_div = match proto {
+        ProtocolType::Halfblocks => font_h as f64 * 2.0,
+        _ => font_h as f64,
+    };
+    let natural_h = (ph as f64 / height_div).ceil();
+    if natural_h <= target_rows as f64 {
+        let natural_w = (pw as f64 / font_w as f64).ceil();
+        if natural_w <= max_w as f64 {
+            return 1.0;
+        }
+        return max_w as f64 * font_w as f64 / pw as f64;
+    }
+    target_rows as f64 * height_div / ph as f64
+}
+
 const MARKDOWN: &str = r#"
 # Image Rendering Example
 
@@ -75,6 +107,7 @@ graphics protocol (kitty, iTerm2, sixels, or halfblocks).
 ![Missing Image](nonexistent.webp)
 
 `j` / `k` — zoom selected image in/out
+`Tab` — cycle selected image
 `q` — quit
 "#;
 
@@ -98,23 +131,20 @@ impl ScaledImage {
     }
 
     fn apply_scale(&mut self, picker: &mut Picker) {
-        let pw = self.original.width();
-        let ph = self.original.height();
-        let sw = ((pw as f64 * self.scale).ceil() as u32).max(1);
-        let sh = ((ph as f64 * self.scale).ceil() as u32).max(1);
+        let sw = ((self.original.width() as f64 * self.scale).ceil() as u32).max(1);
+        let sh = ((self.original.height() as f64 * self.scale).ceil() as u32).max(1);
         self.scaled = self.original.resize_exact(sw, sh, image::imageops::FilterType::Triangle);
         self.protocol = None;
         self.rebuild_proto(picker);
     }
 
     fn zoom_in(&mut self, picker: &mut Picker) {
-        self.scale *= 1.25;
+        self.scale = (self.scale * 1.25).min(5.0);
         self.apply_scale(picker);
     }
 
     fn zoom_out(&mut self, picker: &mut Picker) {
-        self.scale /= 1.25;
-        self.scale = self.scale.max(0.05);
+        self.scale = (self.scale / 1.25).max(0.05);
         self.apply_scale(picker);
     }
 
@@ -128,25 +158,17 @@ struct FsImageResolver {
     font_w: u16,
     font_h: u16,
     protocol_type: ProtocolType,
-    max_height_lines: Vec<u16>,
-    image_counter: usize,
 }
 
 impl FsImageResolver {
-    fn new(base_dir: &str, picker: &Picker, max_heights: Vec<u16>) -> Self {
+    fn new(base_dir: &str, picker: &Picker) -> Self {
         let (fw, fh) = safe_font_size(picker);
         Self {
             base_dir: std::path::PathBuf::from(base_dir),
             font_w: fw,
             font_h: fh,
             protocol_type: picker.protocol_type(),
-            max_height_lines: max_heights,
-            image_counter: 0,
         }
-    }
-
-    fn reset_counter(&mut self) {
-        self.image_counter = 0;
     }
 }
 
@@ -162,34 +184,19 @@ impl ImageResolver for FsImageResolver {
         max_width: u16,
         _max_height: u16,
     ) -> (u16, u16) {
-        let pw = img.width();
-        let ph = img.height();
-        if pw == 0 || ph == 0 || max_width == 0 {
-            return (0, 0);
+        let (cw, ch) = pixel_to_cell(img.width(), img.height(), self.font_w, self.font_h, self.protocol_type);
+        let w = cw.min(max_width);
+        if w < cw {
+            let ratio = img.height() as f64 * w as f64 / (img.width() as f64).max(1.0);
+            let height_div = match self.protocol_type {
+                ProtocolType::Halfblocks => self.font_h as f64 * 2.0,
+                _ => self.font_h as f64,
+            };
+            let h = (ratio / height_div).ceil() as u16;
+            (w.max(1), h.max(1))
+        } else {
+            (w.max(1), ch.max(1))
         }
-
-        let max_h_cells = self.max_height_lines
-            .get(self.image_counter)
-            .copied()
-            .unwrap_or(3);
-        self.image_counter += 1;
-
-        let cell_w = ((pw as f64 / self.font_w as f64).ceil() as u16).max(1);
-        let w = cell_w.min(max_width);
-        let ratio = ph as f64 * w as f64 / (pw as f64).max(1.0);
-        let height_div = match self.protocol_type {
-            ProtocolType::Halfblocks => self.font_h as f64 * 2.0,
-            _ => self.font_h as f64,
-        };
-        let natural_h = ((ratio / height_div).ceil() as u16).max(1);
-
-        if natural_h <= max_h_cells {
-            return (w.max(1), natural_h);
-        }
-
-        let h = max_h_cells;
-        let w = (h as f64 * pw as f64 * height_div / (ph as f64).max(1.0)).ceil() as u16;
-        (w.min(max_width).max(1), h)
     }
 
     fn fallback(&self, path: &str, alt: &str) -> ratatui::text::Span<'static> {
@@ -204,7 +211,7 @@ struct AppState {
     picker: Picker,
     resolver: FsImageResolver,
     blocks: Vec<ratatui_markdown::markdown::MarkdownBlock>,
-    resolved: Vec<ratatui_markdown::markdown::image::ResolvedImage>,
+    resolved_paths: Vec<String>,
     scaled_images: Vec<ScaledImage>,
     selected: usize,
     need_rerender: bool,
@@ -212,13 +219,12 @@ struct AppState {
 
 impl AppState {
     fn rebuild_output(&mut self) -> ratatui_markdown::markdown::image::MarkdownRenderOutput {
-        self.resolver.reset_counter();
         let resolved_scaled: Vec<ratatui_markdown::markdown::image::ResolvedImage> = self
-            .resolved
+            .resolved_paths
             .iter()
             .zip(self.scaled_images.iter())
-            .map(|(r, si)| ratatui_markdown::markdown::image::ResolvedImage {
-                path: r.path.clone(),
+            .map(|(path, si)| ratatui_markdown::markdown::image::ResolvedImage {
+                path: path.clone(),
                 image: si.scaled.clone(),
             })
             .collect();
@@ -247,19 +253,31 @@ fn main() -> anyhow::Result<()> {
         Err(_) => Picker::halfblocks(),
     };
 
+    let (font_w, font_h) = safe_font_size(&picker);
+    let proto = picker.protocol_type();
+
     let mut resolver = FsImageResolver::new(
         concat!(env!("CARGO_MANIFEST_DIR"), "/examples"),
         &picker,
-        vec![2, 3],
     );
 
     let (blocks, resolved) = renderer.parse_with_images(MARKDOWN, &mut resolver);
+
+    let default_rows: Vec<u16> = vec![2, 3];
     let mut scaled_images: Vec<ScaledImage> = Vec::new();
-    for ri in &resolved {
+    for (i, ri) in resolved.iter().enumerate() {
+        let target_rows = default_rows.get(i).copied().unwrap_or(3);
+        let init_scale = scale_to_fit_rows(
+            ri.image.width(), ri.image.height(), target_rows,
+            font_w, font_h, proto, 70,
+        );
         let mut si = ScaledImage::new(ri.image.clone());
+        si.scale = init_scale;
         si.apply_scale(&mut picker);
         scaled_images.push(si);
     }
+
+    let resolved_paths: Vec<String> = resolved.iter().map(|r| r.path.clone()).collect();
 
     let mut state = AppState {
         renderer,
@@ -267,7 +285,7 @@ fn main() -> anyhow::Result<()> {
         picker,
         resolver,
         blocks,
-        resolved,
+        resolved_paths,
         scaled_images,
         selected: 0,
         need_rerender: true,
@@ -354,7 +372,6 @@ fn main() -> anyhow::Result<()> {
                 if img_render_idx == selected_idx {
                     if show_v_scroll {
                         let sb_area = Rect::new(inner.x + inner.width - 1, base_y, 1, render_h);
-                        let _max_pos = cell_h.saturating_sub(1);
                         let sb = Scrollbar::default()
                             .orientation(ScrollbarOrientation::VerticalRight)
                             .thumb_symbol("█")
@@ -393,7 +410,7 @@ fn main() -> anyhow::Result<()> {
                 .map(|i| i.scale * 100.0)
                 .unwrap_or(0.0);
             let info_text = format!(
-                "img {}/{} | zoom {:.0}% | j/k resize | q quit",
+                "img {}/{} | zoom {:.0}% | j/k resize | Tab cycle | q quit",
                 selected_idx + 1, sel_count, zoom_pct,
             );
             let info_line = Line::from(vec![

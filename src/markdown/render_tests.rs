@@ -2436,21 +2436,13 @@ mod example_image_tests {
     use super::*;
     use crate::markdown::image::{ImageResolver, ResolvedImage};
 
-    struct PerImageResolver {
-        font_w: u16,
-        font_h: u16,
-        counter: usize,
-        max_heights: Vec<u16>,
+    struct SimpleResolver { font_w: u16, font_h: u16 }
+
+    impl SimpleResolver {
+        fn new(fw: u16, fh: u16) -> Self { Self { font_w: fw, font_h: fh } }
     }
 
-    impl PerImageResolver {
-        fn new(fw: u16, fh: u16, max_heights: Vec<u16>) -> Self {
-            Self { font_w: fw, font_h: fh, counter: 0, max_heights }
-        }
-        fn reset(&mut self) { self.counter = 0; }
-    }
-
-    impl ImageResolver for PerImageResolver {
+    impl ImageResolver for SimpleResolver {
         fn resolve(&mut self, _path: &str) -> Option<image::DynamicImage> { None }
 
         fn cell_dimensions(
@@ -2459,18 +2451,21 @@ mod example_image_tests {
             max_width: u16,
             _max_height: u16,
         ) -> (u16, u16) {
-            let max_h = self.max_heights.get(self.counter).copied().unwrap_or(3);
-            self.counter += 1;
             let pw = img.width();
             let ph = img.height();
             if pw == 0 || ph == 0 || self.font_w == 0 || max_width == 0 {
                 return (0, 0);
             }
-            let w_cells = (pw as f64 / self.font_w as f64).ceil() as u16;
-            let w = w_cells.min(max_width);
-            let h_cells = (ph as f64 * w as f64 / self.font_w as f64 / self.font_h as f64).ceil() as u16;
-            let h = h_cells.min(max_h);
-            (w.max(1), h.max(1))
+            let cw = (pw as f64 / self.font_w as f64).ceil() as u16;
+            let w = cw.min(max_width);
+            let ch = (ph as f64 / self.font_h as f64).ceil() as u16;
+            if w < cw {
+                let ratio = ph as f64 * w as f64 / (pw as f64).max(1.0);
+                let h = (ratio / self.font_h as f64).ceil() as u16;
+                (w.max(1), h.max(1))
+            } else {
+                (w.max(1), ch.max(1))
+            }
         }
     }
 
@@ -2479,51 +2474,90 @@ mod example_image_tests {
         image::DynamicImage::ImageRgb8(buf)
     }
 
-    #[test]
-    fn per_image_resolver_limits_logo_to_2_lines() {
-        let mut r = PerImageResolver::new(9, 18, vec![2, 3]);
-        let img = make_img(300, 300);
-        let (_, h) = r.cell_dimensions(&img, 70, 20);
-        assert_eq!(h, 2, "first image should be capped at 2 lines");
+    fn scale_to_fit_rows(pw: u32, ph: u32, target_rows: u16, font_h: u16) -> f64 {
+        if ph == 0 { return 1.0; }
+        let natural_h = (ph as f64 / font_h as f64).ceil();
+        if natural_h <= target_rows as f64 { return 1.0; }
+        target_rows as f64 * font_h as f64 / ph as f64
     }
 
     #[test]
-    fn per_image_resolver_limits_demo_to_3_lines() {
-        let mut r = PerImageResolver::new(9, 18, vec![2, 3]);
-        let img = make_img(300, 300);
-        let _ = r.cell_dimensions(&img, 70, 20);
-        let (_, h) = r.cell_dimensions(&img, 70, 20);
-        assert_eq!(h, 3, "second image should be capped at 3 lines");
+    fn scale_to_fit_rows_small_image_no_scale() {
+        let s = scale_to_fit_rows(100, 18, 2, 18);
+        assert!((s - 1.0).abs() < 0.01, "image already fits, scale should be 1.0, got {}", s);
     }
 
     #[test]
-    fn per_image_resolver_counter_resets() {
-        let mut r = PerImageResolver::new(9, 18, vec![2, 3]);
-        let img = make_img(300, 300);
-        let _ = r.cell_dimensions(&img, 70, 20);
-        let _ = r.cell_dimensions(&img, 70, 20);
-        r.reset();
-        let (_, h) = r.cell_dimensions(&img, 70, 20);
-        assert_eq!(h, 2, "after reset, first image cap (2) applies again");
+    fn scale_to_fit_rows_tall_image() {
+        let s = scale_to_fit_rows(100, 180, 2, 18);
+        let scaled_h = (180.0 * s) as u32;
+        let scaled_rows = (scaled_h as f64 / 18.0).ceil() as u16;
+        assert!(scaled_rows <= 2, "scaled to {} rows (scale={})", scaled_rows, s);
     }
 
     #[test]
-    fn image_example_render_full_with_two_capped_images() {
+    fn image_example_small_image_one_row() {
+        let mut r = SimpleResolver::new(9, 18);
+        let img = make_img(18, 18);
+        let (w, h) = r.cell_dimensions(&img, 70, 20);
+        assert_eq!(w, 2);
+        assert_eq!(h, 1);
+    }
+
+    #[test]
+    fn image_example_pre_scaled_to_2_rows() {
+        let mut r = SimpleResolver::new(9, 18);
+        let original = make_img(300, 300);
+        let scale = scale_to_fit_rows(300, 300, 2, 18);
+        let sw = (300.0 * scale).ceil() as u32;
+        let sh = (300.0 * scale).ceil() as u32;
+        let scaled = original.resize_exact(sw, sh, image::imageops::FilterType::Triangle);
+        let (_, h) = r.cell_dimensions(&scaled, 70, 20);
+        assert!(h <= 2, "pre-scaled image should fit in 2 rows, got {} rows", h);
+    }
+
+    #[test]
+    fn image_example_pre_scaled_to_3_rows() {
+        let mut r = SimpleResolver::new(9, 18);
+        let original = make_img(600, 400);
+        let scale = scale_to_fit_rows(600, 400, 3, 18);
+        let sw = (600.0 * scale).ceil() as u32;
+        let sh = (400.0 * scale).ceil() as u32;
+        let scaled = original.resize_exact(sw, sh, image::imageops::FilterType::Triangle);
+        let (_, h) = r.cell_dimensions(&scaled, 70, 20);
+        assert!(h <= 3, "pre-scaled image should fit in 3 rows, got {} rows", h);
+    }
+
+    #[test]
+    fn image_example_render_full_with_pre_scaled_images() {
         let renderer = MarkdownRenderer::new(76);
         let blocks = vec![
             MarkdownBlock::Image { alt: "logo".into(), path: "logo.webp".into() },
             MarkdownBlock::Paragraph(vec!["between".into()]),
             MarkdownBlock::Image { alt: "demo".into(), path: "demo.webp".into() },
         ];
+
+        let logo_orig = make_img(300, 300);
+        let logo_scale = scale_to_fit_rows(300, 300, 2, 18);
+        let sw = (300.0 * logo_scale).ceil() as u32;
+        let sh = (300.0 * logo_scale).ceil() as u32;
+        let logo_scaled = logo_orig.resize_exact(sw, sh, image::imageops::FilterType::Triangle);
+
+        let demo_orig = make_img(600, 400);
+        let demo_scale = scale_to_fit_rows(600, 400, 3, 18);
+        let dsw = (600.0 * demo_scale).ceil() as u32;
+        let dsh = (400.0 * demo_scale).ceil() as u32;
+        let demo_scaled = demo_orig.resize_exact(dsw, dsh, image::imageops::FilterType::Triangle);
+
         let resolved = vec![
-            ResolvedImage { path: "logo.webp".into(), image: make_img(300, 300) },
-            ResolvedImage { path: "demo.webp".into(), image: make_img(600, 400) },
+            ResolvedImage { path: "logo.webp".into(), image: logo_scaled },
+            ResolvedImage { path: "demo.webp".into(), image: demo_scaled },
         ];
-        let mut r = PerImageResolver::new(9, 18, vec![2, 3]);
+        let mut r = SimpleResolver::new(9, 18);
         let output = renderer.render_full(&blocks, &TestTheme, &resolved, &mut r, 70, 20);
         assert_eq!(output.images.len(), 2);
-        assert_eq!(output.images[0].height_cells, 2, "logo capped at 2");
-        assert_eq!(output.images[1].height_cells, 3, "demo capped at 3");
+        assert!(output.images[0].height_cells <= 2, "logo should fit in 2 rows, got {}", output.images[0].height_cells);
+        assert!(output.images[1].height_cells <= 3, "demo should fit in 3 rows, got {}", output.images[1].height_cells);
     }
 
     #[test]
@@ -2537,16 +2571,14 @@ mod example_image_tests {
         let resolved_base = vec![
             ResolvedImage { path: "t.webp".into(), image: img.clone() },
         ];
-
-        let mut r1 = PerImageResolver::new(9, 18, vec![10]);
+        let mut r1 = SimpleResolver::new(9, 18);
         let output1 = renderer.render_full(&blocks, &TestTheme, &resolved_base, &mut r1, 70, 20);
 
         let zoomed = img.resize_exact(200, 200, image::imageops::FilterType::Triangle);
         let resolved_zoomed = vec![
             ResolvedImage { path: "t.webp".into(), image: zoomed },
         ];
-
-        let mut r2 = PerImageResolver::new(9, 18, vec![10]);
+        let mut r2 = SimpleResolver::new(9, 18);
         let output2 = renderer.render_full(&blocks, &TestTheme, &resolved_zoomed, &mut r2, 70, 20);
 
         assert!(
@@ -2554,29 +2586,39 @@ mod example_image_tests {
             "zoomed image should have >= height: {} vs {}",
             output2.images[0].height_cells, output1.images[0].height_cells,
         );
+        assert!(
+            output2.images[0].width_cells >= output1.images[0].width_cells,
+            "zoomed image should have >= width: {} vs {}",
+            output2.images[0].width_cells, output1.images[0].width_cells,
+        );
     }
 
     #[test]
-    fn image_example_rerender_on_resolver_reset() {
+    fn image_example_zoom_out_shrinks_placement() {
         let renderer = MarkdownRenderer::new(76);
         let blocks = vec![
-            MarkdownBlock::Image { alt: "a".into(), path: "a.webp".into() },
-            MarkdownBlock::Image { alt: "b".into(), path: "b.webp".into() },
-        ];
-        let resolved = vec![
-            ResolvedImage { path: "a.webp".into(), image: make_img(200, 100) },
-            ResolvedImage { path: "b.webp".into(), image: make_img(400, 300) },
+            MarkdownBlock::Image { alt: "test".into(), path: "t.webp".into() },
         ];
 
-        let mut r = PerImageResolver::new(9, 18, vec![2, 3]);
-        let out1 = renderer.render_full(&blocks, &TestTheme, &resolved, &mut r, 70, 20);
-        assert_eq!(out1.images[0].height_cells, 2);
-        assert_eq!(out1.images[1].height_cells, 3);
+        let img = make_img(200, 200);
+        let resolved_base = vec![
+            ResolvedImage { path: "t.webp".into(), image: img.clone() },
+        ];
+        let mut r1 = SimpleResolver::new(9, 18);
+        let output1 = renderer.render_full(&blocks, &TestTheme, &resolved_base, &mut r1, 70, 20);
 
-        r.reset();
-        let out2 = renderer.render_full(&blocks, &TestTheme, &resolved, &mut r, 70, 20);
-        assert_eq!(out2.images[0].height_cells, 2, "after reset, same caps apply");
-        assert_eq!(out2.images[1].height_cells, 3);
+        let shrunk = img.resize_exact(50, 50, image::imageops::FilterType::Triangle);
+        let resolved_shrunk = vec![
+            ResolvedImage { path: "t.webp".into(), image: shrunk },
+        ];
+        let mut r2 = SimpleResolver::new(9, 18);
+        let output2 = renderer.render_full(&blocks, &TestTheme, &resolved_shrunk, &mut r2, 70, 20);
+
+        assert!(
+            output2.images[0].height_cells <= output1.images[0].height_cells,
+            "shrunk image should have <= height: {} vs {}",
+            output2.images[0].height_cells, output1.images[0].height_cells,
+        );
     }
 
     #[test]
@@ -2588,18 +2630,58 @@ mod example_image_tests {
             MarkdownBlock::Paragraph(vec!["after".into()]),
         ];
         let resolved = vec![
-            ResolvedImage { path: "logo.webp".into(), image: make_img(200, 200) },
+            ResolvedImage { path: "logo.webp".into(), image: make_img(90, 36) },
         ];
-        let mut r = PerImageResolver::new(9, 18, vec![2]);
+        let mut r = SimpleResolver::new(9, 18);
         let output = renderer.render_full(&blocks, &TestTheme, &resolved, &mut r, 70, 20);
 
         let img = &output.images[0];
         let row = img.row;
         let height = img.height_cells as usize;
+        assert!(height > 0, "should have at least 1 row");
         let blank_count = output.lines[row..row + height].iter()
             .filter(|l| l.spans.is_empty() || l.spans.iter().all(|s| s.content.is_empty()))
             .count();
         assert_eq!(blank_count, height, "should have {} blank lines for image, got {}", height, blank_count);
+    }
+
+    #[test]
+    fn image_example_zoom_then_rerender_changes_layout() {
+        let renderer = MarkdownRenderer::new(76);
+        let blocks = vec![
+            MarkdownBlock::Image { alt: "a".into(), path: "a.webp".into() },
+            MarkdownBlock::Paragraph(vec!["text below".into()]),
+        ];
+
+        let original = make_img(180, 180);
+        let scale_base = scale_to_fit_rows(180, 180, 2, 18);
+        let sw = (180.0 * scale_base).ceil() as u32;
+        let sh = (180.0 * scale_base).ceil() as u32;
+        let base_img = original.resize_exact(sw, sh, image::imageops::FilterType::Triangle);
+
+        let resolved_base = vec![ResolvedImage { path: "a.webp".into(), image: base_img }];
+        let mut r1 = SimpleResolver::new(9, 18);
+        let out1 = renderer.render_full(&blocks, &TestTheme, &resolved_base, &mut r1, 70, 20);
+
+        let zoom_sw = (sw as f64 * 2.0).ceil() as u32;
+        let zoom_sh = (sh as f64 * 2.0).ceil() as u32;
+        let zoomed = original.resize_exact(zoom_sw, zoom_sh, image::imageops::FilterType::Triangle);
+        let resolved_zoom = vec![ResolvedImage { path: "a.webp".into(), image: zoomed }];
+        let mut r2 = SimpleResolver::new(9, 18);
+        let out2 = renderer.render_full(&blocks, &TestTheme, &resolved_zoom, &mut r2, 70, 20);
+
+        assert!(
+            out2.images[0].height_cells > out1.images[0].height_cells,
+            "2x zoom should increase height: {} -> {}",
+            out1.images[0].height_cells, out2.images[0].height_cells,
+        );
+        let text_row_1 = out1.images[0].row + out1.images[0].height_cells as usize;
+        let text_row_2 = out2.images[0].row + out2.images[0].height_cells as usize;
+        assert!(
+            text_row_2 > text_row_1,
+            "text after zoomed image should be pushed down: {} -> {}",
+            text_row_1, text_row_2,
+        );
     }
 }
 
