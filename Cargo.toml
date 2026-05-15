@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 description = "Markdown rendering, syntax highlighting, collapsible trees, and rich scroll widgets for ratatui"
 repository = "https://github.com/celestia-island/ratatui-markdown"
-keywords = ["ratatui", "markdown", "tui", "terminal", "json", "tree-sitter"]
+keywords = ["ratatui", "markdown", "tui", "terminal", "highlight"]
 categories = ["command-line-interface", "text-processing"]
 
 [lib]
