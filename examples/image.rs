@@ -256,17 +256,18 @@ impl ImageResolver for FsImageResolver {
         &mut self,
         img: &image::DynamicImage,
         max_width: u16,
-        _max_height: u16,
+        max_height: u16,
     ) -> (u16, u16) {
         let (cw, ch) = pixel_to_cell(img.width(), img.height(), self.font_w, self.font_h, self.protocol_type);
         let w = cw.min(max_width);
-        if w < cw {
+        let h = if w < cw {
             let ratio = img.height() as f64 * w as f64 / (img.width() as f64).max(1.0);
-            let h = (ratio / height_divisor(self.font_h, self.protocol_type)).ceil() as u16;
-            (w.max(1), h.max(1))
+            (ratio / height_divisor(self.font_h, self.protocol_type)).ceil() as u16
         } else {
-            (w.max(1), ch.max(1))
-        }
+            ch
+        };
+        let h = h.min(max_height);
+        (w.max(1), h.max(1))
     }
 
     fn fallback(&self, path: &str, alt: &str) -> ratatui::text::Span<'static> {
@@ -289,26 +290,34 @@ struct AppState {
     font_h: u16,
     proto: ProtocolType,
     max_w: u16,
+    vp_h: u16,
 }
 
 impl AppState {
     fn rebuild_output(&mut self) -> ratatui_markdown::markdown::image::MarkdownRenderOutput {
-        let resolved_scaled: Vec<ratatui_markdown::markdown::image::ResolvedImage> = self
+        let vp_w = self.max_w;
+        let vp_h = self.vp_h;
+        let resolved_cropped: Vec<ratatui_markdown::markdown::image::ResolvedImage> = self
             .resolved_paths
             .iter()
             .zip(self.scaled_images.iter())
-            .map(|(path, si)| ratatui_markdown::markdown::image::ResolvedImage {
-                path: path.clone(),
-                image: si.scaled.clone(),
+            .map(|(path, si)| {
+                let (cropped, _) = si.crop_for_viewport(
+                    vp_w, vp_h, self.font_w, self.font_h, self.proto,
+                );
+                ratatui_markdown::markdown::image::ResolvedImage {
+                    path: path.clone(),
+                    image: cropped,
+                }
             })
             .collect();
         self.renderer.render_full(
             &self.blocks,
             &self.theme,
-            &resolved_scaled,
+            &resolved_cropped,
             &mut self.resolver,
             self.max_w,
-            20,
+            vp_h,
         )
     }
 }
@@ -362,6 +371,7 @@ fn main() -> anyhow::Result<()> {
         font_h,
         proto,
         max_w,
+        vp_h: 20,
     };
 
     let mut output = state.rebuild_output();
@@ -369,13 +379,13 @@ fn main() -> anyhow::Result<()> {
     let mut last_vp_h: u16 = 20;
 
     loop {
-        let sel_count = state.scaled_images.iter().filter(|i| !i.failed).count();
-        let selected_idx = if sel_count > 0 { state.selected % sel_count } else { 0 };
-
         if state.need_rerender {
             output = state.rebuild_output();
             state.need_rerender = false;
         }
+
+        let sel_count = state.scaled_images.iter().filter(|i| !i.failed).count();
+        let selected_idx = if sel_count > 0 { state.selected % sel_count } else { 0 };
 
         terminal.draw(|f| {
             let area = f.area();
@@ -395,6 +405,11 @@ fn main() -> anyhow::Result<()> {
             last_vp_w = vp_w;
             last_vp_h = vp_h;
 
+            if state.vp_h != vp_h {
+                state.vp_h = vp_h;
+                state.need_rerender = true;
+            }
+
             f.render_widget(
                 Paragraph::new(output.lines.clone())
                     .block(Block::default().borders(Borders::ALL).title(" Image Example "))
@@ -409,27 +424,16 @@ fn main() -> anyhow::Result<()> {
                     _ => continue,
                 };
 
-                let (full_cw, full_ch) = si.cell_size(state.font_w, state.font_h, state.proto);
-                if full_ch < 1 || full_cw < 1 { continue; }
-
-                let (cropped, scroll_x) = si.crop_for_viewport(
-                    vp_w, vp_h, state.font_w, state.font_h, state.proto,
-                );
-
-                let (render_w, render_h) = {
-                    let (cw, ch) = pixel_to_cell(
-                        cropped.width(), cropped.height(),
-                        state.font_w, state.font_h, state.proto,
-                    );
-                    (cw.min(vp_w), ch.min(vp_h))
-                };
+                let render_w = placement.width_cells;
+                let render_h = placement.height_cells;
                 if render_h < 1 || render_w < 1 { continue; }
 
                 let base_x = inner.x + pad_l;
                 let base_y = inner.y + pad_t
                     + (placement.row as u16).min(inner.height.saturating_sub(render_h));
 
-                si.rebuild_proto(&mut state.picker, cropped);
+                let (full_cw, full_ch) = si.cell_size(state.font_w, state.font_h, state.proto);
+                si.rebuild_proto(&mut state.picker, placement.image.clone());
                 let mut proto_obj = match si.protocol.take() { Some(p) => p, None => continue };
 
                 let rect = Rect::new(base_x, base_y, render_w, render_h);
@@ -471,7 +475,7 @@ fn main() -> anyhow::Result<()> {
                     if show_h_scroll {
                         let sb_area = Rect::new(base_x, base_y + render_h, render_w, 1);
                         let max_off = full_cw.saturating_sub(vp_w);
-                        let pos = if max_off > 0 { scroll_x as usize } else { 0 };
+                        let pos = if max_off > 0 { si.scroll_x as usize } else { 0 };
                         let sb = Scrollbar::default()
                             .orientation(ScrollbarOrientation::HorizontalBottom)
                             .thumb_symbol("█")
