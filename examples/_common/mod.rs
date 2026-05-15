@@ -7,7 +7,7 @@ use ratatui::{
     layout::Rect,
     style::{Color, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, Padding, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    widgets::{Block, Borders, Padding, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
     Frame, Terminal,
 };
 use ratatui_markdown::theme::{Generation, RichTextTheme};
@@ -143,11 +143,17 @@ pub fn draw_frame(
     let content_h = inner.height;
     state.update_content_h(content_h);
 
-    f.render_widget(Clear, block_area);
+    f.render_widget(block, block_area);
+
+    // Every frame: fill inner area with real spaces (skip=false) so the
+    // terminal diff engine can never leave stale characters behind.
+    let blank = Line::from(Span::raw(" ".repeat(inner.width as usize)));
+    let fill: Vec<Line<'static>> = (0..content_h).map(|_| blank.clone()).collect();
+    f.render_widget(Paragraph::new(fill), inner);
+
     let paragraph = Paragraph::new(lines.to_vec())
-        .block(block)
         .scroll((state.scroll, 0));
-    f.render_widget(paragraph, block_area);
+    f.render_widget(paragraph, inner);
 
     if state.doc_h > content_h && content_h > 0 {
         let sb_col = block_area.x + block_area.width.saturating_sub(1);

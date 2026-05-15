@@ -450,7 +450,7 @@ opt-level = 3
 "#;
 
 fn main() -> anyhow::Result<()> {
-    let highlighter = Arc::new(SyntectHighlighter::new("base16-ocean.dark"));
+    let highlighter = Arc::new(SyntectHighlighter::new("InspiredGitHub"));
 
     let mut terminal = setup_terminal()?;
 
