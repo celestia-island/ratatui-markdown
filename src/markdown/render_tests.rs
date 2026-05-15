@@ -1171,7 +1171,7 @@ fn blockquote_multiline_grouped() -> anyhow::Result<()> {
 fn nested_blockquote_parsed() -> anyhow::Result<()> {
     let renderer = MarkdownRenderer::new(80);
     let blocks = renderer.parse("> level 1\n> > level 2");
-    assert!(blocks.len() >= 1, "should parse nested blockquote");
+    assert!(!blocks.is_empty(), "should parse nested blockquote");
     match &blocks[0] {
         MarkdownBlock::Blockquote { level, children } => {
             assert_eq!(*level, 1);

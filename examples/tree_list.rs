@@ -110,7 +110,7 @@ fn build_list(items: &[(usize, String)], out: &mut String) {
 
 fn generate_tree_markdown() -> String {
     let raw = lipsum::lipsum(160);
-    let words: Vec<String> = raw.split_whitespace().map(|w| capitalize(w)).collect();
+    let words: Vec<String> = raw.split_whitespace().map(capitalize).collect();
     let mut wi = 0;
 
     let mut t = |n: usize| -> String { take(&words, &mut wi, n) };
