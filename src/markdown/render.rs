@@ -503,11 +503,18 @@ impl MarkdownRenderer {
         block_idx: usize,
         blocks: &[MarkdownBlock],
     ) -> (bool, Vec<bool>, usize) {
-        let items: Vec<(usize, u8)> = blocks
+        let group_start = (0..=block_idx).rev().find(|&i| {
+            !matches!(blocks.get(i), Some(MarkdownBlock::ListItem(_, _)))
+        }).map(|i| i + 1).unwrap_or(0);
+        let group_end = (block_idx..blocks.len()).find(|&i| {
+            !matches!(blocks.get(i), Some(MarkdownBlock::ListItem(_, _)))
+        }).unwrap_or(blocks.len());
+
+        let items: Vec<(usize, u8)> = blocks[group_start..group_end]
             .iter()
             .enumerate()
             .filter_map(|(i, b)| match b {
-                MarkdownBlock::ListItem(_, indent) => Some((i, *indent)),
+                MarkdownBlock::ListItem(_, indent) => Some((group_start + i, *indent)),
                 _ => None,
             })
             .collect();

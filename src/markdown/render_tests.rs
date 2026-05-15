@@ -393,9 +393,15 @@ mod example_tree_list_tests {
             indent: u8,
             is_last_in_group: bool,
             ancestors_are_last: &[bool],
-            _index_in_group: usize,
+            index_in_group: usize,
         ) -> Option<String> {
-            let marker = if is_last_in_group { "└─ " } else { "├─ " };
+            let marker = if is_last_in_group {
+                "└─ "
+            } else if indent == 0 && index_in_group == 0 {
+                "┌─ "
+            } else {
+                "├─ "
+            };
             if indent == 0 {
                 return Some(marker.to_string());
             }
@@ -443,7 +449,7 @@ mod example_tree_list_tests {
         let blocks = renderer.parse("- A\n  - B\n  - C\n- D");
         let lines = renderer.render(&blocks, &TestTheme);
         let has_tree_marker = lines.iter().any(|l| {
-            l.spans.iter().any(|s| s.content.contains("├─") || s.content.contains("└─"))
+            l.spans.iter().any(|s| s.content.contains("┌─") || s.content.contains("├─") || s.content.contains("└─"))
         });
         assert!(has_tree_marker, "tree markers should appear in output");
     }
@@ -482,6 +488,75 @@ mod example_tree_list_tests {
         let buffer = render_to_buffer(lines, 80, 40)?;
         assert_eq!(buffer.area.height, 40);
         Ok(())
+    }
+
+    #[test]
+    fn tree_hook_two_sections_separated_by_paragraph() {
+        let renderer = MarkdownRenderer::new(40)
+            .with_render_hooks(Box::new(TreeListHooks));
+        let md = "- Alpha\n  - Beta\n  - Gamma\n\nSome paragraph text between.\n\n- Delta\n  - Epsilon\n  - Zeta";
+        let blocks = renderer.parse(md);
+        let lines = renderer.render(&blocks, &TestTheme);
+
+        let texts: Vec<String> = lines
+            .iter()
+            .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect())
+            .collect();
+
+        assert!(texts[0].starts_with("└─"), "first tree has one root (Alpha) so it should use └─, got: {}", texts[0]);
+        assert!(texts[1].starts_with("   "), "Alpha is last root, children should have spaces prefix, got: {}", texts[1]);
+
+        let delta_line = texts.iter().position(|t| t.contains("Delta")).expect("Delta should exist");
+        assert!(
+            texts[delta_line].starts_with("└─"),
+            "second tree has one root (Delta) so it should use └─, got: {}",
+            texts[delta_line],
+        );
+        let epsilon_line = texts.iter().position(|t| t.contains("Epsilon")).expect("Epsilon should exist");
+        assert!(
+            texts[epsilon_line].starts_with("   "),
+            "Delta is last root in its group, children should have spaces prefix, got: {}",
+            texts[epsilon_line],
+        );
+    }
+
+    #[test]
+    fn tree_hook_multi_root_groups_isolated() {
+        let renderer = MarkdownRenderer::new(40)
+            .with_render_hooks(Box::new(TreeListHooks));
+        let md = "- A1\n  - B1\n  - B2\n- A2\n  - B3\n\nParagraph.\n\n- C1\n  - D1\n- C2\n  - D2";
+        let blocks = renderer.parse(md);
+        let lines = renderer.render(&blocks, &TestTheme);
+        let texts: Vec<String> = lines
+            .iter()
+            .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect())
+            .collect();
+
+        let a2_line = texts.iter().position(|t| t.contains("A2")).expect("A2");
+        assert!(
+            texts[a2_line].starts_with("└─"),
+            "A2 is last root in first group: got {}",
+            texts[a2_line],
+        );
+        let b3_line = texts.iter().position(|t| t.contains("B3")).expect("B3");
+        assert!(
+            !texts[b3_line].contains("│"),
+            "A2 is last, so B3 should have spaces not │: got {}",
+            texts[b3_line],
+        );
+
+        let c1_line = texts.iter().position(|t| t.contains("C1")).expect("C1");
+        assert!(
+            texts[c1_line].starts_with("┌─"),
+            "C1 is first sibling and has sibling C2: got {}",
+            texts[c1_line],
+        );
+        let c2_line = texts.iter().position(|t| t.contains("C2")).expect("C2");
+        assert!(
+            texts[c2_line].starts_with("└─"),
+            "C2 is last root in second group: got {}",
+            texts[c2_line],
+        );
     }
 }
 

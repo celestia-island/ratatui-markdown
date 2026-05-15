@@ -3,7 +3,7 @@ mod common;
 
 use common::{AppState, Theme, draw_frame, lorem, poll_and_handle, setup_terminal, restore_terminal};
 use ratatui_markdown::{
-    constants::{BRANCH_END_SP, BRANCH_MID_SP, VLINE},
+    constants::{BRANCH_END_SP, BRANCH_FIRST_SP, BRANCH_MID_SP, VLINE},
     markdown::{MarkdownRenderer, RenderHooks},
 };
 
@@ -15,11 +15,13 @@ impl RenderHooks for TreeListHooks {
         indent: u8,
         is_last_in_group: bool,
         ancestors_are_last: &[bool],
-        _index_in_group: usize,
+        index_in_group: usize,
     ) -> Option<String> {
         let unit: usize = Self::tree_indent_unit(self).unwrap_or(3);
         let connector = if is_last_in_group {
             BRANCH_END_SP
+        } else if indent == 0 && index_in_group == 0 {
+            BRANCH_FIRST_SP
         } else {
             BRANCH_MID_SP
         };
@@ -158,8 +160,8 @@ fn generate_tree_markdown() -> String {
         (1, t(5)),
     ], &mut md);
 
-    md.push_str("\n## Background\n\n");
-    md.push_str(&lorem(200));
+    md.push_str("\n\n");
+    md.push_str(&lorem(60));
     md.push_str("\n\n## Additional Notes\n\n");
 
     let mut wi2 = 0;
