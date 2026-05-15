@@ -7,7 +7,7 @@ use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Wrap},
+    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap},
     Terminal,
 };
 use ratatui_markdown::{
@@ -141,11 +141,35 @@ fn main() -> anyhow::Result<()> {
     loop {
         terminal.draw(|f| {
             let area = f.area();
-            let inner = Rect::new(area.x + 1, area.y + 1, area.width.saturating_sub(2), area.height.saturating_sub(2));
+            let inner = Rect::new(
+                area.x + 1, area.y + 1,
+                area.width.saturating_sub(2), area.height.saturating_sub(2),
+            );
             let paragraph = Paragraph::new(lines.clone())
                 .block(Block::default().borders(Borders::ALL).title(" Custom Code Block Example "))
                 .wrap(Wrap { trim: false });
             f.render_widget(paragraph, inner);
+
+            let content_h = inner.height.saturating_sub(2);
+            let total = lines.len();
+            if total > content_h as usize && content_h > 0 {
+                let sb_area = Rect::new(
+                    inner.x + inner.width.saturating_sub(2),
+                    inner.y + 1,
+                    1,
+                    content_h,
+                );
+                let sb = Scrollbar::default()
+                    .orientation(ScrollbarOrientation::VerticalRight)
+                    .thumb_symbol("█")
+                    .track_symbol(Some("│"))
+                    .style(Style::default().fg(Color::DarkGray))
+                    .thumb_style(Style::default().fg(Color::Cyan));
+                let mut sb_state = ScrollbarState::default()
+                    .content_length(total)
+                    .viewport_content_length(content_h as usize);
+                f.render_stateful_widget(sb, sb_area, &mut sb_state);
+            }
         })?;
 
         if event::poll(std::time::Duration::from_millis(100))? {
