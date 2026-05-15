@@ -9,67 +9,103 @@ pub fn segments_to_lines(
     source: &str,
     segments: &[StyleSegment],
     prefix: &str,
+    border_style: Style,
     max_width: usize,
 ) -> Vec<Line<'static>> {
-    let mut lines = Vec::new();
-    let mut current_spans: Vec<Span<'static>> = Vec::new();
-    let mut current_line_len: usize = 0;
     let prefix_width = unicode_width::UnicodeWidthStr::width(prefix);
+    let mut lines: Vec<Line<'static>> = Vec::new();
 
-    if !prefix.is_empty() {
-        current_spans.push(Span::raw(prefix.to_string()));
-        current_line_len += prefix_width;
-    }
+    let mut line_start: usize = 0;
+    for raw_line in source.split('\n') {
+        let line_end = line_start + raw_line.len();
 
-    let sorted = sort_and_merge(segments);
-    let mut seg_idx = 0;
-    let chars: Vec<char> = source.chars().collect();
-    let mut byte_pos: usize = 0;
+        let line_segs: Vec<StyleSegment> = segments
+            .iter()
+            .filter(|s| s.start < line_end && s.end > line_start)
+            .map(|s| StyleSegment {
+                start: s.start.saturating_sub(line_start),
+                end: s.end.min(line_end).saturating_sub(line_start),
+                style: s.style,
+            })
+            .filter(|s| s.start < s.end)
+            .collect();
 
-    macro_rules! flush_line {
-        () => {
-            lines.push(Line::from(std::mem::take(&mut current_spans)));
-            current_line_len = 0;
-            if !prefix.is_empty() {
-                current_spans.push(Span::raw(prefix.to_string()));
-                current_line_len += prefix_width;
-            }
-        };
-    }
+        let mut wrapped = wrap_line(raw_line, &line_segs, prefix, prefix_width, border_style, max_width);
+        lines.append(&mut wrapped);
 
-    for (_, ch) in chars.iter().enumerate() {
-        let char_byte_start = byte_pos;
-        byte_pos += ch.len_utf8();
-
-        let cw = unicode_width::UnicodeWidthChar::width(*ch).unwrap_or(0);
-        if current_line_len + cw > max_width && current_line_len > prefix_width {
-            flush_line!();
-        }
-
-        let style = style_at_byte(&sorted, &mut seg_idx, char_byte_start);
-
-        if !current_spans.is_empty() {
-            if let Some(last) = current_spans.last_mut() {
-                if last.style == style {
-                    last.content = format!("{}{}", last.content, ch).into();
-                    current_line_len += cw;
-                    continue;
-                }
-            }
-        }
-
-        current_spans.push(Span::styled(ch.to_string(), style));
-        current_line_len += cw;
-    }
-
-    if !current_spans.is_empty() {
-        lines.push(Line::from(std::mem::take(&mut current_spans)));
+        line_start = line_end + 1;
     }
 
     lines
 }
 
-fn style_at_byte(segments: &[(usize, usize, Style)], seg_idx: &mut usize, byte_pos: usize) -> Style {
+fn wrap_line(
+    text: &str,
+    segments: &[StyleSegment],
+    prefix: &str,
+    prefix_width: usize,
+    border_style: Style,
+    max_width: usize,
+) -> Vec<Line<'static>> {
+    let mut result = Vec::new();
+    if text.is_empty() {
+        let mut spans: Vec<Span<'static>> = Vec::new();
+        if !prefix.is_empty() {
+            spans.push(Span::styled(prefix.to_string(), border_style));
+        }
+        result.push(Line::from(spans));
+        return result;
+    }
+
+    let sorted = sort_and_merge(segments);
+    let mut seg_idx = 0;
+    let mut current_spans: Vec<Span<'static>> = Vec::new();
+    if !prefix.is_empty() {
+        current_spans.push(Span::styled(prefix.to_string(), border_style));
+    }
+    let mut current_len = prefix_width;
+    let mut byte_pos: usize = 0;
+
+    for ch in text.chars() {
+        let char_byte_start = byte_pos;
+        byte_pos += ch.len_utf8();
+
+        let cw = unicode_width::UnicodeWidthChar::width(ch).unwrap_or(0);
+        if current_len + cw > max_width && current_len > prefix_width {
+            result.push(Line::from(std::mem::take(&mut current_spans)));
+            current_spans = Vec::new();
+            if !prefix.is_empty() {
+                current_spans.push(Span::styled(prefix.to_string(), border_style));
+            }
+            current_len = prefix_width;
+        }
+
+        let style = style_at_byte(&sorted, &mut seg_idx, char_byte_start);
+
+        if let Some(last) = current_spans.last_mut() {
+            if last.style == style {
+                last.content = format!("{}{}", last.content, ch).into();
+                current_len += cw;
+                continue;
+            }
+        }
+
+        current_spans.push(Span::styled(ch.to_string(), style));
+        current_len += cw;
+    }
+
+    if !current_spans.is_empty() {
+        result.push(Line::from(current_spans));
+    }
+
+    result
+}
+
+fn style_at_byte(
+    segments: &[(usize, usize, Style)],
+    seg_idx: &mut usize,
+    byte_pos: usize,
+) -> Style {
     while *seg_idx < segments.len() && segments[*seg_idx].1 <= byte_pos {
         *seg_idx += 1;
     }
