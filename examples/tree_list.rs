@@ -1,12 +1,12 @@
 use ratatui::{
     backend::CrosstermBackend,
     crossterm::{
-        event::{self, Event, KeyCode},
+        event::{self, Event, KeyCode, KeyEventKind, MouseEventKind},
         terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     },
     layout::Rect,
     style::{Color, Style},
-    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap},
+    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
     Terminal,
 };
 use ratatui_markdown::{
@@ -47,40 +47,43 @@ impl RenderHooks for TreeListHooks {
         ancestors_are_last: &[bool],
         _index_in_group: usize,
     ) -> Option<String> {
-        let marker = if is_last_in_group { "\u{2514}\u{2500} " } else { "\u{251c}\u{2500} " };
+        const UNIT: usize = 4;
+        let connector = if is_last_in_group {
+            "\u{2514}\u{2500} "
+        } else {
+            "\u{251c}\u{2500} "
+        };
         if indent == 0 {
-            return Some(marker.to_string());
+            return Some(connector.to_string());
         }
         let mut prefix = String::new();
-        for (depth, &is_last_ancestor) in ancestors_are_last.iter().enumerate() {
-            if depth >= indent as usize - 1 {
+        for (i, &is_last_anc) in ancestors_are_last.iter().enumerate() {
+            if i >= indent as usize {
                 break;
             }
-            if is_last_ancestor {
-                push_repeat(&mut prefix, ' ', 3);
+            if is_last_anc {
+                for _ in 0..UNIT {
+                    prefix.push(' ');
+                }
             } else {
-                prefix.push_str("\u{2502}  ");
+                prefix.push_str("\u{2502}   ");
             }
         }
-        if (indent as usize - 1) > ancestors_are_last.len() {
-            let extra = (indent as usize - 1).saturating_sub(ancestors_are_last.len());
-            push_repeat(&mut prefix, ' ', 3 * extra);
+        if indent as usize > ancestors_are_last.len() {
+            let extra = indent as usize - ancestors_are_last.len();
+            for _ in 0..UNIT * extra {
+                prefix.push(' ');
+            }
         }
-        Some(format!("{}{}", prefix, marker))
+        Some(format!("{prefix}{connector}"))
     }
 
     fn tree_indent_width(&self) -> Option<usize> {
-        Some(3)
+        Some(4)
     }
 
     fn tree_text_gap(&self) -> Option<usize> {
-        Some(0)
-    }
-}
-
-fn push_repeat(s: &mut String, ch: char, n: usize) {
-    for _ in 0..n {
-        s.push(ch);
+        Some(1)
     }
 }
 
@@ -88,30 +91,39 @@ const MARKDOWN: &str = r#"
 ## Project TODO
 
 - Setup project structure
-  - Initialize Cargo workspace
+  - Initialize Cargo workspace with members for core and crates
   - Add dependencies
-    - ratatui
-    - image crate
+    - ratatui for terminal UI rendering and display management
+    - image crate for image support and protocol handling
+    - crossterm for crossplatform terminal event handling
 - Implement core features
   - Parser
-    - Heading detection
-    - Code block parsing
-    - Image syntax
+    - Heading detection with nested component extraction logic
+    - Code block parsing with language-aware fence matching rules
+    - Image syntax for embedded visual content rendering pipeline
   - Renderer
-    - Inline formatting
-    - Code block borders
+    - Inline formatting with bold italic and code spans
+    - Code block borders using rounded box drawing characters
+    - Text wrapping engine that respects word boundaries and CJK width
   - Hooks system
+    - RenderHooks trait for customizable list item markers and styling
+    - Theme hooks for dynamic color palette switching at runtime
 - Write tests
+  - Unit tests for parser edge cases and corner conditions
+  - Integration tests for full markdown document rendering pipeline
+  - Visual regression tests for tree layout and wrap behavior verification
 - Deploy to crates.io
+  - Write comprehensive documentation with usage examples
+  - Publish stable release with semver version bump
+  - Create GitHub Actions CI pipeline for automated testing across platforms
 
 Press `q` to quit.
 "#;
 
 fn main() -> anyhow::Result<()> {
     enable_raw_mode()?;
-    let mut stdout = std::io::stdout();
-    crossterm::execute!(stdout, EnterAlternateScreen)?;
-    let backend = CrosstermBackend::new(stdout);
+    crossterm::execute!(std::io::stdout(), EnterAlternateScreen)?;
+    let backend = CrosstermBackend::new(std::io::stdout());
     let mut terminal = Terminal::new(backend)?;
 
     let theme = Theme;
@@ -120,45 +132,74 @@ fn main() -> anyhow::Result<()> {
     let blocks = renderer.parse(MARKDOWN);
     let lines = renderer.render(&blocks, &theme);
 
+    let mut scroll: u16 = 0;
+
     loop {
+        let doc_h = lines.len() as u16;
         terminal.draw(|f| {
             let area = f.area();
             let inner = Rect::new(
-                area.x + 1, area.y + 1,
-                area.width.saturating_sub(2), area.height.saturating_sub(2),
+                area.x + 1,
+                area.y + 1,
+                area.width.saturating_sub(2),
+                area.height.saturating_sub(2),
             );
+            let text_top = inner.y + 1;
+            let text_bot = inner.y + inner.height.saturating_sub(2);
+            let sb_col = inner.x + inner.width.saturating_sub(1);
+            let content_h = text_bot.saturating_sub(text_top).saturating_add(1);
+
+            let max_scroll = doc_h.saturating_sub(content_h);
+            if scroll > max_scroll {
+                scroll = max_scroll;
+            }
+
             let paragraph = Paragraph::new(lines.clone())
                 .block(Block::default().borders(Borders::ALL).title(" Tree-Style List Example "))
-                .wrap(Wrap { trim: false });
+                .scroll((scroll, 0));
             f.render_widget(paragraph, inner);
 
-            let content_h = inner.height.saturating_sub(2);
-            let total = lines.len();
-            if total > content_h as usize && content_h > 0 {
-                let sb_area = Rect::new(
-                    inner.x + inner.width.saturating_sub(1),
-                    inner.y + 1,
-                    1,
-                    content_h,
-                );
+            if doc_h > content_h && content_h > 0 {
+                let sb_area = Rect::new(sb_col, text_top, 1, content_h);
                 let sb = Scrollbar::default()
                     .orientation(ScrollbarOrientation::VerticalRight)
                     .thumb_symbol("█")
                     .track_symbol(Some("│"))
                     .style(Style::default().fg(Color::DarkGray))
                     .thumb_style(Style::default().fg(Color::Cyan));
+                let ratatui_content_len = doc_h
+                    .saturating_sub(content_h)
+                    .saturating_add(1);
                 let mut sb_state = ScrollbarState::default()
-                    .content_length(total)
-                    .viewport_content_length(content_h as usize);
+                    .content_length(ratatui_content_len as usize)
+                    .viewport_content_length(content_h as usize)
+                    .position(scroll as usize);
                 f.render_stateful_widget(sb, sb_area, &mut sb_state);
             }
         })?;
 
-        if event::poll(std::time::Duration::from_millis(100))? {
-            if let Event::Key(key) = event::read()? {
-                if key.code == KeyCode::Char('q') {
-                    break;
-                }
+        if event::poll(std::time::Duration::from_millis(50))? {
+            match event::read()? {
+                Event::Key(key) if key.kind == KeyEventKind::Press => match key.code {
+                    KeyCode::Char('q') => break,
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        scroll = scroll.saturating_sub(1);
+                    }
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        scroll = scroll.saturating_add(1);
+                    }
+                    _ => {}
+                },
+                Event::Mouse(mouse) => match mouse.kind {
+                    MouseEventKind::ScrollUp => {
+                        scroll = scroll.saturating_sub(3);
+                    }
+                    MouseEventKind::ScrollDown => {
+                        scroll = scroll.saturating_add(3);
+                    }
+                    _ => {}
+                },
+                _ => {}
             }
         }
     }

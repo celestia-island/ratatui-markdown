@@ -2104,7 +2104,7 @@ mod example_tree_list_tests {
             }
             let mut prefix = String::new();
             for (depth, &is_last_ancestor) in ancestors_are_last.iter().enumerate() {
-                if depth >= indent as usize - 1 {
+                if depth >= indent as usize {
                     break;
                 }
                 if is_last_ancestor {
@@ -2113,8 +2113,8 @@ mod example_tree_list_tests {
                     prefix.push_str("│  ");
                 }
             }
-            if (indent as usize - 1) > ancestors_are_last.len() {
-                let extra = (indent as usize - 1).saturating_sub(ancestors_are_last.len());
+            if indent as usize > ancestors_are_last.len() {
+                let extra = indent as usize - ancestors_are_last.len();
                 for _ in 0..3 * extra { prefix.push(' '); }
             }
             Some(format!("{}{}", prefix, marker))
