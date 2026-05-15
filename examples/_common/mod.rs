@@ -1,5 +1,6 @@
 use ratatui::{
     backend::CrosstermBackend,
+    buffer::Cell,
     crossterm::{
         event::{self, Event, KeyCode, KeyEventKind, MouseEventKind},
         terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
@@ -11,6 +12,7 @@ use ratatui::{
     Frame, Terminal,
 };
 use ratatui_markdown::theme::{Generation, RichTextTheme};
+use unicode_width::UnicodeWidthChar;
 
 pub struct Theme;
 
@@ -119,6 +121,45 @@ pub fn restore_terminal(terminal: &mut Term) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn render_lines_to_buf(
+    lines: &[Line<'static>],
+    scroll: usize,
+    area: Rect,
+    buf: &mut ratatui::buffer::Buffer,
+) {
+    let max_x = area.x + area.width;
+    for y in 0..area.height {
+        let row = area.y + y;
+        let line_idx = scroll + y as usize;
+        let mut col = area.x;
+        if line_idx < lines.len() {
+            for span in &lines[line_idx].spans {
+                for ch in span.content.chars() {
+                    if col >= max_x {
+                        break;
+                    }
+                    let w = UnicodeWidthChar::width(ch).unwrap_or(1) as u16;
+                    if w == 0 {
+                        continue;
+                    }
+                    if col + w > max_x {
+                        break;
+                    }
+                    let mut cell = Cell::new(" ");
+                    cell.set_symbol(&ch.to_string());
+                    cell.set_style(span.style);
+                    buf[(col, row)] = cell;
+                    col += w;
+                }
+            }
+        }
+        while col < max_x {
+            buf[(col, row)] = Cell::new(" ");
+            col += 1;
+        }
+    }
+}
+
 pub fn draw_frame(
     f: &mut Frame,
     title: &str,
@@ -145,15 +186,12 @@ pub fn draw_frame(
 
     f.render_widget(block, block_area);
 
-    // Every frame: fill inner area with real spaces (skip=false) so the
-    // terminal diff engine can never leave stale characters behind.
-    let blank = Line::from(Span::raw(" ".repeat(inner.width as usize)));
-    let fill: Vec<Line<'static>> = (0..content_h).map(|_| blank.clone()).collect();
-    f.render_widget(Paragraph::new(fill), inner);
-
-    let paragraph = Paragraph::new(lines.to_vec())
-        .scroll((state.scroll, 0));
-    f.render_widget(paragraph, inner);
+    // Bypass Paragraph entirely — write every cell in the inner area directly
+    // to the buffer with skip=false.  This is the only way to guarantee no
+    // stale characters survive ratatui's diff engine, because code-block lines
+    // can exceed the inner width and Paragraph silently clips (leaving skip=true
+    // holes that retain previous-frame content).
+    render_lines_to_buf(lines, state.scroll as usize, inner, f.buffer_mut());
 
     if state.doc_h > content_h && content_h > 0 {
         let sb_col = block_area.x + block_area.width.saturating_sub(1);
