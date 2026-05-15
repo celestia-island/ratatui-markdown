@@ -384,9 +384,30 @@ impl MarkdownRenderer {
                                 lines.push(cline);
                             }
                         } else {
-                            let wrapped =
-                                self.wrap_text_with_inline_formatting(&format!("{marker_str}{text}"), theme);
-                            lines.extend(wrapped);
+                            let marker_width = Self::string_width(&marker_str);
+                            let cont_indent = " ".repeat(marker_width);
+                            let content_width = self.max_width.saturating_sub(marker_width);
+                            let wrapped = if content_width > 0 {
+                                let mut text_lines = Vec::new();
+                                for text_line in text.split('\n') {
+                                    let spans = parse_inline_formatting(text_line, theme);
+                                    let wrapped_spans = Self::wrap_styled_spans_to_width(spans, content_width);
+                                    text_lines.extend(wrapped_spans);
+                                }
+                                text_lines
+                            } else {
+                                vec![parse_inline_formatting(text, theme)]
+                            };
+                            for (i, span_line) in wrapped.into_iter().enumerate() {
+                                let prefix = if i == 0 {
+                                    Span::raw(marker_str.clone())
+                                } else {
+                                    Span::raw(cont_indent.clone())
+                                };
+                                let mut new_spans = vec![prefix];
+                                new_spans.extend(span_line);
+                                lines.push(Line::from(new_spans));
+                            }
                         }
                         return;
                     }

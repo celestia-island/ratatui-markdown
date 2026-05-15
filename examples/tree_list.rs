@@ -10,10 +10,12 @@ use ratatui::{
     Terminal,
 };
 use ratatui_markdown::{
-    markdown::MarkdownRenderer,
+    constants::{
+        BRANCH_END_SP, BRANCH_MID_SP, BRANCH_VERT_PAD, VLINE,
+    },
+    markdown::{MarkdownRenderer, RenderHooks},
     theme::{Generation, RichTextTheme},
 };
-use ratatui_markdown::markdown::RenderHooks;
 
 struct Theme;
 
@@ -49,9 +51,9 @@ impl RenderHooks for TreeListHooks {
     ) -> Option<String> {
         const UNIT: usize = 4;
         let connector = if is_last_in_group {
-            "\u{2514}\u{2500} "
+            BRANCH_END_SP
         } else {
-            "\u{251c}\u{2500} "
+            BRANCH_MID_SP
         };
         if indent == 0 {
             return Some(connector.to_string());
@@ -66,7 +68,8 @@ impl RenderHooks for TreeListHooks {
                     prefix.push(' ');
                 }
             } else {
-                prefix.push_str("\u{2502}   ");
+                prefix.push_str(BRANCH_VERT_PAD);
+                prefix.push(' ');
             }
         }
         if indent as usize > ancestors_are_last.len() {
@@ -164,7 +167,7 @@ fn main() -> anyhow::Result<()> {
                 let sb = Scrollbar::default()
                     .orientation(ScrollbarOrientation::VerticalRight)
                     .thumb_symbol("█")
-                    .track_symbol(Some("│"))
+                    .track_symbol(Some(VLINE))
                     .style(Style::default().fg(Color::DarkGray))
                     .thumb_style(Style::default().fg(Color::Cyan));
                 let ratatui_content_len = doc_h
