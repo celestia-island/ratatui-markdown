@@ -1,14 +1,14 @@
 [package]
 name = "ratatui-markdown"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 rust-version = "1.74"
 authors = ["langyo <langyo.china@gmail.com>"]
 license = "MIT OR Apache-2.0"
 readme = "README.md"
-description = "Markdown rendering, collapsible JSON/TOML trees, and rich scroll widgets for ratatui"
+description = "Markdown rendering, syntax highlighting, collapsible trees, and rich scroll widgets for ratatui"
 repository = "https://github.com/celestia-island/ratatui-markdown"
-keywords = ["ratatui", "markdown", "tui", "terminal", "json"]
+keywords = ["ratatui", "markdown", "tui", "terminal", "json", "tree-sitter"]
 categories = ["command-line-interface", "text-processing"]
 
 [lib]
