@@ -25,8 +25,6 @@ mermaid = ["markdown", "dep:pest", "dep:pest_derive"]
 viewer = ["markdown", "scroll"]
 
 highlight = ["dep:tree-sitter", "dep:tree-sitter-highlight"]
-highlight-pest = ["highlight", "dep:pest", "dep:pest_derive"]
-
 highlight-lang-bash = ["highlight", "dep:tree-sitter-bash"]
 highlight-lang-c = ["highlight", "dep:tree-sitter-c"]
 highlight-lang-cpp = ["highlight", "dep:tree-sitter-cpp"]
@@ -103,7 +101,6 @@ highlight-lang-all = [
     "highlight-lang-xml",
     "highlight-lang-yaml",
     "highlight-lang-zig",
-    "highlight-pest",
 ]
 
 [dependencies]
@@ -170,4 +167,4 @@ required-features = ["mermaid"]
 
 [[example]]
 name = "code"
-required-features = ["highlight-lang-rust", "highlight-pest"]
+required-features = ["highlight-lang-rust"]
