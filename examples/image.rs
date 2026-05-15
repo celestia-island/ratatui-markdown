@@ -398,13 +398,12 @@ fn main() -> anyhow::Result<()> {
                 area.height.saturating_sub(pad_t + pad_b),
             );
 
-            let vp_w = inner.width.saturating_sub(pad_l + pad_r + 1);
-            let vp_h = inner.height.saturating_sub(pad_t + pad_b);
-            last_vp_w = vp_w;
-            last_vp_h = vp_h;
+            let content_h = inner.height;
+            last_vp_w = inner.width.saturating_sub(1);
+            last_vp_h = content_h;
 
-            if state.vp_h != vp_h {
-                state.vp_h = vp_h;
+            if state.vp_h != content_h {
+                state.vp_h = content_h;
                 state.need_rerender = true;
             }
 
@@ -426,13 +425,13 @@ fn main() -> anyhow::Result<()> {
                 let placement_h = placement.height_cells;
                 if placement_h < 1 || placement_w < 1 { continue; }
 
-                let render_w = placement_w.min(vp_w);
+                let render_w = placement_w.min(inner.width.saturating_sub(1));
 
                 let base_y = inner.y + pad_t
                     + (placement.row as u16).min(inner.height.saturating_sub(1));
-                let border_bottom_y = inner.y + inner.height.saturating_sub(1);
-                let max_render_h = border_bottom_y.saturating_sub(base_y);
-                let render_h = placement_h.min(max_render_h).min(vp_h);
+                let content_bottom = inner.y + inner.height.saturating_sub(1);
+                let max_render_h = content_bottom.saturating_sub(base_y);
+                let render_h = placement_h.min(max_render_h);
 
                 let base_x = inner.x + pad_l;
 
@@ -464,7 +463,7 @@ fn main() -> anyhow::Result<()> {
                 let (full_cw, full_ch) = si.cell_size(state.font_w, state.font_h, state.proto);
 
                 let show_v_scroll = full_ch > render_h;
-                let show_h_scroll = full_cw > render_w;
+                let show_h_scroll = full_cw > render_w || placement_w > render_w;
 
                 if img_render_idx == selected_idx {
                     if show_v_scroll {
