@@ -10,9 +10,7 @@ use ratatui::{
     Terminal,
 };
 use ratatui_markdown::{
-    constants::{
-        BRANCH_END_SP, BRANCH_MID_SP, BRANCH_VERT_PAD, VLINE,
-    },
+    constants::{BRANCH_END_SP, BRANCH_MID_SP, VLINE},
     markdown::{MarkdownRenderer, RenderHooks},
     theme::{Generation, RichTextTheme},
 };
@@ -49,9 +47,7 @@ impl RenderHooks for TreeListHooks {
         ancestors_are_last: &[bool],
         _index_in_group: usize,
     ) -> Option<String> {
-        let base: usize = 3;
-        let offset: usize = Self::tree_indent_offset(self).unwrap_or(0);
-        let unit = base + offset;
+        let unit: usize = Self::tree_indent_unit(self).unwrap_or(3);
         let connector = if is_last_in_group {
             BRANCH_END_SP
         } else {
@@ -70,8 +66,8 @@ impl RenderHooks for TreeListHooks {
                     prefix.push(' ');
                 }
             } else {
-                prefix.push_str(BRANCH_VERT_PAD);
-                for _ in 0..offset {
+                prefix.push_str(VLINE);
+                for _ in 1..unit {
                     prefix.push(' ');
                 }
             }
@@ -85,16 +81,8 @@ impl RenderHooks for TreeListHooks {
         Some(format!("{prefix}{connector}"))
     }
 
-    fn tree_indent_width(&self) -> Option<usize> {
-        Some(3 + Self::tree_indent_offset(self).unwrap_or(0))
-    }
-
-    fn tree_text_gap(&self) -> Option<usize> {
-        Some(1)
-    }
-
-    fn tree_indent_offset(&self) -> Option<usize> {
-        Some(1)
+    fn tree_indent_unit(&self) -> Option<usize> {
+        Some(4)
     }
 }
 

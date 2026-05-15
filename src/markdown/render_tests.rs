@@ -2120,8 +2120,7 @@ mod example_tree_list_tests {
             Some(format!("{}{}", prefix, marker))
         }
 
-        fn tree_indent_width(&self) -> Option<usize> { Some(3) }
-        fn tree_text_gap(&self) -> Option<usize> { Some(0) }
+        fn tree_indent_unit(&self) -> Option<usize> { Some(3) }
     }
 
     const TREE_MARKDOWN: &str = r#"
