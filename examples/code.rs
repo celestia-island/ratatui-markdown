@@ -452,7 +452,7 @@ opt-level = 3
 fn main() -> anyhow::Result<()> {
     let highlighter = Arc::new(SyntectHighlighter::new("InspiredGitHub"));
 
-    setup_terminal()?;
+    let mut terminal = setup_terminal()?;
 
     let theme = Theme;
     let renderer = MarkdownRenderer::new(76)
@@ -464,17 +464,20 @@ fn main() -> anyhow::Result<()> {
     let mut state = AppState::new(lines.len());
 
     loop {
-        draw_frame(
-            "Code Highlighting",
-            &lines,
-            &mut state,
-            "\u{2191}\u{2193}/jk scroll \u{00b7} PgUp/PgDn \u{00b7} Home/End \u{00b7} q quit",
-        )?;
+        terminal.draw(|f| {
+            draw_frame(
+                f,
+                "Code Highlighting",
+                &lines,
+                &mut state,
+                "\u{2191}\u{2193}/jk scroll \u{00b7} PgUp/PgDn \u{00b7} Home/End \u{00b7} q quit",
+            );
+        })?;
         if poll_and_handle(&mut state)? {
             break;
         }
     }
 
-    restore_terminal()?;
+    restore_terminal(&mut terminal)?;
     Ok(())
 }

@@ -1,19 +1,15 @@
-use std::io::{self, Write};
-
-use crossterm::{
-    cursor::MoveTo,
-    event::{
-        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, MouseEventKind,
+use ratatui::{
+    backend::CrosstermBackend,
+    crossterm::{
+        event::{self, Event, KeyCode, KeyEventKind, MouseEventKind},
+        terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     },
-    execute, queue,
-    style::{
-        Attribute, Color, Print, ResetColor, SetAttribute, SetBackgroundColor, SetForegroundColor,
-    },
-    terminal::{
-        disable_raw_mode, enable_raw_mode, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen, size,
-    },
+    layout::Rect,
+    style::{Color, Style},
+    text::{Line, Span},
+    widgets::{Block, Borders, Padding, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    Frame, Terminal,
 };
-use ratatui::text::Line;
 use ratatui_markdown::theme::{Generation, RichTextTheme};
 
 pub struct Theme;
@@ -22,77 +18,53 @@ impl RichTextTheme for Theme {
     fn generation(&self) -> Generation {
         Generation(1)
     }
-    fn get_text_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::White
+    fn get_text_color(&self) -> Color {
+        Color::White
     }
-    fn get_muted_text_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::DarkGray
+    fn get_muted_text_color(&self) -> Color {
+        Color::DarkGray
     }
-    fn get_primary_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::Cyan
+    fn get_primary_color(&self) -> Color {
+        Color::Cyan
     }
-    fn get_secondary_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::Blue
+    fn get_secondary_color(&self) -> Color {
+        Color::Blue
     }
-    fn get_info_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::LightBlue
+    fn get_info_color(&self) -> Color {
+        Color::LightBlue
     }
-    fn get_background_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::Black
+    fn get_background_color(&self) -> Color {
+        Color::Black
     }
-    fn get_border_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::DarkGray
+    fn get_border_color(&self) -> Color {
+        Color::DarkGray
     }
-    fn get_focused_border_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::White
+    fn get_focused_border_color(&self) -> Color {
+        Color::White
     }
-    fn get_popup_selected_background(&self) -> ratatui::style::Color {
-        ratatui::style::Color::DarkGray
+    fn get_popup_selected_background(&self) -> Color {
+        Color::DarkGray
     }
-    fn get_popup_selected_text_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::White
+    fn get_popup_selected_text_color(&self) -> Color {
+        Color::White
     }
-    fn get_json_key_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::LightCyan
+    fn get_json_key_color(&self) -> Color {
+        Color::LightCyan
     }
-    fn get_json_string_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::Green
+    fn get_json_string_color(&self) -> Color {
+        Color::Green
     }
-    fn get_json_number_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::Yellow
+    fn get_json_number_color(&self) -> Color {
+        Color::Yellow
     }
-    fn get_json_bool_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::Magenta
+    fn get_json_bool_color(&self) -> Color {
+        Color::Magenta
     }
-    fn get_json_null_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::DarkGray
+    fn get_json_null_color(&self) -> Color {
+        Color::DarkGray
     }
-    fn get_accent_yellow(&self) -> ratatui::style::Color {
-        ratatui::style::Color::Yellow
-    }
-}
-
-fn convert_color(c: ratatui::style::Color) -> Color {
-    use ratatui::style::Color as RC;
-    match c {
-        RC::Black => Color::Black,
-        RC::Red => Color::DarkRed,
-        RC::Green => Color::DarkGreen,
-        RC::Yellow => Color::DarkYellow,
-        RC::Blue => Color::DarkBlue,
-        RC::Magenta => Color::DarkMagenta,
-        RC::Cyan => Color::DarkCyan,
-        RC::Gray => Color::DarkGrey,
-        RC::DarkGray => Color::Grey,
-        RC::LightRed => Color::Red,
-        RC::LightGreen => Color::Green,
-        RC::LightYellow => Color::Yellow,
-        RC::LightBlue => Color::Blue,
-        RC::LightMagenta => Color::Magenta,
-        RC::LightCyan => Color::Cyan,
-        RC::White => Color::White,
-        RC::Rgb(r, g, b) => Color::Rgb { r, g, b },
-        RC::Reset | _ => Color::Reset,
+    fn get_accent_yellow(&self) -> Color {
+        Color::Yellow
     }
 }
 
@@ -124,129 +96,133 @@ impl AppState {
     }
 }
 
-pub fn setup_terminal() -> anyhow::Result<()> {
+pub type Term = Terminal<CrosstermBackend<std::io::Stdout>>;
+
+pub fn setup_terminal() -> anyhow::Result<Term> {
     enable_raw_mode()?;
-    execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)?;
-    Ok(())
+    crossterm::execute!(
+        std::io::stdout(),
+        EnterAlternateScreen,
+        crossterm::event::EnableMouseCapture
+    )?;
+    let backend = CrosstermBackend::new(std::io::stdout());
+    Ok(Terminal::new(backend)?)
 }
 
-pub fn restore_terminal() -> anyhow::Result<()> {
-    execute!(io::stdout(), DisableMouseCapture, LeaveAlternateScreen)?;
+pub fn restore_terminal(terminal: &mut Term) -> anyhow::Result<()> {
     disable_raw_mode()?;
+    crossterm::execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        crossterm::event::DisableMouseCapture
+    )?;
     Ok(())
 }
 
 pub fn draw_frame(
+    f: &mut Frame,
     title: &str,
     lines: &[Line<'static>],
     state: &mut AppState,
     key_hints: &str,
-) -> io::Result<()> {
-    let mut stdout = io::stdout();
-    let (w, h) = size()?;
-    if w < 6 || h < 4 {
-        return Ok(());
-    }
+) {
+    let area = f.area();
+    let block_area = Rect::new(
+        area.x,
+        area.y,
+        area.width,
+        area.height.saturating_sub(1),
+    );
 
-    let bw = w;
-    let bh = h.saturating_sub(1);
-    let content_h = bh.saturating_sub(2);
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(format!(" {title} "))
+        .padding(Padding::new(1, 1, 0, 0));
+
+    let inner = block.inner(block_area);
+    let content_h = inner.height;
+    let inner_w = inner.width as usize;
     state.update_content_h(content_h);
 
-    queue!(stdout, MoveTo(0, 0))?;
-
-    let border_color = Color::DarkGrey;
-    let border_fg = SetForegroundColor(border_color);
-    let reset = ResetColor;
-
-    queue!(stdout, border_fg, Print("╭─"))?;
-    queue!(stdout, SetForegroundColor(Color::White), Print(format!(" {title} ")))?;
-    let used = 4 + title.len() as u16 + 2;
-    if used < bw.saturating_sub(1) {
-        let dash_count = bw.saturating_sub(used) - 1;
-        queue!(stdout, border_fg, Print("─".repeat(dash_count as usize)))?;
-    }
-    queue!(stdout, border_fg, Print("╮"), reset)?;
-
+    // Build a fully-padded view of the visible content so every cell in the
+    // inner area is written to by Paragraph (skip=false).  The root cause of
+    // scroll artifacts is that Paragraph clips lines wider than the area and
+    // leaves trailing cells unwritten; stuffing trailing spaces into each line
+    // guarantees all cells are touched.
     let scroll = state.scroll as usize;
     let visible = content_h as usize;
-    let inner_w = bw.saturating_sub(4) as usize;
+    let blank = Line::from(Span::raw(" ".repeat(inner_w)));
+    let mut padded: Vec<Line<'static>> = Vec::with_capacity(visible);
 
-    for y in 0..visible {
-        let row = y as u16 + 1;
-        queue!(stdout, MoveTo(0, row), border_fg, Print("│ "))?;
-
-        let line_idx = scroll + y;
-        if line_idx < lines.len() {
-            let mut written = 0usize;
-            for span in &lines[line_idx].spans {
-                if written >= inner_w {
+    for i in scroll..scroll.saturating_add(visible).min(lines.len()) {
+        let spans = lines[i].spans.clone();
+        let used: usize = spans.iter().map(|s| s.width()).sum();
+        if used < inner_w {
+            let mut s = spans;
+            s.push(Span::raw(" ".repeat(inner_w - used)));
+            padded.push(Line::from(s));
+        } else if used > inner_w {
+            // Truncate to inner width — the cut-off content will still be
+            // completely covered by trailing spaces in the next iteration.
+            let mut taken = 0usize;
+            let mut short: Vec<Span<'static>> = Vec::new();
+            for sp in spans {
+                let sp_w = sp.width();
+                if taken + sp_w > inner_w {
+                    let keep = inner_w - taken;
+                    let chop: String = sp.content.chars().take(keep).collect();
+                    short.push(Span::styled(chop, sp.style));
                     break;
                 }
-                if let Some(fg) = span.style.fg {
-                    queue!(stdout, SetForegroundColor(convert_color(fg)))?;
-                }
-                if let Some(bg) = span.style.bg {
-                    queue!(stdout, SetBackgroundColor(convert_color(bg)))?;
-                }
-                let add = span.style.add_modifier;
-                if add.contains(ratatui::style::Modifier::BOLD) {
-                    queue!(stdout, SetAttribute(Attribute::Bold))?;
-                }
-                if add.contains(ratatui::style::Modifier::ITALIC) {
-                    queue!(stdout, SetAttribute(Attribute::Italic))?;
-                }
-                if add.contains(ratatui::style::Modifier::UNDERLINED) {
-                    queue!(stdout, SetAttribute(Attribute::Underlined))?;
-                }
-
-                let remaining = inner_w.saturating_sub(written);
-                let truncated: String = span.content.chars().take(remaining).collect();
-                let cw = unicode_width::UnicodeWidthStr::width(truncated.as_str());
-                written += cw;
-                queue!(stdout, Print(&truncated), ResetColor)?;
+                taken += sp_w;
+                short.push(sp);
             }
+            while taken < inner_w {
+                short.push(Span::raw(" "));
+                taken += 1;
+            }
+            padded.push(Line::from(short));
+        } else {
+            padded.push(Line::from(spans));
         }
-
-        queue!(stdout, Clear(ClearType::UntilNewLine))?;
-        queue!(stdout, MoveTo(bw.saturating_sub(1), row), border_fg, Print("│"), reset)?;
+    }
+    while padded.len() < visible {
+        padded.push(blank.clone());
     }
 
-    queue!(
-        stdout,
-        MoveTo(0, bh.saturating_sub(1)),
-        border_fg,
-        Print("╰"),
-        Print("─".repeat(bw.saturating_sub(2) as usize)),
-        Print("╯"),
-        reset
-    )?;
+    f.render_widget(block, block_area);
+
+    let paragraph = Paragraph::new(padded);
+    f.render_widget(paragraph, inner);
 
     if state.doc_h > content_h && content_h > 0 {
-        let col = bw.saturating_sub(1);
-        let ratio = state.scroll as f64 / (state.doc_h - content_h).max(1) as f64;
-        let thumb_y = 1 + (ratio * (content_h as f64 - 1.0)).round() as u16;
-        for y in 1..=content_h {
-            queue!(stdout, MoveTo(col - 1, y))?;
-            if y == thumb_y {
-                queue!(stdout, SetForegroundColor(Color::Cyan), Print("█"), ResetColor)?;
-            } else {
-                queue!(stdout, SetForegroundColor(Color::DarkGrey), Print("│"), ResetColor)?;
-            }
-        }
+        let sb_col = block_area.x + block_area.width.saturating_sub(1);
+        let sb_area = Rect::new(sb_col, inner.y, 1, content_h);
+        let ratatui_content_len = state
+            .doc_h
+            .saturating_sub(content_h)
+            .saturating_add(1);
+        let sb = Scrollbar::default()
+            .orientation(ScrollbarOrientation::VerticalRight)
+            .thumb_symbol("█")
+            .track_symbol(Some("│"))
+            .style(Style::default().fg(Color::DarkGray))
+            .thumb_style(Style::default().fg(Color::Cyan));
+        let mut sb_state = ScrollbarState::default()
+            .content_length(ratatui_content_len as usize)
+            .viewport_content_length(content_h as usize)
+            .position(state.scroll as usize);
+        f.render_stateful_widget(sb, sb_area, &mut sb_state);
     }
 
-    queue!(
-        stdout,
-        MoveTo(0, h.saturating_sub(1)),
-        SetForegroundColor(Color::DarkGrey),
-        Print(format!(" {key_hints}")),
-        Clear(ClearType::UntilNewLine),
-        ResetColor
-    )?;
-
-    stdout.flush()?;
-    Ok(())
+    let info_area = Rect::new(area.x, area.height.saturating_sub(1), area.width, 1);
+    f.render_widget(
+        Paragraph::new(vec![Line::from(Span::styled(
+            format!(" {}", key_hints),
+            Style::default().fg(Color::DarkGray),
+        ))]),
+        info_area,
+    );
 }
 
 pub fn poll_and_handle(state: &mut AppState) -> anyhow::Result<bool> {
