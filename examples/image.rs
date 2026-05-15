@@ -76,8 +76,6 @@ graphics protocol (kitty, iTerm2, sixels, or halfblocks).
 
 ![ratatui-markdown Logo](logo.webp)
 
-LOREM_3
-
 ## Demo Screenshot (loaded from disk)
 
 ![Demo Screenshot](demo.webp)
@@ -324,7 +322,7 @@ fn main() -> anyhow::Result<()> {
 
     let (blocks, resolved) = renderer.parse_with_images(&md, &mut resolver);
 
-    let config: Vec<(u16, bool)> = vec![(3, true), (3, false), (2, false)];
+    let config: Vec<(u16, bool)> = vec![(3, true), (16, false), (2, false)];
     let mut scaled_images: Vec<ScaledImage> = Vec::new();
     for (i, ri) in resolved.iter().enumerate() {
         let (rows, frozen) = config.get(i).copied().unwrap_or((3, false));
