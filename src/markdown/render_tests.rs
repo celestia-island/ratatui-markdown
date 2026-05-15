@@ -15,8 +15,6 @@ use crate::{
     theme::RichTextTheme,
 };
 
-use anyhow::Context as _;
-
 struct TestTheme;
 
 impl RichTextTheme for TestTheme {

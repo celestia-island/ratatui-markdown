@@ -1,7 +1,7 @@
 use ratatui::{
     backend::CrosstermBackend,
     crossterm::{
-        event::{self, Event, KeyCode, KeyEventKind, MouseEvent, MouseEventKind},
+        event::{self, Event, KeyCode, KeyEventKind, MouseEventKind},
         terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     },
     layout::Rect,
@@ -109,16 +109,6 @@ impl ScrollState {
     fn page_down(&mut self, area: Rect) {
         let step = self.viewport_height(area.height).max(1);
         self.scroll_v(step as isize, area);
-    }
-
-    fn page_left(&mut self, area: Rect) {
-        let step = self.viewport_width(area.width).max(1);
-        self.scroll_h(-(step as isize), area);
-    }
-
-    fn page_right(&mut self, area: Rect) {
-        let step = self.viewport_width(area.width).max(1);
-        self.scroll_h(step as isize, area);
     }
 }
 
