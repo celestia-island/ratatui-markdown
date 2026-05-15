@@ -151,6 +151,7 @@ impl MarkdownRenderer {
                             width_cells: w_cells,
                             height_cells: h_cells,
                             image: ref_img.clone(),
+                            crop: None,
                         });
                     } else {
                         ctx.lines.push(default_image_fallback(alt, path));

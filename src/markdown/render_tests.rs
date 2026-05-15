@@ -2683,6 +2683,113 @@ mod example_image_tests {
             text_row_1, text_row_2,
         );
     }
+
+    #[test]
+    fn image_crop_larger_than_viewport() {
+        let img = make_img(180, 180);
+        let scaled = img.resize_exact(360, 360, image::imageops::FilterType::Triangle);
+        let fw: u16 = 9;
+        let fh: u16 = 18;
+        let (full_cw, full_ch) = (
+            (360u32.div_ceil(fw as u32)) as u16,
+            (360u32.div_ceil(fh as u32)) as u16,
+        );
+        let vp_w = 20u16;
+        let vp_h = 5u16;
+        assert!(full_cw > vp_w, "full_cw ({}) > vp_w ({})", full_cw, vp_w);
+        assert!(full_ch > vp_h, "full_ch ({}) > vp_h ({})", full_ch, vp_h);
+
+        let px_x = 0u32;
+        let py_y = 0u32;
+        let px_w = vp_w as u32 * fw as u32;
+        let py_h = vp_h as u32 * fh as u32;
+        let cropped = scaled.crop_imm(px_x, py_y, px_w.min(scaled.width()), py_h.min(scaled.height()));
+        let (crop_cw, crop_ch) = (
+            (cropped.width().div_ceil(fw as u32)) as u16,
+            (cropped.height().div_ceil(fh as u32)) as u16,
+        );
+        assert!(crop_cw <= vp_w, "cropped width {} <= vp_w {}", crop_cw, vp_w);
+        assert!(crop_ch <= vp_h, "cropped height {} <= vp_h {}", crop_ch, vp_h);
+    }
+
+    #[test]
+    fn image_crop_with_scroll_offset() {
+        let img = make_img(180, 180);
+        let scaled = img.resize_exact(360, 360, image::imageops::FilterType::Triangle);
+        let fw: u16 = 9;
+        let fh: u16 = 18;
+        let full_cw = (360u32.div_ceil(fw as u32)) as u16;
+        let full_ch = (360u32.div_ceil(fh as u32)) as u16;
+        let vp_w = 20u16;
+        let vp_h = 5u16;
+        let scroll_x = 5u16;
+        let scroll_y = 3u16;
+
+        let px_x = scroll_x as u32 * fw as u32;
+        let py_y = scroll_y as u32 * fh as u32;
+        let px_w = vp_w as u32 * fw as u32;
+        let py_h = vp_h as u32 * fh as u32;
+        let x0 = px_x.min(scaled.width());
+        let y0 = py_y.min(scaled.height());
+        let x1 = (x0 + px_w).min(scaled.width());
+        let y1 = (y0 + py_h).min(scaled.height());
+        let cropped = scaled.crop_imm(x0, y0, x1 - x0, y1 - y0);
+
+        assert!(x0 > 0, "crop starts at pixel x={}, scroll was {}", x0, scroll_x);
+        assert!(y0 > 0, "crop starts at pixel y={}, scroll was {}", y0, scroll_y);
+        assert_eq!(cropped.width(), px_w, "cropped width matches viewport pixels");
+        assert_eq!(cropped.height(), py_h, "cropped height matches viewport pixels");
+    }
+
+    #[test]
+    fn image_placement_has_crop_field_none_by_default() {
+        let renderer = MarkdownRenderer::new(76);
+        let blocks = vec![
+            MarkdownBlock::Image { alt: "t".into(), path: "t.webp".into() },
+        ];
+        let resolved = vec![
+            ResolvedImage { path: "t.webp".into(), image: make_img(90, 36) },
+        ];
+        let mut r = SimpleResolver::new(9, 18);
+        let output = renderer.render_full(&blocks, &TestTheme, &resolved, &mut r, 70, 20);
+        assert_eq!(output.images.len(), 1);
+        assert!(output.images[0].crop.is_none(), "crop should be None by default from render_full");
+    }
+
+    #[test]
+    fn zoom_step_4_percent_grows_slowly() {
+        let mut scale = 1.0_f64;
+        for _ in 0..25 { scale *= 1.04; }
+        assert!((scale - 2.66).abs() < 0.02, "25 steps of 4% should ~2.66x, got {:.4}", scale);
+    }
+
+    #[test]
+    fn zoom_step_4_percent_shrinks_slowly() {
+        let mut scale = 1.0_f64;
+        for _ in 0..25 { scale /= 1.04; }
+        assert!((scale - 0.375).abs() < 0.005, "25 steps of 4% down should ~0.375x, got {:.4}", scale);
+    }
+
+    #[test]
+    fn image_crop_fits_within_viewport() {
+        let fw: u16 = 9;
+        let fh: u16 = 18;
+        let vp_w = 30u16;
+        let vp_h = 10u16;
+        let img = make_img(900, 720);
+        let (cw, ch) = ((900u32 / fw as u32) as u16, (720u32 / fh as u32) as u16);
+        assert!(cw > vp_w);
+        assert!(ch > vp_h);
+        let px_w = vp_w as u32 * fw as u32;
+        let py_h = vp_h as u32 * fh as u32;
+        let cropped = img.crop_imm(0, 0, px_w, py_h);
+        let (ccw, cch) = (
+            (cropped.width().div_ceil(fw as u32)) as u16,
+            (cropped.height().div_ceil(fh as u32)) as u16,
+        );
+        assert!(ccw <= vp_w, "cropped cols {} <= vp {}", ccw, vp_w);
+        assert!(cch <= vp_h, "cropped rows {} <= vp {}", cch, vp_h);
+    }
 }
 
 // ==================== Nested Blockquote Tests ====================

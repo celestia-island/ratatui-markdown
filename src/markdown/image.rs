@@ -8,12 +8,21 @@ use ratatui::{
 pub use image;
 
 #[cfg(feature = "image")]
+pub struct CropRect {
+    pub col_offset: u16,
+    pub row_offset: u16,
+    pub visible_width: u16,
+    pub visible_height: u16,
+}
+
+#[cfg(feature = "image")]
 pub struct ImagePlacement {
     pub row: usize,
     pub col: usize,
     pub width_cells: u16,
     pub height_cells: u16,
     pub image: image::DynamicImage,
+    pub crop: Option<CropRect>,
 }
 
 #[cfg(feature = "image")]

@@ -16,7 +16,7 @@ pub use inline::parse_inline_formatting;
 pub use types::MarkdownBlock;
 
 #[cfg(feature = "image")]
-pub use image::{ImagePlacement, ImageResolver, MarkdownRenderOutput, NoopImageResolver};
+pub use image::{CropRect, ImagePlacement, ImageResolver, MarkdownRenderOutput, NoopImageResolver};
 
 use std::boxed::Box;
 
