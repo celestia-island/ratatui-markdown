@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="examples/logo.webp" alt="ratatui-markdown logo" width="200" />
+  <img src="https://raw.githubusercontent.com/celestia-island/ratatui-markdown/dev/examples/logo.webp" alt="ratatui-markdown logo" width="200" />
 </div>
 
 <div align="center"><h1>ratatui-markdown</h1></div>
@@ -25,7 +25,7 @@
   <h3>
     <a href="#quick-start">Quick Start</a>
     <span> | </span>
-    <a href="docs/guides/en/index.md">Documentation</a>
+    <a href="https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/en/index.md">Documentation</a>
     <span> | </span>
     <a href="https://docs.rs/ratatui-markdown">API Reference</a>
   </h3>
@@ -33,15 +33,15 @@
 
 <div align="center">
   <p>
-    <a href="../../README.md">English</a> |
-    <a href="../zhs/index.md">简体中文</a> |
-    <a href="../zht/index.md">繁體中文</a> |
-    <a href="../ja/index.md">日本語</a> |
-    <a href="../ko/index.md">한국어</a> |
-    <a href="../fr/index.md">Français</a> |
-    <a href="../es/index.md">Español</a> |
-    <a href="../ru/index.md">Русский</a> |
-    <a href="../ar/index.md">العربية</a>
+    <a href="https://github.com/celestia-island/ratatui-markdown/blob/dev/README.md">English</a> |
+    <a href="https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/zhs/index.md">简体中文</a> |
+    <a href="https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/zht/index.md">繁體中文</a> |
+    <a href="https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/ja/index.md">日本語</a> |
+    <a href="https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/ko/index.md">한국어</a> |
+    <a href="https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/fr/index.md">Français</a> |
+    <a href="https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/es/index.md">Español</a> |
+    <a href="https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/ru/index.md">Русский</a> |
+    <a href="https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/ar/index.md">العربية</a>
   </p>
 </div>
 
@@ -141,28 +141,28 @@ tree.toggle("nested"); // collapse/expand
 
 ## Documentation
 
-- [Getting Started](docs/guides/en/getting-started.md)
-- [Markdown Module](docs/guides/en/markdown.md)
-- [Scroll System](docs/guides/en/scroll.md)
-- [Tree View](docs/guides/en/tree.md)
-- [Preview Widget](docs/guides/en/preview.md)
-- [Theme Customization](docs/guides/en/theme.md)
-- [Contributing](docs/guides/en/contributing.md)
+- [Getting Started](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/en/getting-started.md)
+- [Markdown Module](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/en/markdown.md)
+- [Scroll System](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/en/scroll.md)
+- [Tree View](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/en/tree.md)
+- [Preview Widget](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/en/preview.md)
+- [Theme Customization](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/en/theme.md)
+- [Contributing](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/en/contributing.md)
 - [API Reference](https://docs.rs/ratatui-markdown)
 
 ### Languages
 
 | Language | Documentation |
 |----------|---------------|
-| English | [docs/guides/en/](index.md) |
-| 简体中文 | [docs/guides/zhs/](../zhs/index.md) |
-| 繁體中文 | [docs/guides/zht/](../zht/index.md) |
-| 日本語 | [docs/guides/ja/](../ja/index.md) |
-| 한국어 | [docs/guides/ko/](../ko/index.md) |
-| Français | [docs/guides/fr/](../fr/index.md) |
-| Español | [docs/guides/es/](../es/index.md) |
-| Русский | [docs/guides/ru/](../ru/index.md) |
-| العربية | [docs/guides/ar/](../ar/index.md) |
+| English | [docs/guides/en/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/en/index.md) |
+| 简体中文 | [docs/guides/zhs/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/zhs/index.md) |
+| 繁體中文 | [docs/guides/zht/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/zht/index.md) |
+| 日本語 | [docs/guides/ja/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/ja/index.md) |
+| 한국어 | [docs/guides/ko/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/ko/index.md) |
+| Français | [docs/guides/fr/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/fr/index.md) |
+| Español | [docs/guides/es/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/es/index.md) |
+| Русский | [docs/guides/ru/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/ru/index.md) |
+| العربية | [docs/guides/ar/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/ar/index.md) |
 
 ## License
 
