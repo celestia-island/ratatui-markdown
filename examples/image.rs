@@ -492,17 +492,17 @@ fn main() -> anyhow::Result<()> {
                     .track_symbol(Some("│"))
                     .style(Style::default().fg(Color::DarkGray))
                     .thumb_style(Style::default().fg(Color::Cyan));
-                let max_pos = (doc_h as usize).saturating_sub(1);
-                let max_off = (doc_h as usize).saturating_sub(content_h as usize);
-                let thumb_pos = if max_off > 0 && max_pos > 0 {
-                    (state.scroll as u64 * max_pos as u64 / max_off as u64) as usize
-                } else {
-                    0
-                };
+                // Ratatui's internal thumb-size formula:
+                //   thumb = V * track / ((C-1) + V)
+                // We want: thumb = V * track / doc_h
+                // → set C = doc_h - V + 1, so denominator = doc_h
+                let ratatui_content_len = doc_h
+                    .saturating_sub(content_h)
+                    .saturating_add(1);
                 let mut sb_state = ScrollbarState::default()
-                    .content_length(doc_h as usize)
+                    .content_length(ratatui_content_len as usize)
                     .viewport_content_length(content_h as usize)
-                    .position(thumb_pos);
+                    .position(state.scroll as usize);
                 f.render_stateful_widget(sb, sb_area, &mut sb_state);
             }
 
