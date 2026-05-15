@@ -1420,4 +1420,87 @@ mod mermaid_render_tests {
         assert!(lines.len() <= 25, "should try to respect max_height, got {} lines", lines.len());
     Ok(())
     }
+
+    #[test]
+    fn mermaid_sequence_diagram_renders() {
+        let md = "```mermaid\nsequenceDiagram\n    Alice->>Bob: Hello\n    Bob-->>Alice: Hi\n```";
+        let lines = render_markdown(md, 80);
+        assert!(!lines.is_empty(), "sequence diagram should render");
+        let all_text: String = lines.iter()
+            .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
+            .collect::<Vec<&str>>()
+            .join("");
+        assert!(all_text.contains("Alice"), "should contain participant Alice");
+        assert!(all_text.contains("Bob"), "should contain participant Bob");
+        assert!(all_text.contains("Hello"), "should contain message text");
+    }
+
+    #[test]
+    fn mermaid_pie_chart_renders() {
+        let md = "```mermaid\npie title Pets\n    \"Dogs\" : 386\n    \"Cats\" : 85\n```";
+        let lines = render_markdown(md, 80);
+        assert!(!lines.is_empty(), "pie chart should render");
+        let all_text: String = lines.iter()
+            .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
+            .collect::<Vec<&str>>()
+            .join("");
+        assert!(all_text.contains("Pets"), "should contain title");
+        assert!(all_text.contains("Dogs"), "should contain slice label");
+        assert!(all_text.contains("Cats"), "should contain slice label");
+    }
+
+    #[test]
+    fn mermaid_gantt_chart_renders() {
+        let md = "```mermaid\ngantt\ntitle Project\nsection Phase 1\nTask A :a1, 7d\nTask B :a2, 5d\n```";
+        let lines = render_markdown(md, 80);
+        assert!(!lines.is_empty(), "gantt chart should render");
+        let all_text: String = lines.iter()
+            .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
+            .collect::<Vec<&str>>()
+            .join("");
+        assert!(all_text.contains("Project"), "should contain title");
+        assert!(all_text.contains("Task A"), "should contain task name");
+    }
+
+    #[test]
+    fn mermaid_state_diagram_renders() {
+        let md = "```mermaid\nstateDiagram-v2\n    [*] --> Idle\n    Idle --> Running\n    Running --> Idle\n```";
+        let lines = render_markdown(md, 80);
+        assert!(!lines.is_empty(), "state diagram should render");
+        let all_text: String = lines.iter()
+            .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
+            .collect::<Vec<&str>>()
+            .join("");
+        assert!(all_text.contains("Idle"), "should contain state name");
+        assert!(all_text.contains("Running"), "should contain state name");
+    }
+
+    #[test]
+    fn mermaid_diamond_uses_rounded_corners() -> anyhow::Result<()> {
+        let source = "graph TD\nA{Decision} --> B[Result]";
+        let result = crate::mermaid::render_mermaid(source, 80, None, &TestTheme);
+        assert!(result.is_some());
+        let lines = result.context("parse result")?;
+        let all_text: String = lines.iter()
+            .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
+            .collect::<Vec<&str>>()
+            .join("");
+        assert!(!all_text.contains('/'), "diamond should use rounded corners, not slashes");
+        assert!(all_text.contains("Decision"), "should contain diamond label");
+        Ok(())
+    }
+
+    #[test]
+    fn mermaid_no_dangling_cross_chars() -> anyhow::Result<()> {
+        let source = "graph TD\nA[Start] --> B[End]";
+        let result = crate::mermaid::render_mermaid(source, 80, None, &TestTheme);
+        assert!(result.is_some());
+        let lines = result.context("parse result")?;
+        let all_text: String = lines.iter()
+            .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
+            .collect::<Vec<&str>>()
+            .join("");
+        assert!(!all_text.contains('┼'), "should not have dangling cross characters");
+        Ok(())
+    }
 }
