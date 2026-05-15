@@ -27,61 +27,7 @@ use ratatui_markdown::{
 #[path = "_common/mod.rs"]
 mod common;
 
-struct Theme;
-
-impl RichTextTheme for Theme {
-    fn generation(&self) -> Generation {
-        Generation(1)
-    }
-    fn get_text_color(&self) -> Color {
-        Color::White
-    }
-    fn get_muted_text_color(&self) -> Color {
-        Color::DarkGray
-    }
-    fn get_primary_color(&self) -> Color {
-        Color::Cyan
-    }
-    fn get_secondary_color(&self) -> Color {
-        Color::Blue
-    }
-    fn get_info_color(&self) -> Color {
-        Color::LightBlue
-    }
-    fn get_background_color(&self) -> Color {
-        Color::Black
-    }
-    fn get_border_color(&self) -> Color {
-        Color::DarkGray
-    }
-    fn get_focused_border_color(&self) -> Color {
-        Color::White
-    }
-    fn get_popup_selected_background(&self) -> Color {
-        Color::DarkGray
-    }
-    fn get_popup_selected_text_color(&self) -> Color {
-        Color::White
-    }
-    fn get_json_key_color(&self) -> Color {
-        Color::LightCyan
-    }
-    fn get_json_string_color(&self) -> Color {
-        Color::Green
-    }
-    fn get_json_number_color(&self) -> Color {
-        Color::Yellow
-    }
-    fn get_json_bool_color(&self) -> Color {
-        Color::Magenta
-    }
-    fn get_json_null_color(&self) -> Color {
-        Color::DarkGray
-    }
-    fn get_accent_yellow(&self) -> Color {
-        Color::Yellow
-    }
-}
+use common::{Theme, lorem};
 
 fn fix_protocol_override(picker: &mut Picker) {
     use ratatui_image::picker::Capability;
@@ -120,7 +66,7 @@ fn rows_to_pixel_height(rows: u16, font_h: u16, proto: ProtocolType) -> u32 {
     (rows as f64 * height_divisor(font_h, proto)).ceil() as u32
 }
 
-const MARKDOWN: &str = r#"
+const MARKDOWN_TEMPLATE: &str = r#"
 # Image Rendering Example
 
 Images render via `ratatui-image` using the terminal's native
@@ -130,13 +76,19 @@ graphics protocol (kitty, iTerm2, sixels, or halfblocks).
 
 ![ratatui-markdown Logo](logo.webp)
 
+LOREM_3
+
 ## Demo Screenshot (loaded from disk)
 
 ![Demo Screenshot](demo.webp)
 
+LOREM_4
+
 ## Missing Image (fallback)
 
 ![Missing Image](nonexistent.webp)
+
+LOREM_3
 "#;
 
 struct ScaledImage {
@@ -366,7 +318,11 @@ fn main() -> anyhow::Result<()> {
         &picker,
     );
 
-    let (blocks, resolved) = renderer.parse_with_images(MARKDOWN, &mut resolver);
+    let md = MARKDOWN_TEMPLATE
+        .replace("LOREM_3", &lorem(150))
+        .replace("LOREM_4", &lorem(200));
+
+    let (blocks, resolved) = renderer.parse_with_images(&md, &mut resolver);
 
     let config: Vec<(u16, bool)> = vec![(3, true), (3, false), (2, false)];
     let mut scaled_images: Vec<ScaledImage> = Vec::new();

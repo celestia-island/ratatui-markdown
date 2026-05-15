@@ -1,7 +1,7 @@
 #[path = "_common/mod.rs"]
 mod common;
 
-use common::{AppState, Theme, draw_frame, poll_and_handle, setup_terminal, restore_terminal};
+use common::{AppState, Theme, draw_frame, lorem, poll_and_handle, setup_terminal, restore_terminal};
 use ratatui_markdown::{
     constants::{BRANCH_END_SP, BRANCH_MID_SP, VLINE},
     markdown::{MarkdownRenderer, RenderHooks},
@@ -84,49 +84,113 @@ impl RenderHooks for TreeListHooks {
     }
 }
 
-const MARKDOWN: &str = r#"
-## Project TODO
+fn capitalize(s: &str) -> String {
+    let mut c = s.chars();
+    match c.next() {
+        None => String::new(),
+        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+    }
+}
 
-- Setup project structure
-  - Initialize Cargo workspace with members for core and crates
-  - Add dependencies
-    - ratatui for terminal UI rendering and display management
-    - image crate for image support and protocol handling
-    - crossterm for crossplatform terminal event handling
-- Implement core features
-  - Parser
-    - Heading detection with nested component extraction logic
-    - Code block parsing with language-aware fence matching rules
-    - Image syntax for embedded visual content rendering pipeline
-  - Renderer
-    - Inline formatting with bold italic and code spans
-    - Code block borders using rounded box drawing characters
-    - Text wrapping engine that respects word boundaries and CJK width
-  - Hooks system
-    - RenderHooks trait for customizable list item markers and styling
-    - Theme hooks for dynamic color palette switching at runtime
-- Write tests
-  - Unit tests for parser edge cases and corner conditions
-  - Integration tests for full markdown document rendering pipeline
-  - Visual regression tests for tree layout and wrap behavior verification
-- Deploy to crates.io
-  - Write comprehensive documentation with usage examples
-  - Publish stable release with semver version bump
-  - Create GitHub Actions CI pipeline for automated testing across platforms
-- Community
-  - Write contributing guidelines and code of conduct
-  - Set up issue templates for bug reports and feature requests
-  - Create example gallery showcasing different rendering configurations
-  - Record screencast demos for README and documentation site
-"#;
+fn take(words: &[String], wi: &mut usize, n: usize) -> String {
+    let end = (*wi + n).min(words.len());
+    let phrase: Vec<&str> = words[*wi..end].iter().map(|s| s.as_str()).collect();
+    *wi = end;
+    phrase.join(" ")
+}
+
+fn build_list(items: &[(usize, String)], out: &mut String) {
+    for (indent, text) in items {
+        let spaces = "  ".repeat(*indent);
+        out.push_str(&format!("{}- {}\n", spaces, text));
+    }
+}
+
+fn generate_tree_markdown() -> String {
+    let raw = lipsum::lipsum(120);
+    let words: Vec<String> = raw.split_whitespace().map(|w| capitalize(w)).collect();
+    let mut wi = 0;
+
+    let mut t = |n: usize| -> String { take(&words, &mut wi, n) };
+
+    let mut md = String::from(
+        "# Tree-Style List Example\n\n\
+         This example demonstrates nested list rendering with tree-style\n\
+         branch connectors using `RenderHooks`.\n\n\
+         ## Project TODO\n\n",
+    );
+
+    build_list(&[
+        (0, format!("Setup project structure: {}", t(4))),
+        (1, format!("Initialize Cargo workspace: {}", t(3))),
+        (1, format!("Add core dependencies: {}", t(4))),
+        (2, t(5)),
+        (2, t(5)),
+        (2, t(5)),
+        (0, format!("Implement core features: {}", t(3))),
+        (1, format!("Parser module: {}", t(4))),
+        (2, t(6)),
+        (2, t(6)),
+        (2, t(6)),
+        (1, format!("Renderer module: {}", t(4))),
+        (2, t(6)),
+        (2, t(6)),
+        (2, t(6)),
+        (1, format!("Hooks system: {}", t(4))),
+        (2, t(5)),
+        (2, t(5)),
+        (0, format!("Write tests: {}", t(3))),
+        (1, t(6)),
+        (1, t(6)),
+        (1, t(6)),
+        (0, format!("Deploy to crates.io: {}", t(3))),
+        (1, t(5)),
+        (1, t(5)),
+        (1, t(5)),
+        (0, format!("Community building: {}", t(3))),
+        (1, t(5)),
+        (1, t(5)),
+        (1, t(5)),
+        (1, t(5)),
+        (0, format!("Documentation: {}", t(3))),
+        (1, t(5)),
+        (1, t(5)),
+        (1, t(5)),
+    ], &mut md);
+
+    md.push_str("\n## Background\n\n");
+    md.push_str(&lorem(200));
+    md.push_str("\n\n## Additional Notes\n\n");
+
+    let mut wi2 = 0;
+    let mut t2 = |n: usize| -> String { take(&words, &mut wi2, n) };
+
+    build_list(&[
+        (0, format!("Performance: {}", t2(4))),
+        (1, t2(6)),
+        (1, t2(6)),
+        (1, t2(6)),
+        (0, format!("Accessibility: {}", t2(4))),
+        (1, t2(6)),
+        (1, t2(6)),
+        (0, format!("Internationalization: {}", t2(3))),
+        (1, t2(5)),
+        (1, t2(5)),
+    ], &mut md);
+
+    md.push('\n');
+    md.push_str(&lorem(150));
+    md
+}
 
 fn main() -> anyhow::Result<()> {
     let mut terminal = setup_terminal()?;
 
+    let md = generate_tree_markdown();
     let theme = Theme;
     let renderer = MarkdownRenderer::new(76)
         .with_render_hooks(Box::new(TreeListHooks));
-    let blocks = renderer.parse(MARKDOWN);
+    let blocks = renderer.parse(&md);
     let lines = renderer.render(&blocks, &theme);
     let mut state = AppState::new(lines.len());
 
