@@ -1,51 +1,21 @@
+#[path = "utils/mod.rs"]
+mod common;
+
+use common::{AppState, Theme, draw_frame, poll_and_handle, setup_terminal, restore_terminal, lorem};
 use ratatui::{
-    backend::CrosstermBackend,
-    crossterm::{
-        event::{self, Event, KeyCode},
-        terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-    },
-    layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap},
-    Terminal,
 };
-use ratatui_markdown::{
-    markdown::MarkdownRenderer,
-    theme::{Generation, RichTextTheme},
-};
-use ratatui_markdown::markdown::RenderHooks;
-
-struct Theme;
-
-impl RichTextTheme for Theme {
-    fn generation(&self) -> Generation { Generation(1) }
-    fn get_text_color(&self) -> Color { Color::White }
-    fn get_muted_text_color(&self) -> Color { Color::DarkGray }
-    fn get_primary_color(&self) -> Color { Color::Cyan }
-    fn get_secondary_color(&self) -> Color { Color::Blue }
-    fn get_info_color(&self) -> Color { Color::LightBlue }
-    fn get_background_color(&self) -> Color { Color::Black }
-    fn get_border_color(&self) -> Color { Color::DarkGray }
-    fn get_focused_border_color(&self) -> Color { Color::White }
-    fn get_popup_selected_background(&self) -> Color { Color::DarkGray }
-    fn get_popup_selected_text_color(&self) -> Color { Color::White }
-    fn get_json_key_color(&self) -> Color { Color::LightCyan }
-    fn get_json_string_color(&self) -> Color { Color::Green }
-    fn get_json_number_color(&self) -> Color { Color::Yellow }
-    fn get_json_bool_color(&self) -> Color { Color::Magenta }
-    fn get_json_null_color(&self) -> Color { Color::DarkGray }
-    fn get_accent_yellow(&self) -> Color { Color::Yellow }
-}
+use ratatui_markdown::markdown::{MarkdownRenderer, RenderHooks};
 
 struct TimelineCodeHooks;
 
 impl RenderHooks for TimelineCodeHooks {
     fn code_block_header(&self, lang: &str) -> Option<Line<'static>> {
-        let timestamp = chrono_placeholder();
+        let timestamp = "12:00:00";
         Some(Line::from(vec![
             Span::styled(
-                format!("\u{256d} [{timestamp}] ", ),
+                format!("\u{256d} [{timestamp}] "),
                 Style::default().fg(Color::DarkGray),
             ),
             Span::styled(
@@ -57,34 +27,13 @@ impl RenderHooks for TimelineCodeHooks {
 
     fn code_block_footer(&self, _lang: &str, _content_line_count: usize) -> Option<Line<'static>> {
         Some(Line::from(vec![
-            Span::styled(
-                "\u{2570} ",
-                Style::default().fg(Color::DarkGray),
-            ),
-            Span::styled(
-                "\u{2191} ",
-                Style::default().fg(Color::Green),
-            ),
-            Span::styled(
-                "156 ",
-                Style::default().fg(Color::DarkGray),
-            ),
-            Span::styled(
-                "\u{2193} ",
-                Style::default().fg(Color::Red),
-            ),
-            Span::styled(
-                "234 ",
-                Style::default().fg(Color::DarkGray),
-            ),
-            Span::styled(
-                "\u{21c4} ",
-                Style::default().fg(Color::Yellow),
-            ),
-            Span::styled(
-                "1 23.5s",
-                Style::default().fg(Color::DarkGray),
-            ),
+            Span::styled("\u{2570} ", Style::default().fg(Color::DarkGray)),
+            Span::styled("\u{2191} ", Style::default().fg(Color::Green)),
+            Span::styled("156 ", Style::default().fg(Color::DarkGray)),
+            Span::styled("\u{2193} ", Style::default().fg(Color::Red)),
+            Span::styled("234 ", Style::default().fg(Color::DarkGray)),
+            Span::styled("\u{21c4} ", Style::default().fg(Color::Yellow)),
+            Span::styled("1 23.5s", Style::default().fg(Color::DarkGray)),
         ]))
     }
 
@@ -93,11 +42,7 @@ impl RenderHooks for TimelineCodeHooks {
     }
 }
 
-fn chrono_placeholder() -> String {
-    "12:00:00".to_string()
-}
-
-const MARKDOWN: &str = r#"
+const MARKDOWN_TEMPLATE: &str = r#"
 # Timeline View
 
 This example shows customized code block rendering with extra content
@@ -112,76 +57,73 @@ println!("{}", content);
 ```
 
 The header shows a timestamp and tool name, while the footer
-displays token usage statistics: ↑ output ↓ input ⇄ roundtrips duration.
+displays token usage statistics: \u{2191} output \u{2193} input \u{21c4} roundtrips duration.
 
-## Another Block
+## Analysis Block
 
 ```python skill::analyze
 def analyze(data):
+    results = []
     for item in data:
-        yield process(item)
+        processed = transform(item)
+        results.append(processed)
+    return aggregate(results)
 ```
 
-Press `q` to quit.
+LOREM_3
+
+## Build Step
+
+```bash skill::build
+cargo build --release
+echo "Build complete"
+cp target/release/app /opt/bin/
+```
+
+LOREM_2
+
+## Another Block
+
+```javascript skill::render
+function render(components) {
+  return components
+    .map(c => c.toString())
+    .join('\n');
+}
+```
+
+LOREM_3
 "#;
 
 fn main() -> anyhow::Result<()> {
-    enable_raw_mode()?;
-    let mut stdout = std::io::stdout();
-    crossterm::execute!(stdout, EnterAlternateScreen)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
+    let mut terminal = setup_terminal()?;
+
+    let md = MARKDOWN_TEMPLATE
+        .replace("LOREM_2", &lorem(100))
+        .replace("LOREM_3", &lorem(150));
 
     let theme = Theme;
     let renderer = MarkdownRenderer::new(76)
         .with_render_hooks(Box::new(TimelineCodeHooks));
-    let blocks = renderer.parse(MARKDOWN);
+    let blocks = renderer.parse(&md);
     let lines = renderer.render(&blocks, &theme);
+    let mut state = AppState::new(lines.len());
 
     loop {
         terminal.draw(|f| {
-            let area = f.area();
-            let inner = Rect::new(
-                area.x + 1, area.y + 1,
-                area.width.saturating_sub(2), area.height.saturating_sub(2),
+            draw_frame(
+                f,
+                "Custom Code Block",
+                &lines,
+                &mut state,
+                "\u{2191}\u{2193}/jk scroll \u{00b7} PgUp/PgDn \u{00b7} Home/End \u{00b7} q quit",
             );
-            let paragraph = Paragraph::new(lines.clone())
-                .block(Block::default().borders(Borders::ALL).title(" Custom Code Block Example "))
-                .wrap(Wrap { trim: false });
-            f.render_widget(paragraph, inner);
-
-            let content_h = inner.height.saturating_sub(2);
-            let total = lines.len();
-            if total > content_h as usize && content_h > 0 {
-                let sb_area = Rect::new(
-                    inner.x + inner.width.saturating_sub(1),
-                    inner.y + 1,
-                    1,
-                    content_h,
-                );
-                let sb = Scrollbar::default()
-                    .orientation(ScrollbarOrientation::VerticalRight)
-                    .thumb_symbol("█")
-                    .track_symbol(Some("│"))
-                    .style(Style::default().fg(Color::DarkGray))
-                    .thumb_style(Style::default().fg(Color::Cyan));
-                let mut sb_state = ScrollbarState::default()
-                    .content_length(total)
-                    .viewport_content_length(content_h as usize);
-                f.render_stateful_widget(sb, sb_area, &mut sb_state);
-            }
         })?;
-
-        if event::poll(std::time::Duration::from_millis(100))? {
-            if let Event::Key(key) = event::read()? {
-                if key.code == KeyCode::Char('q') {
-                    break;
-                }
-            }
+        if poll_and_handle(&mut state)? {
+            break;
         }
     }
 
-    disable_raw_mode()?;
-    crossterm::execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+    restore_terminal(&mut terminal)?;
     Ok(())
 }

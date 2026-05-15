@@ -72,3 +72,51 @@ impl MermaidDiagram {
         });
     }
 }
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SequenceDiagram {
+    pub participants: Vec<String>,
+    pub messages: Vec<SequenceMessage>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SequenceMessage {
+    pub from: String,
+    pub to: String,
+    pub text: String,
+    pub arrow_kind: SeqArrowKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SeqArrowKind {
+    Solid,
+    Dotted,
+    SolidOpen,
+    DottedOpen,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PieChart {
+    pub title: Option<String>,
+    pub slices: Vec<(String, f64)>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct GanttChart {
+    pub title: Option<String>,
+    pub sections: Vec<GanttSection>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct GanttSection {
+    pub name: String,
+    pub tasks: Vec<GanttTask>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct GanttTask {
+    pub name: String,
+    pub id: Option<String>,
+    pub deps: Vec<String>,
+    pub duration: Option<String>,
+}

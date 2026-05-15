@@ -275,8 +275,9 @@ impl MarkdownRenderer {
                 footer_override,
                 prefix_override,
             } => {
+                let code = code.replace('\t', "    ");
                 if let Some(h) = hooks {
-                    if let Some(custom) = h.render_code_block(lang, code) {
+                    if let Some(custom) = h.render_code_block(lang, &code) {
                         lines.extend(custom);
                         return;
                     }
@@ -285,14 +286,36 @@ impl MarkdownRenderer {
                 if lang == LANG_MERMAID {
                     #[cfg(feature = "mermaid")]
                     {
+                        let mermaid_width = self.max_width.saturating_sub(2);
                         let rendered = crate::mermaid::render_mermaid(
-                            code,
-                            self.max_width,
+                            &code,
+                            mermaid_width,
                             None,
                             theme,
                         );
                         if let Some(mermaid_lines) = rendered {
-                            lines.extend(mermaid_lines);
+                            let border_style =
+                                Style::default().fg(theme.get_muted_text_color());
+
+                            lines.push(Line::from(Span::styled(
+                                format!("{ROUNDED_TL}{HLINE} mermaid"),
+                                border_style,
+                            )));
+
+                            let prefix = format!("{VLINE} ");
+                            for ml in mermaid_lines {
+                                let mut spans: Vec<Span<'static>> = vec![Span::styled(
+                                    prefix.clone(),
+                                    border_style,
+                                )];
+                                spans.extend(ml.spans);
+                                lines.push(Line::from(spans));
+                            }
+
+                            lines.push(Line::from(Span::styled(
+                                format!("{ROUNDED_BL}{HLINE}"),
+                                border_style,
+                            )));
                             return;
                         }
                     }
@@ -384,9 +407,32 @@ impl MarkdownRenderer {
                                 lines.push(cline);
                             }
                         } else {
-                            let wrapped =
-                                self.wrap_text_with_inline_formatting(&format!("{marker_str}{text}"), theme);
-                            lines.extend(wrapped);
+                            let marker_width = Self::string_width(&marker_str);
+                            let cont_indent = h
+                                .tree_continuation_prefix(*indent, &ancestors_are_last)
+                                .unwrap_or_else(|| " ".repeat(marker_width));
+                            let content_width = self.max_width.saturating_sub(marker_width);
+                            let wrapped = if content_width > 0 {
+                                let mut text_lines = Vec::new();
+                                for text_line in text.split('\n') {
+                                    let spans = parse_inline_formatting(text_line, theme);
+                                    let wrapped_spans = Self::wrap_styled_spans_to_width(spans, content_width);
+                                    text_lines.extend(wrapped_spans);
+                                }
+                                text_lines
+                            } else {
+                                vec![parse_inline_formatting(text, theme)]
+                            };
+                            for (i, span_line) in wrapped.into_iter().enumerate() {
+                                let prefix = if i == 0 {
+                                    Span::raw(marker_str.clone())
+                                } else {
+                                    Span::raw(cont_indent.clone())
+                                };
+                                let mut new_spans = vec![prefix];
+                                new_spans.extend(span_line);
+                                lines.push(Line::from(new_spans));
+                            }
                         }
                         return;
                     }
@@ -480,11 +526,18 @@ impl MarkdownRenderer {
         block_idx: usize,
         blocks: &[MarkdownBlock],
     ) -> (bool, Vec<bool>, usize) {
-        let items: Vec<(usize, u8)> = blocks
+        let group_start = (0..=block_idx).rev().find(|&i| {
+            !matches!(blocks.get(i), Some(MarkdownBlock::ListItem(_, _)))
+        }).map(|i| i + 1).unwrap_or(0);
+        let group_end = (block_idx..blocks.len()).find(|&i| {
+            !matches!(blocks.get(i), Some(MarkdownBlock::ListItem(_, _)))
+        }).unwrap_or(blocks.len());
+
+        let items: Vec<(usize, u8)> = blocks[group_start..group_end]
             .iter()
             .enumerate()
             .filter_map(|(i, b)| match b {
-                MarkdownBlock::ListItem(_, indent) => Some((i, *indent)),
+                MarkdownBlock::ListItem(_, indent) => Some((group_start + i, *indent)),
                 _ => None,
             })
             .collect();
@@ -520,7 +573,7 @@ impl MarkdownRenderer {
     fn default_code_block_header(&self, lang: &str, theme: &impl RichTextTheme) -> Line<'static> {
         if !lang.is_empty() {
             Line::from(Span::styled(
-                format!("{ROUNDED_TL}{HLINE} {} {HLINE}", lang),
+                format!("{ROUNDED_TL}{HLINE} {}", lang),
                 Style::default().fg(theme.get_muted_text_color()),
             ))
         } else {

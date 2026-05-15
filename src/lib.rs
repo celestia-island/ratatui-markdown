@@ -145,6 +145,8 @@
 pub mod mermaid;
 
 pub mod constants;
+#[cfg(feature = "highlight")]
+pub mod highlight;
 #[cfg(feature = "markdown")]
 pub mod markdown;
 #[cfg(feature = "preview")]
@@ -154,5 +156,7 @@ pub mod scroll;
 pub mod theme;
 #[cfg(feature = "tree")]
 pub mod tree;
+#[cfg(feature = "viewer")]
+pub mod viewer;
 
-pub use theme::RichTextTheme;
+pub use theme::{DefaultTheme, RichTextTheme};

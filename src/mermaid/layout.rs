@@ -162,6 +162,8 @@ pub fn compute_layout(
         .max()
         .unwrap_or(0);
 
+    let grid_w = grid_w.min(max_width);
+
     Layout {
         nodes: layout_nodes,
         edges: layout_edges,

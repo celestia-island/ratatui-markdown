@@ -9,7 +9,7 @@ use ratatui::{
     style::{Color, Style},
     text::{Line, Span},
     widgets::{
-        Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
+        Block, Borders, Padding, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
     },
     Terminal,
 };
@@ -21,30 +21,12 @@ use ratatui_image::{
 };
 use ratatui_markdown::{
     markdown::{ImageResolver, MarkdownRenderer},
-    theme::{Generation, RichTextTheme},
 };
 
-struct Theme;
+#[path = "utils/mod.rs"]
+mod common;
 
-impl RichTextTheme for Theme {
-    fn generation(&self) -> Generation { Generation(1) }
-    fn get_text_color(&self) -> Color { Color::White }
-    fn get_muted_text_color(&self) -> Color { Color::DarkGray }
-    fn get_primary_color(&self) -> Color { Color::Cyan }
-    fn get_secondary_color(&self) -> Color { Color::Blue }
-    fn get_info_color(&self) -> Color { Color::LightBlue }
-    fn get_background_color(&self) -> Color { Color::Black }
-    fn get_border_color(&self) -> Color { Color::DarkGray }
-    fn get_focused_border_color(&self) -> Color { Color::White }
-    fn get_popup_selected_background(&self) -> Color { Color::DarkGray }
-    fn get_popup_selected_text_color(&self) -> Color { Color::White }
-    fn get_json_key_color(&self) -> Color { Color::LightCyan }
-    fn get_json_string_color(&self) -> Color { Color::Green }
-    fn get_json_number_color(&self) -> Color { Color::Yellow }
-    fn get_json_bool_color(&self) -> Color { Color::Magenta }
-    fn get_json_null_color(&self) -> Color { Color::DarkGray }
-    fn get_accent_yellow(&self) -> Color { Color::Yellow }
-}
+use common::{Theme, lorem};
 
 fn fix_protocol_override(picker: &mut Picker) {
     use ratatui_image::picker::Capability;
@@ -56,7 +38,11 @@ fn fix_protocol_override(picker: &mut Picker) {
 
 fn safe_font_size(picker: &Picker) -> (u16, u16) {
     let (fw, fh) = picker.font_size();
-    if fw == 0 || fh == 0 { (8, 16) } else { (fw, fh) }
+    if fw == 0 || fh == 0 {
+        (8, 16)
+    } else {
+        (fw, fh)
+    }
 }
 
 fn height_divisor(font_h: u16, proto: ProtocolType) -> f64 {
@@ -79,7 +65,7 @@ fn rows_to_pixel_height(rows: u16, font_h: u16, proto: ProtocolType) -> u32 {
     (rows as f64 * height_divisor(font_h, proto)).ceil() as u32
 }
 
-const MARKDOWN: &str = r#"
+const MARKDOWN_TEMPLATE: &str = r#"
 # Image Rendering Example
 
 Images render via `ratatui-image` using the terminal's native
@@ -93,12 +79,13 @@ graphics protocol (kitty, iTerm2, sixels, or halfblocks).
 
 ![Demo Screenshot](demo.webp)
 
+LOREM_4
+
 ## Missing Image (fallback)
 
 ![Missing Image](nonexistent.webp)
 
-`k` / `j` — grow / shrink demo image   `↑↓` / mouse — scroll document
-`q` — quit
+LOREM_3
 "#;
 
 struct ScaledImage {
@@ -132,7 +119,8 @@ impl ScaledImage {
             (ratio / height_divisor(font_h, proto)).ceil() as u16
         } else {
             nat_ch
-        }.max(1);
+        }
+        .max(1);
 
         let rows = initial_rows.max(1);
         let mut s = Self {
@@ -167,7 +155,9 @@ impl ScaledImage {
         let sw = ((pw as f64 * scale).ceil() as u32).max(1);
         let sh = ((ph as f64 * scale).ceil() as u32).max(1);
 
-        self.scaled = self.original.resize_exact(sw, sh, image::imageops::FilterType::Triangle);
+        self.scaled = self
+            .original
+            .resize_exact(sw, sh, image::imageops::FilterType::Triangle);
         self.dirty = true;
     }
 
@@ -182,11 +172,19 @@ impl ScaledImage {
     }
 
     fn cell_size(&self, font_w: u16, font_h: u16, proto: ProtocolType) -> (u16, u16) {
-        pixel_to_cell(self.scaled.width(), self.scaled.height(), font_w, font_h, proto)
+        pixel_to_cell(
+            self.scaled.width(),
+            self.scaled.height(),
+            font_w,
+            font_h,
+            proto,
+        )
     }
 
     fn display_percent(&self) -> f64 {
-        if self.natural_rows == 0 { return 100.0; }
+        if self.natural_rows == 0 {
+            return 100.0;
+        }
         self.target_rows as f64 / self.natural_rows as f64 * 100.0
     }
 }
@@ -222,7 +220,13 @@ impl ImageResolver for FsImageResolver {
         max_width: u16,
         max_height: u16,
     ) -> (u16, u16) {
-        let (cw, ch) = pixel_to_cell(img.width(), img.height(), self.font_w, self.font_h, self.protocol_type);
+        let (cw, ch) = pixel_to_cell(
+            img.width(),
+            img.height(),
+            self.font_w,
+            self.font_h,
+            self.protocol_type,
+        );
         let w = cw.min(max_width);
         let h = if w < cw {
             let ratio = img.height() as f64 * w as f64 / (img.width() as f64).max(1.0);
@@ -236,7 +240,10 @@ impl ImageResolver for FsImageResolver {
 
     fn fallback(&self, path: &str, alt: &str) -> ratatui::text::Span<'static> {
         let label = if alt.is_empty() { path } else { alt };
-        Span::styled(format!("[no image: {label}]"), Style::default().italic().fg(Color::Gray))
+        Span::styled(
+            format!("[no image: {label}]"),
+            Style::default().italic().fg(Color::Gray),
+        )
     }
 }
 
@@ -262,11 +269,9 @@ impl AppState {
             .resolved_paths
             .iter()
             .zip(self.scaled_images.iter())
-            .map(|(path, si)| {
-                ratatui_markdown::markdown::image::ResolvedImage {
-                    path: path.clone(),
-                    image: si.scaled.clone(),
-                }
+            .map(|(path, si)| ratatui_markdown::markdown::image::ResolvedImage {
+                path: path.clone(),
+                image: si.scaled.clone(),
             })
             .collect();
         self.renderer.render_full(
@@ -282,7 +287,11 @@ impl AppState {
 
 fn main() -> anyhow::Result<()> {
     enable_raw_mode()?;
-    crossterm::execute!(std::io::stdout(), EnterAlternateScreen, event::EnableMouseCapture)?;
+    crossterm::execute!(
+        std::io::stdout(),
+        EnterAlternateScreen,
+        event::EnableMouseCapture
+    )?;
     let backend = CrosstermBackend::new(std::io::stdout());
     let mut terminal = Terminal::new(backend)?;
 
@@ -291,7 +300,10 @@ fn main() -> anyhow::Result<()> {
     let renderer = MarkdownRenderer::new(76);
 
     let picker = match Picker::from_query_stdio() {
-        Ok(mut p) => { fix_protocol_override(&mut p); p }
+        Ok(mut p) => {
+            fix_protocol_override(&mut p);
+            p
+        }
         Err(_) => Picker::halfblocks(),
     };
 
@@ -303,10 +315,13 @@ fn main() -> anyhow::Result<()> {
         &picker,
     );
 
-    let (blocks, resolved) = renderer.parse_with_images(MARKDOWN, &mut resolver);
+    let md = MARKDOWN_TEMPLATE
+        .replace("LOREM_3", &lorem(150))
+        .replace("LOREM_4", &lorem(200));
 
-    // Logo: frozen at 3 rows.  Demo: starts at 3 rows, zoomable.  Missing: 2 rows.
-    let config: Vec<(u16, bool)> = vec![(3, true), (3, false), (2, false)];
+    let (blocks, resolved) = renderer.parse_with_images(&md, &mut resolver);
+
+    let config: Vec<(u16, bool)> = vec![(3, true), (16, false), (2, false)];
     let mut scaled_images: Vec<ScaledImage> = Vec::new();
     for (i, ri) in resolved.iter().enumerate() {
         let (rows, frozen) = config.get(i).copied().unwrap_or((3, false));
@@ -342,28 +357,27 @@ fn main() -> anyhow::Result<()> {
 
         terminal.draw(|f| {
             let area = f.area();
-            let pad_t: u16 = 1;
-            let pad_b: u16 = 2;
-            let pad_l: u16 = 1;
-            let pad_r: u16 = 2;
-            let inner = Rect::new(
-                area.x + pad_l,
-                area.y + pad_t,
-                area.width.saturating_sub(pad_l + pad_r),
-                area.height.saturating_sub(pad_t + pad_b),
+            let block_area = Rect::new(
+                area.x,
+                area.y,
+                area.width,
+                area.height.saturating_sub(1),
             );
 
-            let text_top = inner.y + 1;
-            let text_bot = inner.y + inner.height.saturating_sub(2);
-            let text_left = inner.x + 1;
-            let sb_col = inner.x + inner.width.saturating_sub(1);
-            let text_right = sb_col.saturating_sub(1);
-            let content_w = text_right.saturating_sub(text_left);
-            let content_h = text_bot.saturating_sub(text_top).saturating_add(1);
+            let block = Block::default()
+                .borders(Borders::ALL)
+                .title(" Image Viewer ")
+                .padding(Padding::new(1, 1, 0, 0));
 
-            // Compute total document height (text lines + image extensions)
+            let inner = block.inner(block_area);
+            let text_top = inner.y;
+            let text_bot = inner.y + inner.height.saturating_sub(1);
+            let text_left = inner.x;
+            let sb_col = block_area.x + block_area.width.saturating_sub(1);
+            let content_w = inner.width;
+            let content_h = inner.height;
+
             let mut doc_h = output.lines.len() as u16;
-            // Verify image placements don't exceed text lines
             for (i, placement) in output.images.iter().enumerate() {
                 let si = match state.scaled_images.get(i) {
                     Some(s) if !s.failed => s,
@@ -372,15 +386,6 @@ fn main() -> anyhow::Result<()> {
                 let (_img_w, img_h) = si.cell_size(state.font_w, state.font_h, state.proto);
                 let img_end = placement.row as u16 + img_h;
                 if img_end > doc_h {
-                    use std::io::Write;
-                    if let Ok(mut f) = std::fs::OpenOptions::new()
-                        .append(true).create(true).open("/tmp/image_debug.log")
-                    {
-                        let _ = writeln!(f, "OVERFLOW img[{i}] row={} h_cells={} img_h={} doc_h={} content_h={content_h} target_rows={} zoom={} pw={} ph={}",
-                            placement.row, placement.height_cells, img_h, doc_h,
-                            si.target_rows, si.display_percent(),
-                            si.scaled.width(), si.scaled.height());
-                    }
                     doc_h = img_end;
                 }
             }
@@ -389,20 +394,13 @@ fn main() -> anyhow::Result<()> {
                 state.scroll = max_scroll;
             }
 
-            // Render text with document scroll
             f.render_widget(
                 Paragraph::new(output.lines.clone())
-                    .block(
-                        Block::default()
-                            .borders(Borders::ALL)
-                            .title(" Image Viewer "),
-                    )
-                    .wrap(ratatui::widgets::Wrap { trim: false })
+                    .block(block)
                     .scroll((state.scroll, 0)),
-                inner,
+                block_area,
             );
 
-            // Render images, offset by scroll
             for (i, placement) in output.images.iter().enumerate() {
                 let si = match state.scaled_images.get_mut(i) {
                     Some(s) if !s.failed => s,
@@ -410,55 +408,75 @@ fn main() -> anyhow::Result<()> {
                 };
 
                 let (img_w, img_h) = si.cell_size(state.font_w, state.font_h, state.proto);
-                if img_h < 1 || img_w < 1 { continue; }
-
-                let abs_y = text_top + placement.row as u16;
-                let base_y = abs_y.saturating_sub(state.scroll);
-                let img_x = text_left;
-
-                // Skip if fully scrolled out of view (above or below)
-                let img_bottom = base_y.saturating_add(img_h).saturating_sub(1);
-                if img_bottom < text_top || base_y > text_bot {
+                if img_h < 1 || img_w < 1 {
                     continue;
                 }
 
-                // Compute visible portion of the image
-                let visible_top = base_y.max(text_top);
-                let visible_bot = (base_y + img_h).min(text_bot.saturating_add(1));
-                let vis_h = visible_bot.saturating_sub(visible_top);
+                // Image rect in screen coordinates (i32 so negatives = above/left of viewport)
+                let img_l = text_left as i32;
+                let img_t = text_top as i32 + placement.row as i32 - state.scroll as i32;
+                let img_r = img_l + img_w as i32 - 1;
+                let img_b = img_t + img_h as i32 - 1;
 
-                let render_w = img_w.min(content_w);
+                // Viewport rect
+                let vp_l = text_left as i32;
+                let vp_t = text_top as i32;
+                let vp_r = (text_left as i32 + content_w as i32 - 1).max(vp_l);
+                let vp_b = text_bot as i32;
+
+                // Skip if no overlap at all
+                if img_r < vp_l || img_l > vp_r || img_b < vp_t || img_t > vp_b {
+                    continue;
+                }
+
+                // Clipped rect = intersection of image and viewport
+                let clip_l = img_l.max(vp_l);
+                let clip_t = img_t.max(vp_t);
+                let clip_r = img_r.min(vp_r);
+                let clip_b = img_b.min(vp_b);
+
+                let vis_w = (clip_r - clip_l + 1) as u16;
+                let vis_h = (clip_b - clip_t + 1) as u16;
+
+                // Cells cropped from each edge of the image
+                let crop_cells_l = (clip_l - img_l) as u32;
+                let crop_cells_t = (clip_t - img_t) as u32;
+                let crop_cells_r = (img_r - clip_r) as u32;
+                let crop_cells_b = (img_b - clip_b) as u32;
+
+                let fw = state.font_w as u32;
+                let fh = state.font_h as u32;
+                let total_px_w = si.scaled.width();
+                let total_px_h = si.scaled.height();
 
                 if si.dirty || si.protocol.is_none() {
-                    // Crop: top (image scrolled above viewport)
-                    let crop_y = if base_y < text_top {
-                        ((text_top - base_y) as u32 * state.font_h as u32)
-                            .min(si.scaled.height().saturating_sub(1))
-                    } else {
-                        0
-                    };
-                    // Crop: bottom (image extends below viewport)
-                    let crop_px_h = (vis_h as u32 * state.font_h as u32)
-                        .min(si.scaled.height().saturating_sub(crop_y));
-                    // Crop: right (image wider than render area)
-                    let crop_px_w = (render_w as u32 * state.font_w as u32)
-                        .min(si.scaled.width());
+                    let crop_px_x = crop_cells_l * fw;
+                    let crop_px_y = crop_cells_t * fh;
+                    let crop_px_w = total_px_w
+                        .saturating_sub(crop_cells_l * fw)
+                        .saturating_sub(crop_cells_r * fw)
+                        .max(1);
+                    let crop_px_h = total_px_h
+                        .saturating_sub(crop_cells_t * fh)
+                        .saturating_sub(crop_cells_b * fh)
+                        .max(1);
 
-                    let img_for_proto = if crop_y > 0
-                        || crop_px_w < si.scaled.width()
-                        || crop_px_h < si.scaled.height()
-                    {
-                        si.scaled.crop_imm(0, crop_y, crop_px_w, crop_px_h.max(1))
+                    let need_crop = crop_cells_l > 0
+                        || crop_cells_t > 0
+                        || crop_cells_r > 0
+                        || crop_cells_b > 0;
+
+                    let img_for_proto = if need_crop {
+                        si.scaled.crop_imm(crop_px_x, crop_px_y, crop_px_w, crop_px_h)
                     } else {
                         si.scaled.clone()
                     };
 
-                    let rect_for_proto = Rect::new(0, 0, render_w, vis_h);
-                    match state.picker.new_protocol(
-                        img_for_proto,
-                        rect_for_proto,
-                        Resize::Fit(None),
-                    ) {
+                    let rect_for_proto = Rect::new(0, 0, vis_w, vis_h);
+                    match state
+                        .picker
+                        .new_protocol(img_for_proto, rect_for_proto, Resize::Fit(None))
+                    {
                         Ok(proto) => si.protocol = Some(proto),
                         Err(_) => {
                             si.failed = true;
@@ -472,7 +490,7 @@ fn main() -> anyhow::Result<()> {
                     Some(p) => p,
                     None => continue,
                 };
-                let rect = Rect::new(img_x, visible_top, render_w, vis_h);
+                let rect = Rect::new(clip_l as u16, clip_t as u16, vis_w, vis_h);
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     let widget = Image::new(proto_ref);
                     f.render_widget(widget, rect);
@@ -483,22 +501,16 @@ fn main() -> anyhow::Result<()> {
                 }
             }
 
-            // Vertical scrollbar
             if doc_h > content_h && content_h > 0 {
-                let sb_area = Rect::new(sb_col, text_top, 1, content_h);
+                let sb_area = Rect::new(sb_col, inner.y, 1, content_h);
+                let ratatui_content_len =
+                    doc_h.saturating_sub(content_h).saturating_add(1);
                 let sb = Scrollbar::default()
                     .orientation(ScrollbarOrientation::VerticalRight)
                     .thumb_symbol("█")
                     .track_symbol(Some("│"))
                     .style(Style::default().fg(Color::DarkGray))
                     .thumb_style(Style::default().fg(Color::Cyan));
-                // Ratatui's internal thumb-size formula:
-                //   thumb = V * track / ((C-1) + V)
-                // We want: thumb = V * track / doc_h
-                // → set C = doc_h - V + 1, so denominator = doc_h
-                let ratatui_content_len = doc_h
-                    .saturating_sub(content_h)
-                    .saturating_add(1);
                 let mut sb_state = ScrollbarState::default()
                     .content_length(ratatui_content_len as usize)
                     .viewport_content_length(content_h as usize)
@@ -506,29 +518,27 @@ fn main() -> anyhow::Result<()> {
                 f.render_stateful_widget(sb, sb_area, &mut sb_state);
             }
 
-            // Info bar
-            let demo_si = state.scaled_images.iter().find(|si| !si.frozen && !si.failed);
+            let demo_si = state
+                .scaled_images
+                .iter()
+                .find(|si| !si.frozen && !si.failed);
             let info = match demo_si {
                 Some(si) => {
                     let pct = si.display_percent();
                     format!(
-                        "demo {} rows ({:.0}%) | k/j zoom | ↑↓ scroll | q quit",
+                        " demo {} rows ({:.0}%) \u{00b7} k/j zoom \u{00b7} \u{2191}\u{2193} scroll \u{00b7} q quit",
                         si.target_rows, pct,
                     )
                 }
-                None => "no zoomable image | q quit".into(),
+                None => " \u{2191}\u{2193} scroll \u{00b7} q quit".into(),
             };
+            let info_area = Rect::new(area.x, area.height.saturating_sub(1), area.width, 1);
             f.render_widget(
-                Paragraph::new(vec![Line::from(vec![Span::styled(
+                Paragraph::new(vec![Line::from(Span::styled(
                     info,
                     Style::default().fg(Color::DarkGray),
-                )])]),
-                Rect::new(
-                    area.x + 1,
-                    area.height.saturating_sub(1),
-                    area.width.saturating_sub(2),
-                    1,
-                ),
+                ))]),
+                info_area,
             );
         })?;
 
@@ -538,7 +548,9 @@ fn main() -> anyhow::Result<()> {
                     KeyCode::Char('q') => break,
                     KeyCode::Char('k') => {
                         for si in state.scaled_images.iter_mut() {
-                            if si.failed || si.frozen { continue; }
+                            if si.failed || si.frozen {
+                                continue;
+                            }
                             si.grow(state.font_w, state.font_h, state.proto, state.max_w);
                             state.need_rerender = true;
                             break;
@@ -546,7 +558,9 @@ fn main() -> anyhow::Result<()> {
                     }
                     KeyCode::Char('j') => {
                         for si in state.scaled_images.iter_mut() {
-                            if si.failed || si.frozen { continue; }
+                            if si.failed || si.frozen {
+                                continue;
+                            }
                             si.shrink(state.font_w, state.font_h, state.proto, state.max_w);
                             state.need_rerender = true;
                             break;
@@ -555,28 +569,70 @@ fn main() -> anyhow::Result<()> {
                     KeyCode::Up => {
                         state.scroll = state.scroll.saturating_sub(1);
                         for si in state.scaled_images.iter_mut() {
-                            if !si.failed { si.dirty = true; }
+                            if !si.failed {
+                                si.dirty = true;
+                            }
                         }
                     }
                     KeyCode::Down => {
                         state.scroll = state.scroll.saturating_add(1);
                         for si in state.scaled_images.iter_mut() {
-                            if !si.failed { si.dirty = true; }
+                            if !si.failed {
+                                si.dirty = true;
+                            }
+                        }
+                    }
+                    KeyCode::PageUp => {
+                        let content_h = terminal.get_frame().area().height.saturating_sub(3);
+                        state.scroll = state.scroll.saturating_sub(content_h.max(1));
+                        for si in state.scaled_images.iter_mut() {
+                            if !si.failed {
+                                si.dirty = true;
+                            }
+                        }
+                    }
+                    KeyCode::PageDown => {
+                        let content_h = terminal.get_frame().area().height.saturating_sub(3);
+                        state.scroll = state.scroll.saturating_add(content_h.max(1));
+                        for si in state.scaled_images.iter_mut() {
+                            if !si.failed {
+                                si.dirty = true;
+                            }
+                        }
+                    }
+                    KeyCode::Home => {
+                        state.scroll = 0;
+                        for si in state.scaled_images.iter_mut() {
+                            if !si.failed {
+                                si.dirty = true;
+                            }
+                        }
+                    }
+                    KeyCode::End => {
+                        state.scroll = u16::MAX;
+                        for si in state.scaled_images.iter_mut() {
+                            if !si.failed {
+                                si.dirty = true;
+                            }
                         }
                     }
                     _ => {}
                 },
                 Event::Mouse(mouse) => match mouse.kind {
                     MouseEventKind::ScrollUp => {
-                        state.scroll = state.scroll.saturating_sub(1);
+                        state.scroll = state.scroll.saturating_sub(3);
                         for si in state.scaled_images.iter_mut() {
-                            if !si.failed { si.dirty = true; }
+                            if !si.failed {
+                                si.dirty = true;
+                            }
                         }
                     }
                     MouseEventKind::ScrollDown => {
-                        state.scroll = state.scroll.saturating_add(1);
+                        state.scroll = state.scroll.saturating_add(3);
                         for si in state.scaled_images.iter_mut() {
-                            if !si.failed { si.dirty = true; }
+                            if !si.failed {
+                                si.dirty = true;
+                            }
                         }
                     }
                     _ => {}

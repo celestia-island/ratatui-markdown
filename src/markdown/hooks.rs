@@ -62,11 +62,29 @@ pub trait RenderHooks: Send + Sync {
         None
     }
 
-    fn tree_indent_width(&self) -> Option<usize> {
+    /// 每级树形缩进的字符总宽度（含延续线/空白）。
+    /// 返回 `None` 表示不启用树形列表渲染。
+    ///
+    /// 内部约定：
+    /// - 延续线 = `│` + (unit - 1) 个空格
+    /// - 空白填充 = unit 个空格
+    /// - 连接符 = `├─ ` / `└─ `（固定 3 字符，不含在此值内）
+    ///
+    /// 例如：
+    /// - `Some(3)` → 紧凑：`│  ├─ `（每级差 3 列）
+    /// - `Some(4)` → 宽松：`│   ├─ `（每级差 4 列）
+    fn tree_indent_unit(&self) -> Option<usize> {
         None
     }
 
-    fn tree_text_gap(&self) -> Option<usize> {
+    /// 换行续行的前缀（保留祖先层级的 `│` 延续线）。
+    /// 参数与 `list_item_marker` 相同，返回值用于文本换行后的第 2 行及之后。
+    /// 返回 `None` 时渲染器回退到等宽纯空格。
+    fn tree_continuation_prefix(
+        &self,
+        _indent: u8,
+        _ancestors_are_last: &[bool],
+    ) -> Option<String> {
         None
     }
 

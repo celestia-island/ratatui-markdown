@@ -62,6 +62,11 @@ pub const HEAVY_BR: &str = "┛";
 pub const BRANCH_MID: &str = "├─";
 /// └─ 末项子节点 / 组头（上右角）
 pub const BRANCH_END: &str = "└─";
+/// ┌─ 首项子节点
+pub const BRANCH_FIRST: &str = "┌─";
+
+/// ┌─ 带尾随空格（首项，无向上突起）
+pub const BRANCH_FIRST_SP: &str = "┌─ ";
 
 /// ├─ 带尾随空格（与 BRANCH_END_SP / BRANCH_VERT_PAD 等宽）
 pub const BRANCH_MID_SP: &str = "├─ ";
