@@ -49,7 +49,9 @@ impl RenderHooks for TreeListHooks {
         ancestors_are_last: &[bool],
         _index_in_group: usize,
     ) -> Option<String> {
-        const UNIT: usize = 4;
+        let base: usize = 3;
+        let offset: usize = Self::tree_indent_offset(self).unwrap_or(0);
+        let unit = base + offset;
         let connector = if is_last_in_group {
             BRANCH_END_SP
         } else {
@@ -64,17 +66,19 @@ impl RenderHooks for TreeListHooks {
                 break;
             }
             if is_last_anc {
-                for _ in 0..UNIT {
+                for _ in 0..unit {
                     prefix.push(' ');
                 }
             } else {
                 prefix.push_str(BRANCH_VERT_PAD);
-                prefix.push(' ');
+                for _ in 0..offset {
+                    prefix.push(' ');
+                }
             }
         }
         if indent as usize > ancestors_are_last.len() {
             let extra = indent as usize - ancestors_are_last.len();
-            for _ in 0..UNIT * extra {
+            for _ in 0..unit * extra {
                 prefix.push(' ');
             }
         }
@@ -82,10 +86,14 @@ impl RenderHooks for TreeListHooks {
     }
 
     fn tree_indent_width(&self) -> Option<usize> {
-        Some(4)
+        Some(3 + Self::tree_indent_offset(self).unwrap_or(0))
     }
 
     fn tree_text_gap(&self) -> Option<usize> {
+        Some(1)
+    }
+
+    fn tree_indent_offset(&self) -> Option<usize> {
         Some(1)
     }
 }

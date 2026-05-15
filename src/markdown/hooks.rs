@@ -70,6 +70,10 @@ pub trait RenderHooks: Send + Sync {
         None
     }
 
+    fn tree_indent_offset(&self) -> Option<usize> {
+        None
+    }
+
     fn list_item_content(&self, _text: &str, _indent: u8) -> Option<Vec<Line<'static>>> {
         None
     }
