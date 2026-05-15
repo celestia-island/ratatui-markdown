@@ -6,13 +6,6 @@ use ratatui::{
 use super::types::PieChart;
 use crate::theme::RichTextTheme;
 
-const R_TL: char = '╭';
-const R_TR: char = '╮';
-const R_BL: char = '╰';
-const R_BR: char = '╯';
-const HLINE: char = '─';
-const VLINE: char = '│';
-
 const BLOCK: char = '█';
 const LIGHT_BLOCK: char = '░';
 
@@ -84,7 +77,6 @@ pub fn render_pie(
         ))];
     }
 
-    let border_style = Style::default().fg(theme.get_muted_text_color());
     let title_style = Style::default()
         .fg(theme.get_primary_color())
         .add_modifier(Modifier::BOLD);
@@ -108,29 +100,20 @@ pub fn render_pie(
 
     let mut lines: Vec<Line<'static>> = Vec::new();
 
-    lines.push(Line::from(vec![
-        Span::styled(R_TL.to_string(), border_style),
-        Span::styled(HLINE.to_string().repeat(inner_w), border_style),
-        Span::styled(R_TR.to_string(), border_style),
-    ]));
-
     if let Some(ref title) = diagram.title {
         let tw = unicode_width::UnicodeWidthStr::width(title.as_str());
         let pad = inner_w.saturating_sub(tw);
         let left_pad = pad / 2;
         let right_pad = pad - left_pad;
         lines.push(Line::from(vec![
-            Span::styled(VLINE.to_string(), border_style),
             Span::styled(" ".repeat(left_pad), title_style),
             Span::styled(title.clone(), title_style),
             Span::styled(" ".repeat(right_pad), title_style),
-            Span::styled(VLINE.to_string(), border_style),
         ]));
-        lines.push(Line::from(vec![
-            Span::styled(VLINE.to_string(), border_style),
-            Span::styled(" ".repeat(inner_w), Style::default()),
-            Span::styled(VLINE.to_string(), border_style),
-        ]));
+        lines.push(Line::from(vec![Span::styled(
+            " ".repeat(inner_w),
+            Style::default(),
+        )]));
     }
 
     for (label, value) in &diagram.slices {
@@ -168,7 +151,6 @@ pub fn render_pie(
         }
 
         lines.push(Line::from(vec![
-            Span::styled(VLINE.to_string(), border_style),
             Span::styled(" ".to_string(), label_style),
             Span::styled(label_display, label_style),
             Span::styled(" ".repeat(label_pad), label_style),
@@ -177,15 +159,8 @@ pub fn render_pie(
             Span::styled(" ".to_string(), label_style),
             Span::styled(pct_str, pct_style),
             Span::styled(" ".repeat(pct_col.saturating_sub(pct_w)), pct_style),
-            Span::styled(VLINE.to_string(), border_style),
         ]));
     }
-
-    lines.push(Line::from(vec![
-        Span::styled(R_BL.to_string(), border_style),
-        Span::styled(HLINE.to_string().repeat(inner_w), border_style),
-        Span::styled(R_BR.to_string(), border_style),
-    ]));
 
     lines
 }

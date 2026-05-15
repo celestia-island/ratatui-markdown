@@ -6,12 +6,6 @@ use ratatui::{
 use super::types::{GanttChart, GanttSection, GanttTask};
 use crate::theme::RichTextTheme;
 
-const R_TL: char = '╭';
-const R_TR: char = '╮';
-const R_BL: char = '╰';
-const R_BR: char = '╯';
-const HLINE: char = '─';
-const VLINE: char = '│';
 const BLOCK: char = '█';
 const LIGHT_BLOCK: char = '░';
 
@@ -122,7 +116,6 @@ pub fn render_gantt(
     max_width: usize,
     theme: &impl RichTextTheme,
 ) -> Vec<Line<'static>> {
-    let border_style = Style::default().fg(theme.get_muted_text_color());
     let title_style = Style::default()
         .fg(theme.get_primary_color())
         .add_modifier(Modifier::BOLD);
@@ -147,29 +140,20 @@ pub fn render_gantt(
 
     let mut lines: Vec<Line<'static>> = Vec::new();
 
-    lines.push(Line::from(vec![
-        Span::styled(R_TL.to_string(), border_style),
-        Span::styled(HLINE.to_string().repeat(inner_w), border_style),
-        Span::styled(R_TR.to_string(), border_style),
-    ]));
-
     if let Some(ref title) = chart.title {
         let tw = unicode_width::UnicodeWidthStr::width(title.as_str());
         let pad = inner_w.saturating_sub(tw);
         let left_pad = pad / 2;
         let right_pad = pad - left_pad;
         lines.push(Line::from(vec![
-            Span::styled(VLINE.to_string(), border_style),
             Span::styled(" ".repeat(left_pad), title_style),
             Span::styled(title.clone(), title_style),
             Span::styled(" ".repeat(right_pad), title_style),
-            Span::styled(VLINE.to_string(), border_style),
         ]));
-        lines.push(Line::from(vec![
-            Span::styled(VLINE.to_string(), border_style),
-            Span::styled(" ".repeat(inner_w), Style::default()),
-            Span::styled(VLINE.to_string(), border_style),
-        ]));
+        lines.push(Line::from(vec![Span::styled(
+            " ".repeat(inner_w),
+            Style::default(),
+        )]));
     }
 
     let mut task_idx: usize = 0;
@@ -179,11 +163,9 @@ pub fn render_gantt(
             let sw = unicode_width::UnicodeWidthStr::width(section.name.as_str());
             let pad = inner_w.saturating_sub(sw).saturating_sub(2);
             lines.push(Line::from(vec![
-                Span::styled(VLINE.to_string(), border_style),
                 Span::styled(" ".to_string(), section_style),
                 Span::styled(section.name.clone(), section_style),
                 Span::styled(" ".repeat(pad + 1), section_style),
-                Span::styled(VLINE.to_string(), border_style),
             ]));
         }
 
@@ -210,7 +192,6 @@ pub fn render_gantt(
             let dur_text = task.duration.as_deref().unwrap_or("");
 
             lines.push(Line::from(vec![
-                Span::styled(VLINE.to_string(), border_style),
                 Span::styled("  ".to_string(), task_style),
                 Span::styled(name_display, task_style),
                 Span::styled(" ".repeat(name_pad), task_style),
@@ -218,18 +199,11 @@ pub fn render_gantt(
                 Span::styled(bar_str, bar_style),
                 Span::styled(" ".to_string(), task_style),
                 Span::styled(dur_text.to_string(), dur_style),
-                Span::styled(VLINE.to_string(), border_style),
             ]));
 
             task_idx += 1;
         }
     }
-
-    lines.push(Line::from(vec![
-        Span::styled(R_BL.to_string(), border_style),
-        Span::styled(HLINE.to_string().repeat(inner_w), border_style),
-        Span::styled(R_BR.to_string(), border_style),
-    ]));
 
     lines
 }

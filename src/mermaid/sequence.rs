@@ -8,10 +8,6 @@ use crate::theme::RichTextTheme;
 
 const HLINE: char = '─';
 const VLINE: char = '│';
-const R_TL: char = '╭';
-const R_TR: char = '╮';
-const R_BL: char = '╰';
-const R_BR: char = '╯';
 
 pub fn parse_sequence(source: &str) -> Option<SequenceDiagram> {
     let mut participants: Vec<String> = Vec::new();
@@ -130,21 +126,7 @@ pub fn render_sequence(
         .add_modifier(Modifier::ITALIC);
 
     {
-        let mut spans: Vec<Span<'static>> = vec![Span::styled(R_TL.to_string(), line_style)];
-        for i in 0..n_part {
-            for _ in 1..col_width {
-                spans.push(Span::styled(HLINE.to_string(), line_style));
-            }
-            if i < n_part - 1 {
-                spans.push(Span::styled(HLINE.to_string(), line_style));
-            }
-        }
-        spans.push(Span::styled(R_TR.to_string(), line_style));
-        lines.push(Line::from(spans));
-    }
-
-    {
-        let mut spans: Vec<Span<'static>> = vec![Span::styled(VLINE.to_string(), line_style)];
+        let mut spans: Vec<Span<'static>> = Vec::new();
         for (i, name) in diagram.participants.iter().enumerate() {
             let tw = unicode_width::UnicodeWidthStr::width(name.as_str());
             let pad = col_width.saturating_sub(tw);
@@ -158,24 +140,9 @@ pub fn render_sequence(
                 spans.push(Span::styled(" ".to_string(), header_style));
             }
             if i < n_part - 1 {
-                spans.push(Span::styled(VLINE.to_string(), line_style));
+                spans.push(Span::styled(" ".to_string(), line_style));
             }
         }
-        spans.push(Span::styled(VLINE.to_string(), line_style));
-        lines.push(Line::from(spans));
-    }
-
-    {
-        let mut spans: Vec<Span<'static>> = vec![Span::styled(R_BL.to_string(), line_style)];
-        for i in 0..n_part {
-            for _ in 1..col_width {
-                spans.push(Span::styled(HLINE.to_string(), line_style));
-            }
-            if i < n_part - 1 {
-                spans.push(Span::styled(HLINE.to_string(), line_style));
-            }
-        }
-        spans.push(Span::styled(R_BR.to_string(), line_style));
         lines.push(Line::from(spans));
     }
 
