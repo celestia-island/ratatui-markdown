@@ -10,29 +10,37 @@ const HIGHLIGHT_NAMES: &[&str] = &[
     "boolean",
     "comment",
     "comment.documentation",
+    "conditional",
     "constant",
     "constant.builtin",
     "constructor",
+    "exception",
     "function",
     "function.builtin",
+    "include",
     "keyword",
+    "keyword.function",
+    "label",
+    "namespace",
     "number",
     "operator",
     "property",
     "punctuation",
     "punctuation.bracket",
     "punctuation.delimiter",
+    "punctuation.special",
+    "repeat",
     "string",
     "string.escape",
+    "string.regex",
     "string.special",
+    "tag",
     "type",
     "type.builtin",
     "variable",
     "variable.builtin",
-    "variable.parameter",
     "variable.member",
-    "tag",
-    "label",
+    "variable.parameter",
     "error",
 ];
 
@@ -115,6 +123,12 @@ fn get_lang(lang: &str) -> Option<LangEntry> {
         #[cfg(feature = "highlight-lang-scala")]
         "scala" => Some(lang_entry!(tree_sitter_scala)),
 
+        #[cfg(feature = "highlight-lang-kotlin")]
+        "kotlin" | "kt" => Some(LangEntry {
+            language: tree_sitter_kotlin_ng::LANGUAGE.into(),
+            highlights_query: KOTLIN_HIGHLIGHTS,
+        }),
+
         #[cfg(feature = "highlight-lang-lua")]
         "lua" => Some(lang_entry!(tree_sitter_lua)),
 
@@ -181,9 +195,142 @@ fn get_lang(lang: &str) -> Option<LangEntry> {
         #[cfg(feature = "highlight-lang-objc")]
         "objc" | "objective-c" | "objectivec" => Some(lang_entry!(tree_sitter_objc)),
 
+        #[cfg(feature = "highlight-lang-cmake")]
+        "cmake" => Some(LangEntry {
+            language: tree_sitter_cmake::LANGUAGE.into(),
+            highlights_query: CMAKE_HIGHLIGHTS,
+        }),
+
+        #[cfg(feature = "highlight-lang-proto")]
+        "proto" | "protobuf" => Some(LangEntry {
+            language: tree_sitter_proto::LANGUAGE.into(),
+            highlights_query: PROTO_HIGHLIGHTS,
+        }),
+
         _ => None,
     }
 }
+
+const KOTLIN_HIGHLIGHTS: &str = r#"
+(line_comment) @comment
+(multiline_comment) @comment
+
+(simple_identifier) @variable
+((simple_identifier) @variable.builtin (#eq? @variable.builtin "it"))
+((simple_identifier) @variable.builtin (#eq? @variable.builtin "field"))
+(this_expression) @variable.builtin
+(super_expression) @variable.builtin
+
+(class_parameter (simple_identifier) @property)
+(class_body (property_declaration (variable_declaration (simple_identifier) @property)))
+(_ (navigation_suffix (simple_identifier) @property))
+
+(enum_entry (simple_identifier) @constant)
+(type_identifier) @type
+
+(package_header . (identifier)) @namespace
+(import_header "import" @include)
+
+(label) @label
+
+(function_declaration . (simple_identifier) @function)
+(getter ("get") @function.builtin)
+(setter ("set") @function.builtin)
+(primary_constructor) @constructor
+(secondary_constructor ("constructor") @constructor)
+(constructor_invocation (user_type (type_identifier) @constructor))
+
+(parameter (simple_identifier) @variable.parameter)
+(parameter_with_optional_type (simple_identifier) @variable.parameter)
+(lambda_literal (lambda_parameters (variable_declaration (simple_identifier) @variable.parameter)))
+
+(call_expression . (simple_identifier) @function)
+(call_expression (navigation_expression (navigation_suffix (simple_identifier) @function) .))
+
+(real_literal) @number
+(integer_literal) @number
+(long_literal) @number
+(hex_literal) @number
+(bin_literal) @number
+(unsigned_literal) @number
+(null_literal) @boolean
+(boolean_literal) @boolean
+(character_literal) @string
+(string_literal) @string
+(character_escape_seq) @string.escape
+
+(type_alias "typealias" @keyword)
+[
+  (class_modifier) (member_modifier) (function_modifier)
+  (property_modifier) (platform_modifier) (variance_modifier)
+  (parameter_modifier) (visibility_modifier) (reification_modifier)
+  (inheritance_modifier)
+] @keyword
+["val" "var" "enum" "class" "object" "interface"] @keyword
+("fun") @keyword.function
+(jump_expression) @exception
+["if" "else" "when"] @conditional
+["for" "do" "while"] @repeat
+["try" "catch" "throw" "finally"] @exception
+
+(annotation "@" @attribute (use_site_target)? @attribute)
+(annotation (user_type (type_identifier) @attribute))
+(annotation (constructor_invocation (user_type (type_identifier) @attribute)))
+(file_annotation "@" @attribute "file" @attribute ":" @attribute)
+
+["!" "!=" "!==" "=" "==" "===" ">" ">=" "<" "<=" "||" "&&"
+ "+" "++" "+=" "-" "--" "-=" "*" "*=" "/" "/=" "%" "%="
+ "?." "?:" "!!" "is" "in" "as" "as?" ".." "..<" "->"] @operator
+
+["(" ")" "[" "]" "{" "}"] @punctuation.bracket
+["." "," ";" ":" "::"] @punctuation.delimiter
+"#;
+
+const CMAKE_HIGHLIGHTS: &str = r#"
+[
+  (line_comment)
+  (bracket_comment)
+] @comment
+
+(quoted_argument) @string
+(bracket_argument) @string
+(variable) @variable
+(variable_ref) @variable
+
+(normal_command (identifier) @function)
+
+[
+  "if" "elseif" "else" "endif"
+  "foreach" "endforeach" "while" "endwhile"
+  "function" "endfunction"
+  "macro" "endmacro"
+  "block" "endblock"
+  "return" "break" "continue"
+] @keyword
+
+[
+  "ENV" "CACHE"
+] @namespace
+
+["$" "{" "}"] @punctuation.special
+["(" ")"] @punctuation.bracket
+"#;
+
+const PROTO_HIGHLIGHTS: &str = r#"
+[
+  "syntax" "package" "option" "import" "service" "rpc"
+  "returns" "message" "enum" "oneof" "repeated"
+  "reserved" "to" "stream" "map" "extend" "extensions"
+  "optional" "required"
+] @keyword
+
+[(key_type) (type) (message_name) (enum_name) (service_name) (rpc_name)] @type
+(string) @string
+[(int_lit) (float_lit)] @number
+[(true) (false)] @constant.builtin
+(comment) @comment
+["(" ")" "[" "]" "{" "}"] @punctuation.bracket
+"#;
 
 fn build_config(entry: &LangEntry) -> tree_sitter_highlight::HighlightConfiguration {
     let mut config = tree_sitter_highlight::HighlightConfiguration::new(
@@ -272,19 +419,24 @@ fn highlight_to_style(idx: usize) -> Style {
             .add_modifier(Modifier::ITALIC),
         "constant" | "constant.builtin" | "boolean" => Style::default().fg(Color::Yellow),
         "string" | "string.special" => Style::default().fg(Color::Green),
-        "string.escape" => Style::default().fg(Color::LightGreen),
-        "keyword" => Style::default()
+        "string.escape" | "string.regex" => Style::default().fg(Color::LightGreen),
+        "keyword"
+        | "keyword.function"
+        | "conditional"
+        | "repeat"
+        | "exception"
+        | "include" => Style::default()
             .fg(Color::Magenta)
             .add_modifier(Modifier::BOLD),
         "number" => Style::default().fg(Color::Yellow),
         "function" | "function.builtin" => Style::default().fg(Color::Cyan),
-        "type" | "type.builtin" => Style::default().fg(Color::LightCyan),
+        "type" | "type.builtin" | "namespace" => Style::default().fg(Color::LightCyan),
         "variable" | "variable.builtin" | "variable.parameter" | "variable.member" => {
             Style::default().fg(Color::White)
         }
         "property" => Style::default().fg(Color::LightBlue),
         "operator" => Style::default().fg(Color::LightMagenta),
-        "punctuation" | "punctuation.bracket" | "punctuation.delimiter" => {
+        "punctuation" | "punctuation.bracket" | "punctuation.delimiter" | "punctuation.special" => {
             Style::default().fg(Color::DarkGray)
         }
         "attribute" => Style::default().fg(Color::LightYellow),
