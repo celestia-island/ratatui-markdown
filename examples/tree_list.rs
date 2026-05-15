@@ -186,7 +186,7 @@ fn generate_tree_markdown() -> String {
 }
 
 fn main() -> anyhow::Result<()> {
-    let mut terminal = setup_terminal()?;
+    setup_terminal()?;
 
     let md = generate_tree_markdown();
     let theme = Theme;
@@ -197,20 +197,17 @@ fn main() -> anyhow::Result<()> {
     let mut state = AppState::new(lines.len());
 
     loop {
-        terminal.draw(|f| {
-            draw_frame(
-                f,
-                "Tree-Style List",
-                &lines,
-                &mut state,
-                "\u{2191}\u{2193}/jk scroll \u{00b7} PgUp/PgDn \u{00b7} Home/End \u{00b7} q quit",
-            );
-        })?;
+        draw_frame(
+            "Tree-Style List",
+            &lines,
+            &mut state,
+            "\u{2191}\u{2193}/jk scroll \u{00b7} PgUp/PgDn \u{00b7} Home/End \u{00b7} q quit",
+        )?;
         if poll_and_handle(&mut state)? {
             break;
         }
     }
 
-    restore_terminal(&mut terminal)?;
+    restore_terminal()?;
     Ok(())
 }

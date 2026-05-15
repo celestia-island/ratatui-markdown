@@ -96,7 +96,7 @@ LOREM_3
 "#;
 
 fn main() -> anyhow::Result<()> {
-    let mut terminal = setup_terminal()?;
+    setup_terminal()?;
 
     let md = MARKDOWN_TEMPLATE
         .replace("LOREM_2", &lorem(100))
@@ -110,20 +110,17 @@ fn main() -> anyhow::Result<()> {
     let mut state = AppState::new(lines.len());
 
     loop {
-        terminal.draw(|f| {
-            draw_frame(
-                f,
-                "Custom Code Block",
-                &lines,
-                &mut state,
-                "\u{2191}\u{2193}/jk scroll \u{00b7} PgUp/PgDn \u{00b7} Home/End \u{00b7} q quit",
-            );
-        })?;
+        draw_frame(
+            "Custom Code Block",
+            &lines,
+            &mut state,
+            "\u{2191}\u{2193}/jk scroll \u{00b7} PgUp/PgDn \u{00b7} Home/End \u{00b7} q quit",
+        )?;
         if poll_and_handle(&mut state)? {
             break;
         }
     }
 
-    restore_terminal(&mut terminal)?;
+    restore_terminal()?;
     Ok(())
 }
