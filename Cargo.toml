@@ -25,6 +25,7 @@ mermaid = ["markdown", "dep:pest", "dep:pest_derive"]
 viewer = ["markdown", "scroll"]
 
 highlight = ["dep:tree-sitter", "dep:tree-sitter-highlight"]
+highlight-pest = ["highlight", "dep:pest", "dep:pest_derive"]
 highlight-lang-rust = ["highlight", "dep:tree-sitter-rust"]
 highlight-lang-python = ["highlight", "dep:tree-sitter-python"]
 highlight-lang-go = ["highlight", "dep:tree-sitter-go"]
@@ -34,8 +35,6 @@ highlight-lang-css = ["highlight", "dep:tree-sitter-css"]
 highlight-lang-json = ["highlight", "dep:tree-sitter-json"]
 highlight-lang-toml = ["highlight", "dep:tree-sitter-toml-ng"]
 highlight-lang-sql = ["highlight", "dep:tree-sitter-sequel"]
-highlight-lang-mcfunction = ["highlight", "dep:pest", "dep:pest_derive"]
-highlight-lang-brainfuck = ["highlight"]
 highlight-lang-all = [
     "highlight-lang-rust",
     "highlight-lang-python",
@@ -46,8 +45,7 @@ highlight-lang-all = [
     "highlight-lang-json",
     "highlight-lang-toml",
     "highlight-lang-sql",
-    "highlight-lang-mcfunction",
-    "highlight-lang-brainfuck",
+    "highlight-pest",
 ]
 
 [dependencies]
@@ -86,4 +84,4 @@ required-features = ["mermaid"]
 
 [[example]]
 name = "code"
-required-features = ["highlight-lang-rust", "highlight-lang-mcfunction", "highlight-lang-brainfuck"]
+required-features = ["highlight-lang-rust", "highlight-pest"]
