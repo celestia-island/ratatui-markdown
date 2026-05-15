@@ -4,7 +4,7 @@
 
 # ratatui-markdown
 
-> مكتبة Rust توفر عرض Markdown وأشجار JSON/TOML قابلة للطي وعناصر تمرير غنية لـ ratatui.
+> مكتبة Rust توفر عرض Markdown ومخططات Mermaid وتلوين بناء الجملة وأشجار JSON/TOML قابلة للطي وعناصر تمرير غنية لـ ratatui.
 >
 > **مبنية على**: [ratatui](https://github.com/ratatui/ratatui) 0.29 + Rust خالص
 >
@@ -26,7 +26,7 @@
 
 ## ما هو ratatui-markdown؟
 
-ratatui-markdown هي مكتبة عرض غنية بالميزات لواجهات المستخدم الطرفية المبنية بـ [ratatui](https://github.com/ratatui/ratatui). توفر أربع وحدات وظيفية رئيسية يمكن استخدامها بشكل مستقل أو دمجها عبر عنصر `MarkdownPreview`.
+ratatui-markdown هي مكتبة عرض غنية بالميزات لواجهات المستخدم الطرفية المبنية بـ [ratatui](https://github.com/ratatui/ratatui). توفر عدة وحدات وظيفية يمكن استخدامها بشكل مستقل أو دمجها عبر عنصري `MarkdownPreview` / `MarkdownViewer`.
 
 ## الوحدات الأساسية
 
@@ -37,7 +37,7 @@ ratatui-markdown هي مكتبة عرض غنية بالميزات لواجهات
 - **العناوين**: H1 (`#`), H2 (`##`), H3 (`###`)
 - **الفقرات** مع التفاف تلقائي للنص يراعي عرض أحرف CJK
 - **التنسيق المضمن**: `**غامق**`, `*مائل*`, `***غامق+مائل***`, `` `كود ضمني` ``
-- **كتل الكود** مع تسميات لغة اختيارية (يتم تخطي كتل mermaid)
+- **كتل الكود** مع تسميات لغة اختيارية (يتم عرض كتل mermaid كمخططات)
 - **الاقتباسات** (`>`)
 - **القوائم غير المرتبة** (`-`, `*`, `+`) والقوائم المرتبة (`1.`, `2.`)
 - **الخطوط الأفقية** (`---`, `***`, `___`)
@@ -64,7 +64,23 @@ ratatui-markdown هي مكتبة عرض غنية بالميزات لواجهات
 - **شريط التمرير**: تراكب قائم على الأسهم
 - **التصفح**: دعم `page_up` / `page_down`
 
-### عنصر MarkdownPreview
+### مخططات Mermaid
+
+عرض مخططات Mermaid مباشرة في الطرفية:
+
+- **مخططات التسلسل**، **المخططات الدائرية**، **مخططات غانت**، **مخططات الحالة**
+- تُفعّل بكتل ` ```mermaid `
+- علامة الميزة: `mermaid`
+
+### تلوين بناء الجملة
+
+تلوين بناء جملة كتل الكود باستخدام tree-sitter:
+
+- علامات حسب اللغة (`highlight-lang-rust`، `highlight-lang-python`، إلخ)
+- `highlight-lang-all` تُفعّل جميع اللغات
+- قابلة للتخصيص عبر `HighlightHooks`
+
+### عنصرا MarkdownPreview / MarkdownViewer
 
 العنصر عالي المستوى الذي يدمج كل شيء معًا:
 
@@ -78,15 +94,26 @@ ratatui-markdown هي مكتبة عرض غنية بالميزات لواجهات
 
 ```toml
 [dependencies]
-ratatui-markdown = "0.1"
+ratatui-markdown = "0.2"
 ```
 
-```rust
-use ratatui_markdown::preview::MarkdownPreview;
+### أمثلة
 
-let mut preview = MarkdownPreview::new();
-preview.set_content("# مرحبًا بالعالم!\n\nهذه فقرة.");
-// العرض ومعالجة الإدخال في حلقة تطبيق ratatui
+| مثال                 | الوصف                               | العلامات المطلوبة              |
+|----------------------|------------------------------------|-------------------------------|
+| `basic`              | عرض Markdown أساسي                 | —                             |
+| `code`               | كتل كود مع تلوين بناء الجملة        | `highlight-lang-all`          |
+| `custom_code_block`  | خطافات عرض كتل مخصصة               | —                             |
+| `image`              | تضمين وتكبير الصور                  | `image`                       |
+| `mermaid`            | عرض مخططات Mermaid                 | `mermaid`                     |
+| `tree_list`          | عرض شجرة JSON/TOML قابلة للطي      | —                             |
+
+```bash
+cargo run --example basic
+cargo run --example code --features highlight-lang-all
+cargo run --example image --features image
+cargo run --example mermaid --features mermaid
+cargo run --example tree_list
 ```
 
 ## إشارات الميزات
@@ -95,49 +122,21 @@ preview.set_content("# مرحبًا بالعالم!\n\nهذه فقرة.");
 
 ```toml
 [dependencies]
-ratatui-markdown = { version = "0.1", default-features = false, features = ["markdown"] }
+ratatui-markdown = { version = "0.2", default-features = false, features = ["markdown"] }
 ```
 
-| الميزة     | التبعيات           | الوصف                                            |
-|------------|--------------------|--------------------------------------------------|
-| `markdown` | —                  | محلل وعارض Markdown                              |
-| `scroll`   | —                  | HybridScrollView وقوائم قابلة للتمرير وشريط التمرير |
-| `tree`     | `scroll`, `serde_json`, `toml` | شجرة JSON/TOML قابلة للطي           |
-| `preview`  | `markdown`, `scroll`, `tree` | عنصر MarkdownPreview الموحد          |
-
-## هيكل المشروع
-
-```
-ratatui-markdown/
-  src/
-   ├── lib.rs                  # نقطة الدخول: وحدات مقيدة بالميزات
-   ├── theme.rs                # Trait RichTextTheme ورمز Generation
-   ├── constants/
-   │   ├── mod.rs              # إعادة تصدير
-   │   ├── box_chars.rs        # ثوابت أحرف المربعات
-   │   └── list_prefix.rs      # موصلات الشجرة والأسهم والعلامات
-   ├── markdown/
-   │   ├── mod.rs              # بنية MarkdownRenderer
-   │   ├── parser.rs           # محلل Markdown على مستوى الكتل
-   │   ├── types.rs            # تعداد MarkdownBlock و TextToken
-   │   ├── render.rs           # عارض على مستوى الكتل (+ الجداول)
-   │   ├── inline.rs           # محلل التنسيق المضمن
-   │   └── text.rs             # التفاف النص مع مراعاة CJK
-   ├── scroll/
-   │   ├── mod.rs              # إعادة تصدير
-   │   ├── hybrid_scroll/      # HybridScrollView (العنصر الأساسي)
-   │   ├── scrollable_list.rs  # ScrollableList<T> العام
-   │   ├── scrollable_panel.rs # مساعد تمرير بسيط
-   │   ├── focusable_list.rs   # عارض FocusableItemList
-   │   ├── follow_scroll.rs    # FollowScrollState
-   │   └── scrollbar.rs        # عنصر ArrowScrollbar
-   ├── tree/
-   │   ├── mod.rs              # إعادة تصدير
-   │   ├── tree_lines.rs       # بناء خطوط الشجرة
-   │   └── collapsible_tree/   # CollapsibleTree + عمليات + عرض
-   └── preview/
-       └── mod.rs              # عنصر MarkdownPreview الموحد
-```
+| الميزة                | التبعيات                            | الوصف                                            |
+|-----------------------|-------------------------------------|--------------------------------------------------|
+| `markdown`            | —                                   | محلل وعارض Markdown                              |
+| `image`               | —                                   | حل الصور عبر `ImageResolver`                    |
+| `scroll`              | —                                   | HybridScrollView وقوائم قابلة للتمرير            |
+| `tree`                | `scroll`, `serde_json`, `toml`      | شجرة JSON/TOML قابلة للطي                        |
+| `preview`             | `markdown`, `scroll`, `tree`        | عنصر MarkdownPreview الموحد                      |
+| `mermaid`             | `markdown`                          | عرض مخططات Mermaid                               |
+| `viewer`              | `markdown`, `scroll`                | عنصر MarkdownViewer                              |
+| `highlight`           | —                                   | تلوين بناء الجملة عبر tree-sitter                |
+| `highlight-lang-*`    | `highlight`                         | قواعد لغوية فردية                                |
+| `highlight-lang-all`  | `highlight`                         | جميع القواعد اللغوية المضمنة                      |
 
 ## التوثيق
 

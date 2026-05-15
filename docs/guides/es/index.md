@@ -4,7 +4,7 @@
 
 # ratatui-markdown
 
-> Una biblioteca Rust que ofrece renderizado de Markdown, árboles JSON/TOML colapsables y widgets de desplazamiento enriquecidos para ratatui.
+> Una biblioteca Rust que ofrece renderizado de Markdown, diagramas Mermaid, resaltado de sintaxis, árboles JSON/TOML colapsables y widgets de desplazamiento enriquecidos para ratatui.
 >
 > **Construido con**: [ratatui](https://github.com/ratatui/ratatui) 0.29 + Rust puro
 >
@@ -26,7 +26,7 @@
 
 ## ¿Qué es ratatui-markdown?
 
-ratatui-markdown es una biblioteca de renderizado rica en funciones para interfaces de usuario de terminal construidas con [ratatui](https://github.com/ratatui/ratatui). Proporciona cuatro módulos funcionales principales que pueden usarse de forma independiente o combinarse a través del widget `MarkdownPreview`.
+ratatui-markdown es una biblioteca de renderizado rica en funciones para interfaces de usuario de terminal construidas con [ratatui](https://github.com/ratatui/ratatui). Proporciona múltiples módulos funcionales que pueden usarse de forma independiente o combinarse a través de los widgets `MarkdownPreview` / `MarkdownViewer`.
 
 ## Módulos Principales
 
@@ -37,7 +37,7 @@ Analiza y renderiza texto Markdown como salida de terminal con estilo:
 - **Encabezados**: H1 (`#`), H2 (`##`), H3 (`###`)
 - **Párrafos** con ajuste de línea automático compatible con CJK
 - **Formato en línea**: `**negrita**`, `*cursiva*`, `***negrita+cursiva***`, `` `código en línea` ``
-- **Bloques de código** con etiquetas de lenguaje opcionales (los bloques mermaid se omiten)
+- **Bloques de código** con etiquetas de lenguaje opcionales (los bloques mermaid se renderizan como diagramas)
 - **Citas** (`>`)
 - **Listas no ordenadas** (`-`, `*`, `+`) y ordenadas (`1.`, `2.`)
 - **Líneas horizontales** (`---`, `***`, `___`)
@@ -64,7 +64,23 @@ Desplazamiento inteligente que maneja tanto la navegación libre como la navegac
 - **Barra de desplazamiento**: superposición basada en flechas
 - **Paginación**: soporte de `page_up` / `page_down`
 
-### Widget MarkdownPreview
+### Diagramas Mermaid
+
+Renderizado directo de diagramas Mermaid en terminal:
+
+- **Diagramas de secuencia**, **gráficos circulares**, **diagramas de Gantt**, **diagramas de estado**
+- Activados por bloques ` ```mermaid `
+- Bandera de funcionalidad: `mermaid`
+
+### Resaltado de Sintaxis
+
+Resaltado de bloques de código basado en tree-sitter:
+
+- Banderas por lenguaje (`highlight-lang-rust`, `highlight-lang-python`, etc.)
+- `highlight-lang-all` activa todos los lenguajes
+- Personalizable via `HighlightHooks`
+
+### Widgets MarkdownPreview / MarkdownViewer
 
 El widget de alto nivel que integra todo:
 
@@ -78,15 +94,26 @@ El widget de alto nivel que integra todo:
 
 ```toml
 [dependencies]
-ratatui-markdown = "0.1"
+ratatui-markdown = "0.2"
 ```
 
-```rust
-use ratatui_markdown::preview::MarkdownPreview;
+### Ejemplos
 
-let mut preview = MarkdownPreview::new();
-preview.set_content("# ¡Hola, mundo!\n\nEsto es un párrafo.");
-// renderiza y maneja la entrada en el bucle de la aplicación ratatui
+| Ejemplo              | Descripción                          | Funcionalidades requeridas     |
+|----------------------|--------------------------------------|-------------------------------|
+| `basic`              | Renderizado Markdown mínimo          | —                             |
+| `code`               | Bloques de código con resaltado      | `highlight-lang-all`          |
+| `custom_code_block`  | Hooks de renderizado personalizados  | —                             |
+| `image`              | Integración y zoom de imágenes       | `image`                       |
+| `mermaid`            | Renderizado de diagramas Mermaid     | `mermaid`                     |
+| `tree_list`          | Árbol JSON/TOML colapsable           | —                             |
+
+```bash
+cargo run --example basic
+cargo run --example code --features highlight-lang-all
+cargo run --example image --features image
+cargo run --example mermaid --features mermaid
+cargo run --example tree_list
 ```
 
 ## Banderas de Funcionalidades
@@ -95,49 +122,21 @@ Todas las funcionalidades están habilitadas por defecto. Desactive las funciona
 
 ```toml
 [dependencies]
-ratatui-markdown = { version = "0.1", default-features = false, features = ["markdown"] }
+ratatui-markdown = { version = "0.2", default-features = false, features = ["markdown"] }
 ```
 
-| Funcionalidad | Dependencias      | Descripción                                      |
-|---------------|--------------------|--------------------------------------------------|
-| `markdown`    | —                  | Analizador y renderizador de Markdown            |
-| `scroll`      | —                  | HybridScrollView, listas desplazables, barra     |
-| `tree`        | `scroll`, `serde_json`, `toml` | Árbol JSON/TOML colapsable          |
-| `preview`     | `markdown`, `scroll`, `tree` | Widget unificado MarkdownPreview      |
-
-## Estructura del Proyecto
-
-```
-ratatui-markdown/
-  src/
-   ├── lib.rs                  # Punto de entrada: módulos con puertas de funcionalidad
-   ├── theme.rs                # Trait RichTextTheme, token Generation
-   ├── constants/
-   │   ├── mod.rs              # Reexportaciones
-   │   ├── box_chars.rs        # Constantes de caracteres de caja
-   │   └── list_prefix.rs      # Conectores de árbol, flechas, marcadores
-   ├── markdown/
-   │   ├── mod.rs              # Estructura MarkdownRenderer
-   │   ├── parser.rs           # Analizador Markdown a nivel de bloque
-   │   ├── types.rs            # Enum MarkdownBlock, TextToken
-   │   ├── render.rs           # Renderizador a nivel de bloque (+ tablas)
-   │   ├── inline.rs           # Analizador de formato en línea
-   │   └── text.rs             # Ajuste de texto compatible CJK
-   ├── scroll/
-   │   ├── mod.rs              # Reexportaciones
-   │   ├── hybrid_scroll/      # HybridScrollView (widget principal)
-   │   ├── scrollable_list.rs  # ScrollableList<T> genérica
-   │   ├── scrollable_panel.rs # Asistente de desplazamiento simple
-   │   ├── focusable_list.rs   # Renderizador FocusableItemList
-   │   ├── follow_scroll.rs    # FollowScrollState
-   │   └── scrollbar.rs        # Widget ArrowScrollbar
-   ├── tree/
-   │   ├── mod.rs              # Reexportaciones
-   │   ├── tree_lines.rs       # Construcción de líneas de árbol
-   │   └── collapsible_tree/   # CollapsibleTree + operaciones + renderizado
-   └── preview/
-       └── mod.rs              # Widget unificado MarkdownPreview
-```
+| Funcionalidad        | Depende de                          | Descripción                                      |
+|----------------------|-------------------------------------|--------------------------------------------------|
+| `markdown`           | —                                   | Analizador y renderizador de Markdown            |
+| `image`              | —                                   | Resolución de imágenes via `ImageResolver`       |
+| `scroll`             | —                                   | HybridScrollView, listas desplazables, barra     |
+| `tree`               | `scroll`, `serde_json`, `toml`      | Árbol JSON/TOML colapsable                       |
+| `preview`            | `markdown`, `scroll`, `tree`        | Widget unificado MarkdownPreview                 |
+| `mermaid`            | `markdown`                          | Renderizado de diagramas Mermaid                 |
+| `viewer`             | `markdown`, `scroll`                | Widget MarkdownViewer                            |
+| `highlight`          | —                                   | Resaltado de sintaxis via tree-sitter            |
+| `highlight-lang-*`   | `highlight`                         | Gramáticas individuales por lenguaje             |
+| `highlight-lang-all` | `highlight`                         | Todas las gramáticas incluidas                   |
 
 ## Documentación
 
