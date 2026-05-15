@@ -37,6 +37,8 @@ anyhow = "^1"
 crossterm = "^0.28"
 lipsum = "^0.9"
 ratatui-image = { version = "9", default-features = false, features = ["crossterm"] }
+syntect = "^5"
+syntect-tui = "^3"
 
 [[example]]
 name = "image"
@@ -47,4 +49,4 @@ name = "mermaid"
 required-features = ["mermaid"]
 
 [[example]]
-name = "scrollable"
+name = "code"

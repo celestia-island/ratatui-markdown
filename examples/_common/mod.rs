@@ -7,7 +7,7 @@ use ratatui::{
     layout::Rect,
     style::{Color, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Padding, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    widgets::{Block, Borders, Clear, Padding, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
     Frame, Terminal,
 };
 use ratatui_markdown::theme::{Generation, RichTextTheme};
@@ -143,6 +143,7 @@ pub fn draw_frame(
     let content_h = inner.height;
     state.update_content_h(content_h);
 
+    f.render_widget(Clear, block_area);
     let paragraph = Paragraph::new(lines.to_vec())
         .block(block)
         .scroll((state.scroll, 0));
