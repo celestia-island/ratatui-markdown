@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="../../../examples/logo.webp" alt="ratatui-markdown logo" width="200" />
+</div>
+
 # ratatui-markdown
 
 > مكتبة Rust توفر عرض Markdown وأشجار JSON/TOML قابلة للطي وعناصر تمرير غنية لـ ratatui.

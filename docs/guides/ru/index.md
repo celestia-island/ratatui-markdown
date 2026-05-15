@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="../../../examples/logo.webp" alt="ratatui-markdown logo" width="200" />
+</div>
+
 # ratatui-markdown
 
 > Библиотека Rust для рендеринга Markdown, сворачиваемых деревьев JSON/TOML и расширенных виджетов прокрутки для ratatui.

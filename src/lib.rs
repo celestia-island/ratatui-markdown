@@ -29,12 +29,13 @@
 //!
 //! ```toml
 //! [dependencies]
-//! ratatui-markdown = { version = "0.1", default-features = false, features = ["markdown"] }
+//! ratatui-markdown = { version = "0.2", default-features = false, features = ["markdown"] }
 //! ```
 //!
 //! | Feature    | Requires                                | Description                               |
 //! |------------|-----------------------------------------|-------------------------------------------|
 //! | `markdown` | —                                       | Markdown parser and renderer              |
+//! | `image`    | `image` crate                           | Image resolution via `ImageResolver`      |
 //! | `scroll`   | —                                       | HybridScrollView, scrollable lists        |
 //! | `tree`     | `scroll`, `serde_json`, `toml`          | Collapsible JSON/TOML tree                |
 //! | `preview`  | `markdown`, `scroll`, `tree`            | `MarkdownPreview` unified widget          |
@@ -57,6 +58,24 @@
 //! let renderer = MarkdownRenderer::new(80);
 //! let blocks = renderer.parse("# Title\n\nParagraph with **bold** text.");
 //! let lines = renderer.render(&blocks, &my_theme);
+//! ```
+//!
+//! ### Custom Rendering with Hooks
+//!
+//! ```rust
+//! use ratatui_markdown::markdown::{MarkdownRenderer, RenderHooks};
+//! use ratatui::text::Line;
+//!
+//! struct MyHooks;
+//!
+//! impl RenderHooks for MyHooks {
+//!     fn heading1(&self, text: &str) -> Option<Line<'static>> {
+//!         Some(Line::raw(format!(">>> {}", text)))
+//!     }
+//! }
+//!
+//! let renderer = MarkdownRenderer::new(80)
+//!     .with_render_hooks(Box::new(MyHooks));
 //! ```
 //!
 //! ### Collapsible Trees
@@ -121,6 +140,9 @@
 //! | [`preview`] | `preview` | Unified `MarkdownPreview` widget |
 //! | [`theme`] | always | `RichTextTheme` trait for theming |
 //! | [`constants`] | always | Box-drawing chars, tree connectors, arrows |
+
+#[cfg(feature = "mermaid")]
+pub mod mermaid;
 
 pub mod constants;
 #[cfg(feature = "markdown")]

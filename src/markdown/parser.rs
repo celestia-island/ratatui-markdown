@@ -1,5 +1,8 @@
 use super::{types::MarkdownBlock, MarkdownRenderer};
 
+#[cfg(feature = "image")]
+use super::image::ImageResolver;
+
 const MD_FENCE: &str = "```";
 const MD_HRULE_DASH: &str = "---";
 const MD_HRULE_STAR: &str = "***";
@@ -11,8 +14,77 @@ const MD_LIST_DASH: &str = "- ";
 const MD_LIST_STAR: &str = "* ";
 const MD_LIST_PLUS: &str = "+ ";
 
+fn parse_image_syntax(text: &str) -> Option<(String, String)> {
+    let trimmed = text.trim();
+    if !trimmed.starts_with('!') {
+        return None;
+    }
+    let rest = &trimmed[1..];
+    if !rest.starts_with('[') {
+        return None;
+    }
+    let alt_end = rest.find(']')?;
+    let alt = rest[1..alt_end].to_string();
+    let url_part = &rest[alt_end + 1..];
+    if !url_part.starts_with('(') {
+        return None;
+    }
+    let url_end = url_part.find(')')?;
+    let path = url_part[1..url_end].to_string();
+    if path.is_empty() {
+        return None;
+    }
+    Some((alt, path))
+}
+
+fn is_line_only_image(text: &str) -> bool {
+    let trimmed = text.trim();
+    if !trimmed.starts_with('!') {
+        return false;
+    }
+    if let Some(close_bracket) = trimmed.find(']') {
+        let rest = &trimmed[close_bracket + 1..];
+        if rest.starts_with('(') {
+            if let Some(close_paren) = rest.find(')') {
+                let after = rest[close_paren + 1..].trim();
+                return after.is_empty();
+            }
+        }
+    }
+    false
+}
+
 impl MarkdownRenderer {
     pub fn parse(&self, markdown: &str) -> Vec<MarkdownBlock> {
+        self.parse_inner(markdown, &mut Vec::new())
+    }
+
+    #[cfg(feature = "image")]
+    pub fn parse_with_images<I: ImageResolver>(
+        &self,
+        markdown: &str,
+        resolver: &mut I,
+    ) -> (Vec<MarkdownBlock>, Vec<super::image::ResolvedImage>) {
+        let blocks = self.parse_inner(markdown, &mut Vec::new());
+        let mut resolved = Vec::new();
+        for block in &blocks {
+            if let MarkdownBlock::Image { path, .. } = block {
+                if let Some(img) = resolver.resolve(path) {
+                    resolved.push(super::image::ResolvedImage {
+                        path: path.clone(),
+                        image: img,
+                    });
+                }
+            }
+        }
+        (blocks, resolved)
+    }
+
+    fn parse_inner(
+        &self,
+        markdown: &str,
+        _inline_images: &mut Vec<(String, String)>,
+    ) -> Vec<MarkdownBlock> {
         let mut blocks = Vec::new();
         let mut in_code_block = false;
         let mut code_lang = String::new();
@@ -20,13 +92,15 @@ impl MarkdownRenderer {
         let mut paragraph_lines: Vec<String> = Vec::new();
         let mut table_buffer: Vec<String> = Vec::new();
 
-        for line in markdown.lines() {
+        let mut lines = markdown.lines().peekable();
+
+        while let Some(line) = lines.next() {
             if in_code_block {
                 if line.trim().starts_with(MD_FENCE) {
                     in_code_block = false;
-                    blocks.push(MarkdownBlock::CodeBlock(
+                    blocks.push(MarkdownBlock::code_block(
                         code_lang.clone(),
-                        code_content.trim_end().to_string(),
+                        code_content.trim_end(),
                     ));
                     code_lang.clear();
                     code_content.clear();
@@ -53,6 +127,18 @@ impl MarkdownRenderer {
                     paragraph_lines.clear();
                 }
                 blocks.push(MarkdownBlock::BlankLine);
+                continue;
+            }
+
+            if is_line_only_image(trimmed) {
+                Self::flush_table(&mut table_buffer, &mut blocks, &mut paragraph_lines);
+                if !paragraph_lines.is_empty() {
+                    blocks.push(MarkdownBlock::Paragraph(paragraph_lines.clone()));
+                    paragraph_lines.clear();
+                }
+                if let Some((alt, path)) = parse_image_syntax(trimmed) {
+                    blocks.push(MarkdownBlock::Image { alt, path });
+                }
                 continue;
             }
 
@@ -108,12 +194,20 @@ impl MarkdownRenderer {
                     blocks.push(MarkdownBlock::Paragraph(paragraph_lines.clone()));
                     paragraph_lines.clear();
                 }
-                let content = trimmed
-                    .strip_prefix('>')
-                    .unwrap_or(trimmed)
-                    .trim_start()
-                    .to_string();
-                blocks.push(MarkdownBlock::Blockquote(content));
+                let mut bq_lines: Vec<String> = Vec::new();
+                bq_lines.push(trimmed.to_string());
+
+                while let Some(&next) = lines.peek() {
+                    let next_trimmed = next.trim();
+                    if next_trimmed.is_empty() || !next_trimmed.starts_with('>') {
+                        break;
+                    }
+                    bq_lines.push(next_trimmed.to_string());
+                    lines.next();
+                }
+
+                let blockquote = Self::parse_blockquote_group(&bq_lines);
+                blocks.push(blockquote);
                 continue;
             }
 
@@ -165,10 +259,188 @@ impl MarkdownRenderer {
         }
 
         if in_code_block {
-            blocks.push(MarkdownBlock::CodeBlock(
-                code_lang,
-                code_content.trim_end().to_string(),
+            blocks.push(MarkdownBlock::code_block(code_lang, code_content.trim_end()));
+        }
+
+        blocks
+    }
+
+    fn parse_blockquote_group(lines: &[String]) -> MarkdownBlock {
+        let mut max_level: u8 = 1;
+        let mut inner_lines: Vec<(u8, String)> = Vec::new();
+
+        for line in lines {
+            let (level, content) = Self::strip_blockquote_prefix(line);
+            if level > max_level {
+                max_level = level;
+            }
+            inner_lines.push((level, content));
+        }
+
+        if max_level == 1 {
+            let children = Self::parse_blockquote_content(&inner_lines);
+            return MarkdownBlock::blockquote(1, children);
+        }
+
+        let children = Self::parse_nested_blockquote(&inner_lines, 1);
+        MarkdownBlock::blockquote(1, children)
+    }
+
+    fn strip_blockquote_prefix(line: &str) -> (u8, String) {
+        let mut level: u8 = 0;
+        let rest = line.trim_start();
+        let chars: Vec<char> = rest.chars().collect();
+        let mut i = 0;
+
+        while i < chars.len() {
+            if chars[i] == '>' {
+                level += 1;
+                i += 1;
+                if i < chars.len() && chars[i] == ' ' {
+                    i += 1;
+                }
+            } else {
+                break;
+            }
+        }
+
+        let content: String = chars[i..].iter().collect();
+        (level, content)
+    }
+
+    fn parse_nested_blockquote(
+        lines: &[(u8, String)],
+        current_level: u8,
+    ) -> Vec<MarkdownBlock> {
+        let mut children = Vec::new();
+        let mut group: Vec<(u8, String)> = Vec::new();
+
+        for (level, content) in lines {
+            if *level > current_level {
+                group.push((*level, content.clone()));
+            } else {
+                if !group.is_empty() {
+                    let inner = Self::parse_nested_blockquote_inner(&group, current_level + 1);
+                    children.push(inner);
+                    group.clear();
+                }
+                children.push(MarkdownBlock::Paragraph(vec![content.clone()]));
+            }
+        }
+
+        if !group.is_empty() {
+            let inner = Self::parse_nested_blockquote_inner(&group, current_level + 1);
+            children.push(inner);
+        }
+
+        children
+    }
+
+    fn parse_nested_blockquote_inner(
+        lines: &[(u8, String)],
+        target_level: u8,
+    ) -> MarkdownBlock {
+        let adjusted: Vec<(u8, String)> = lines
+            .iter()
+            .map(|(level, content)| (*level, content.clone()))
+            .collect();
+
+        let has_deeper = adjusted.iter().any(|(l, _)| *l > target_level);
+
+        if has_deeper {
+            let children = Self::parse_nested_blockquote(&adjusted, target_level);
+            MarkdownBlock::blockquote(target_level, children)
+        } else {
+            let contents: Vec<String> = adjusted
+                .iter()
+                .map(|(_, c)| c.clone())
+                .filter(|c| !c.is_empty())
+                .collect();
+            MarkdownBlock::blockquote(target_level, vec![MarkdownBlock::Paragraph(contents)])
+        }
+    }
+
+    fn parse_blockquote_content(lines: &[(u8, String)]) -> Vec<MarkdownBlock> {
+        let mut blocks = Vec::new();
+        let mut text_lines: Vec<String> = Vec::new();
+        let mut in_inner_code = false;
+        let mut inner_code_lang = String::new();
+        let mut inner_code_content = String::new();
+
+        for (_, content) in lines {
+            let trimmed = content.trim();
+
+            if in_inner_code {
+                if trimmed.starts_with(MD_FENCE) {
+                    in_inner_code = false;
+                    if !text_lines.is_empty() {
+                        blocks.push(MarkdownBlock::Paragraph(text_lines.clone()));
+                        text_lines.clear();
+                    }
+                    blocks.push(MarkdownBlock::code_block(
+                        inner_code_lang.clone(),
+                        inner_code_content.trim_end(),
+                    ));
+                    inner_code_lang.clear();
+                    inner_code_content.clear();
+                } else {
+                    inner_code_content.push_str(trimmed);
+                    inner_code_content.push('\n');
+                }
+                continue;
+            }
+
+            if trimmed.starts_with(MD_FENCE) {
+                if !text_lines.is_empty() {
+                    blocks.push(MarkdownBlock::Paragraph(text_lines.clone()));
+                    text_lines.clear();
+                }
+                in_inner_code = true;
+                inner_code_lang = trimmed.chars().skip(3).collect::<String>();
+                continue;
+            }
+
+            if trimmed.starts_with("- ")
+                || trimmed.starts_with("* ")
+                || trimmed.starts_with("+ ")
+            {
+                if !text_lines.is_empty() {
+                    blocks.push(MarkdownBlock::Paragraph(text_lines.clone()));
+                    text_lines.clear();
+                }
+                let item_text: String = trimmed.chars().skip(2).collect();
+                blocks.push(MarkdownBlock::ListItem(item_text, 0));
+                continue;
+            }
+
+            if !trimmed.is_empty() {
+                text_lines.push(trimmed.to_string());
+            } else if !text_lines.is_empty() {
+                blocks.push(MarkdownBlock::Paragraph(text_lines.clone()));
+                text_lines.clear();
+            }
+        }
+
+        if in_inner_code {
+            blocks.push(MarkdownBlock::code_block(
+                inner_code_lang,
+                inner_code_content.trim_end(),
             ));
+        }
+
+        if !text_lines.is_empty() {
+            blocks.push(MarkdownBlock::Paragraph(text_lines));
+        }
+
+        if blocks.is_empty() {
+            let all_text: Vec<String> = lines
+                .iter()
+                .map(|(_, c)| c.clone())
+                .filter(|c| !c.is_empty())
+                .collect();
+            if !all_text.is_empty() {
+                blocks.push(MarkdownBlock::Paragraph(all_text));
+            }
         }
 
         blocks

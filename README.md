@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="examples/logo.webp" alt="ratatui-markdown logo" width="200" />
+</div>
+
 <div align="center"><h1>ratatui-markdown</h1></div>
 <div align="center">
   <strong>Markdown rendering, collapsible JSON/TOML trees, and rich scroll widgets for ratatui</strong>
@@ -47,7 +51,9 @@
 
 ## Features
 
-- **Markdown rendering** — parse and render markdown to styled `ratatui::text::Line`s, with support for headings, lists, code blocks, blockquotes, tables, and inline formatting (bold, italic, inline code)
+- **Markdown rendering** — parse and render markdown to styled `ratatui::text::Line`s, with support for headings, lists, code blocks, blockquotes, tables, images, and inline formatting (bold, italic, inline code)
+- **Image support** — resolve `![alt](path)` images via the `ImageResolver` trait (feature-gated: `image`)
+- **Custom rendering hooks** — override rendering of any block type (headings, code blocks, lists, tables, etc.) via the `RenderHooks` trait
 - **Collapsible trees** — parse JSON or TOML into interactive collapsible trees with expand/collapse, styled keys, and keyboard navigation
 - **Hybrid scroll system** — dual-mode scrolling: free-scroll for exploring content, engaged mode for navigating focusable items
 - **MarkdownPreview widget** — unified widget that combines markdown rendering, tree views, and action items into a single scrollable view
@@ -66,14 +72,14 @@
 
 ```toml
 [dependencies]
-ratatui-markdown = "0.1"
+ratatui-markdown = "0.2"
 ```
 
 For the full feature set (enabled by default):
 
 ```toml
 [dependencies]
-ratatui-markdown = { version = "0.1", features = ["preview"] }
+ratatui-markdown = { version = "0.2", features = ["preview"] }
 ```
 
 Individual features can be enabled selectively:
@@ -81,6 +87,7 @@ Individual features can be enabled selectively:
 | Feature    | Description                            |
 |------------|----------------------------------------|
 | `markdown` | Markdown parsing and rendering         |
+| `image`    | Image resolution via `ImageResolver` trait (adds `image` crate) |
 | `scroll`   | Hybrid scroll and scrollable widgets   |
 | `tree`     | JSON/TOML collapsible tree (requires `scroll`) |
 | `preview`  | `MarkdownPreview` unified widget (requires all) |

@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="../../../examples/logo.webp" alt="ratatui-markdown logo" width="200" />
+</div>
+
 # ratatui-markdown
 
 > A Rust library providing markdown rendering, collapsible JSON/TOML trees, and rich scroll widgets for ratatui.

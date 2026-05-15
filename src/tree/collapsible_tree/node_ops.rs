@@ -2,6 +2,12 @@ use std::collections::HashSet;
 
 use super::{CollapsibleTree, EntryKind, FlatEntry, ValueType};
 
+pub(crate) struct FlattenContext<'a> {
+    pub is_last_stack: &'a mut Vec<bool>,
+    pub expanded_paths: &'a HashSet<String>,
+    pub entries: &'a mut Vec<FlatEntry>,
+}
+
 impl CollapsibleTree {
     pub(crate) fn collect_expandable_paths(
         value: &serde_json::Value,
@@ -84,33 +90,33 @@ impl CollapsibleTree {
     pub fn flatten(&self) -> Vec<FlatEntry> {
         let mut entries = Vec::new();
         let mut is_last_stack = Vec::new();
+        let mut ctx = FlattenContext {
+            is_last_stack: &mut is_last_stack,
+            expanded_paths: &self.expanded_paths,
+            entries: &mut entries,
+        };
         Self::flatten_node(
             &self.root,
             "",
             0,
-            &mut is_last_stack,
-            &self.expanded_paths,
-            &mut entries,
             self.show_root,
             &self.root_label,
+            &mut ctx,
         );
         entries
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn flatten_node(
         value: &serde_json::Value,
         path: &str,
         depth: usize,
-        is_last_stack: &mut Vec<bool>,
-        expanded_paths: &HashSet<String>,
-        entries: &mut Vec<FlatEntry>,
         render_header: bool,
         label_override: &str,
+        ctx: &mut FlattenContext,
     ) {
         match value {
             serde_json::Value::Object(map) if !map.is_empty() => {
-                let is_expanded = expanded_paths.contains(path) || !render_header;
+                let is_expanded = ctx.expanded_paths.contains(path) || !render_header;
                 let count = map.len();
                 let label = if !label_override.is_empty() {
                     label_override.to_string()
@@ -120,10 +126,10 @@ impl CollapsibleTree {
                 let count_str = format!("{{{}}}", count);
 
                 if render_header {
-                    entries.push(FlatEntry {
+                    ctx.entries.push(FlatEntry {
                         path: path.to_string(),
                         depth,
-                        is_last_stack: is_last_stack.clone(),
+                        is_last_stack: ctx.is_last_stack.clone(),
                         kind: if is_expanded {
                             EntryKind::Expanded {
                                 label: label.clone(),
@@ -142,7 +148,7 @@ impl CollapsibleTree {
                     let keys: Vec<_> = map.keys().collect();
                     for (i, key) in keys.iter().enumerate() {
                         let is_last = i == count - 1;
-                        is_last_stack.push(is_last);
+                        ctx.is_last_stack.push(is_last);
                         let child_path = if path.is_empty() {
                             (*key).clone()
                         } else {
@@ -152,18 +158,16 @@ impl CollapsibleTree {
                             &map[*key],
                             &child_path,
                             if render_header { depth + 1 } else { depth },
-                            is_last_stack,
-                            expanded_paths,
-                            entries,
                             true,
                             "",
+                            ctx,
                         );
-                        is_last_stack.pop();
+                        ctx.is_last_stack.pop();
                     }
                 }
             }
             serde_json::Value::Array(arr) if !arr.is_empty() => {
-                let is_expanded = expanded_paths.contains(path) || !render_header;
+                let is_expanded = ctx.expanded_paths.contains(path) || !render_header;
                 let count = arr.len();
                 let label = if !label_override.is_empty() {
                     label_override.to_string()
@@ -173,10 +177,10 @@ impl CollapsibleTree {
                 let count_str = format!("[{}]", count);
 
                 if render_header {
-                    entries.push(FlatEntry {
+                    ctx.entries.push(FlatEntry {
                         path: path.to_string(),
                         depth,
-                        is_last_stack: is_last_stack.clone(),
+                        is_last_stack: ctx.is_last_stack.clone(),
                         kind: if is_expanded {
                             EntryKind::Expanded {
                                 label: label.clone(),
@@ -194,7 +198,7 @@ impl CollapsibleTree {
                 if is_expanded {
                     for (i, item) in arr.iter().enumerate() {
                         let is_last = i == count - 1;
-                        is_last_stack.push(is_last);
+                        ctx.is_last_stack.push(is_last);
                         let item_path = format!("{}[{}]", path, i);
                         let item_label = format!("[{}]", i);
 
@@ -204,11 +208,9 @@ impl CollapsibleTree {
                                     item,
                                     &item_path,
                                     if render_header { depth + 1 } else { depth },
-                                    is_last_stack,
-                                    expanded_paths,
-                                    entries,
                                     true,
                                     &item_label,
+                                    ctx,
                                 );
                             }
                             serde_json::Value::Array(a) if !a.is_empty() => {
@@ -216,19 +218,17 @@ impl CollapsibleTree {
                                     item,
                                     &item_path,
                                     if render_header { depth + 1 } else { depth },
-                                    is_last_stack,
-                                    expanded_paths,
-                                    entries,
                                     true,
                                     &item_label,
+                                    ctx,
                                 );
                             }
                             _ => {
                                 let (value_str, value_type) = format_primitive(item);
-                                entries.push(FlatEntry {
+                                ctx.entries.push(FlatEntry {
                                     path: item_path,
                                     depth: if render_header { depth + 1 } else { depth },
-                                    is_last_stack: is_last_stack.clone(),
+                                    is_last_stack: ctx.is_last_stack.clone(),
                                     kind: EntryKind::Leaf {
                                         key: item_label,
                                         value: value_str,
@@ -237,15 +237,15 @@ impl CollapsibleTree {
                                 });
                             }
                         }
-                        is_last_stack.pop();
+                        ctx.is_last_stack.pop();
                     }
                 }
             }
-            serde_json::Value::Object(map) if map.is_empty() => {
-                entries.push(FlatEntry {
+            serde_json::Value::Object(_) => {
+                ctx.entries.push(FlatEntry {
                     path: path.to_string(),
                     depth,
-                    is_last_stack: is_last_stack.clone(),
+                    is_last_stack: ctx.is_last_stack.clone(),
                     kind: EntryKind::Leaf {
                         key: if !label_override.is_empty() {
                             label_override.to_string()
@@ -257,11 +257,11 @@ impl CollapsibleTree {
                     },
                 });
             }
-            serde_json::Value::Array(arr) if arr.is_empty() => {
-                entries.push(FlatEntry {
+            serde_json::Value::Array(_) => {
+                ctx.entries.push(FlatEntry {
                     path: path.to_string(),
                     depth,
-                    is_last_stack: is_last_stack.clone(),
+                    is_last_stack: ctx.is_last_stack.clone(),
                     kind: EntryKind::Leaf {
                         key: if !label_override.is_empty() {
                             label_override.to_string()
@@ -275,10 +275,10 @@ impl CollapsibleTree {
             }
             _ => {
                 let (value_str, value_type) = format_primitive(value);
-                entries.push(FlatEntry {
+                ctx.entries.push(FlatEntry {
                     path: path.to_string(),
                     depth,
-                    is_last_stack: is_last_stack.clone(),
+                    is_last_stack: ctx.is_last_stack.clone(),
                     kind: EntryKind::Leaf {
                         key: if !label_override.is_empty() {
                             label_override.to_string()

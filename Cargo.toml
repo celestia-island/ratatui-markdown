@@ -1,6 +1,6 @@
 [package]
 name = "ratatui-markdown"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.74"
 authors = ["langyo <langyo.china@gmail.com>"]
@@ -17,11 +17,16 @@ doctest = false
 [features]
 default = ["markdown", "scroll", "tree", "preview"]
 markdown = []
+image = ["dep:image"]
 scroll = []
 tree = ["dep:serde_json", "dep:toml", "scroll"]
 preview = ["markdown", "scroll", "tree"]
+mermaid = ["markdown", "dep:pest", "dep:pest_derive"]
 
 [dependencies]
+image = { version = "^0.25", optional = true, default-features = false, features = ["png", "webp"] }
+pest = { version = "^2", optional = true }
+pest_derive = { version = "^2", optional = true }
 ratatui = "^0.29"
 serde_json = { version = "^1", optional = true }
 toml = { version = "^0.8", optional = true }
@@ -29,3 +34,12 @@ unicode-width = "^0.2"
 
 [dev-dependencies]
 anyhow = "^1"
+crossterm = "^0.28"
+ratatui-image = { version = "9", default-features = false, features = ["crossterm"] }
+
+[[example]]
+name = "image"
+required-features = ["image"]
+
+[[example]]
+name = "scrollable"

@@ -6,11 +6,13 @@ use ratatui::{
 };
 
 use crate::{
-    markdown::MarkdownRenderer,
+    markdown::{MarkdownRenderer, RenderHooks},
     scroll::{FocusableItemRange, FocusableRegion, HybridScrollView},
     theme::RichTextTheme,
     tree::CollapsibleTree,
 };
+
+use std::boxed::Box;
 
 const FRONTMATTER_DELIMITER: &str = "+++";
 
@@ -29,6 +31,7 @@ pub struct MarkdownPreview {
     tree_dirty: bool,
     action_items: Vec<ActionItem>,
     actions_dirty: bool,
+    hooks: Option<Box<dyn RenderHooks>>,
 }
 
 impl Default for MarkdownPreview {
@@ -51,11 +54,17 @@ impl MarkdownPreview {
             tree_dirty: false,
             action_items: Vec::new(),
             actions_dirty: false,
+            hooks: None,
         }
     }
 
     pub fn with_strip_frontmatter(mut self, strip: bool) -> Self {
         self.strip_frontmatter = strip;
+        self
+    }
+
+    pub fn with_render_hooks(mut self, hooks: Box<dyn RenderHooks>) -> Self {
+        self.hooks = Some(hooks);
         self
     }
 
@@ -224,9 +233,13 @@ impl MarkdownPreview {
         };
 
         if !content.trim().is_empty() {
-            let renderer = MarkdownRenderer::new(width);
+            let mut renderer = MarkdownRenderer::new(width);
+            if let Some(hooks) = self.hooks.take() {
+                renderer = renderer.with_render_hooks(hooks);
+            }
             let blocks = renderer.parse(&content);
             let md_lines = renderer.render(&blocks, theme);
+            self.hooks = renderer.hooks.take();
             all_lines.extend(md_lines);
         }
 

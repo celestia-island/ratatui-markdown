@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="../../../examples/logo.webp" alt="ratatui-markdown logo" width="200" />
+</div>
+
 # ratatui-markdown
 
 > Una biblioteca Rust que ofrece renderizado de Markdown, árboles JSON/TOML colapsables y widgets de desplazamiento enriquecidos para ratatui.

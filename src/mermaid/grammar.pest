@@ -1,0 +1,35 @@
+file = { SOI ~ diagram ~ EOI }
+
+diagram = { kw ~ sp+ ~ direction ~ sp* ~ (nl | &EOI) ~ stmts }
+kw = { "graph" | "flowchart" }
+direction = { "TD" | "TB" | "BT" | "LR" | "RL" }
+
+stmts = { (nl* ~ stmt)+ ~ nl* | nl* }
+stmt = { sp* ~ stmt_inner ~ sp* }
+stmt_inner = { chain | nodedef | comment }
+
+comment = { "%" ~ (!nl ~ ANY)* }
+
+chain = { nref ~ sp* ~ edge ~ sp* ~ nref ~ (sp* ~ edge ~ sp* ~ nref)* }
+nodedef = { nid ~ sp* ~ shape? }
+nref = { nid ~ sp* ~ shape? }
+
+nid = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+
+shape = { circ | rect | rnd | diam }
+circ = { "((" ~ stxt ~ "))" }
+rect = { "[" ~ stxt ~ "]" }
+rnd = { "(" ~ stxt ~ ")" }
+diam = { "{" ~ stxt ~ "}" }
+stxt = { (!("]" | ")" | "}" | nl) ~ ANY)* }
+
+edge = { arr_lbl | arr | ln_lbl | ln }
+arr_lbl = { "-->" ~ sp* ~ lbl }
+arr = { "-->" }
+ln_lbl = { "---" ~ sp* ~ lbl }
+ln = { "---" }
+lbl = { "|" ~ ltxt ~ "|" }
+ltxt = { (!"|" ~ ANY)* }
+
+sp = _{ " " | "\t" }
+nl = _{ "\r\n" | "\n" }
