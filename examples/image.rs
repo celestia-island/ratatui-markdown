@@ -56,49 +56,37 @@ fn safe_font_size(picker: &Picker) -> (u16, u16) {
     if fw == 0 || fh == 0 { (8, 16) } else { (fw, fh) }
 }
 
-fn cell_to_pixel(cols: u16, rows: u16, font_w: u16, font_h: u16, proto: ProtocolType) -> (u32, u32) {
-    let height_div = match proto {
+fn height_divisor(font_h: u16, proto: ProtocolType) -> f64 {
+    match proto {
         ProtocolType::Halfblocks => font_h as f64 * 2.0,
         _ => font_h as f64,
-    };
-    let px = cols as u32 * font_w as u32;
-    let py = (rows as f64 * height_div) as u32;
-    (px, py)
+    }
 }
 
 fn pixel_to_cell(pw: u32, ph: u32, font_w: u16, font_h: u16, proto: ProtocolType) -> (u16, u16) {
-    if pw == 0 || ph == 0 || font_w == 0 || font_h == 0 {
+    if pw == 0 || ph == 0 || font_w == 0 {
         return (0, 0);
     }
-    let height_div = match proto {
-        ProtocolType::Halfblocks => font_h as f64 * 2.0,
-        _ => font_h as f64,
-    };
     let cw = (pw as f64 / font_w as f64).ceil() as u16;
-    let ch = (ph as f64 / height_div).ceil() as u16;
+    let ch = (ph as f64 / height_divisor(font_h, proto)).ceil() as u16;
     (cw.max(1), ch.max(1))
 }
 
-fn scale_to_fit_rows(
-    pw: u32, ph: u32, target_rows: u16,
-    font_w: u16, font_h: u16, proto: ProtocolType, max_w: u16,
-) -> f64 {
-    let height_div = match proto {
-        ProtocolType::Halfblocks => font_h as f64 * 2.0,
-        _ => font_h as f64,
-    };
-    let natural_h = (ph as f64 / height_div).ceil();
-    if natural_h <= target_rows as f64 {
-        let natural_w = (pw as f64 / font_w as f64).ceil();
-        if natural_w <= max_w as f64 {
-            return 1.0;
-        }
-        return max_w as f64 * font_w as f64 / pw as f64;
-    }
-    target_rows as f64 * height_div / ph as f64
+fn rows_to_pixel_height(rows: u16, font_h: u16, proto: ProtocolType) -> u32 {
+    (rows as f64 * height_divisor(font_h, proto)).ceil() as u32
 }
 
-const ZOOM_STEP: f64 = 1.04;
+fn natural_rows(pw: u32, ph: u32, font_w: u16, font_h: u16, proto: ProtocolType, max_w: u16) -> u16 {
+    let (cw, ch) = pixel_to_cell(pw, ph, font_w, font_h, proto);
+    let w = cw.min(max_w);
+    if w < cw {
+        let ratio = ph as f64 * w as f64 / (pw as f64).max(1.0);
+        let h = (ratio / height_divisor(font_h, proto)).ceil() as u16;
+        h.max(1)
+    } else {
+        ch.max(1)
+    }
+}
 
 const MARKDOWN: &str = r#"
 # Image Rendering Example
@@ -118,8 +106,8 @@ graphics protocol (kitty, iTerm2, sixels, or halfblocks).
 
 ![Missing Image](nonexistent.webp)
 
-`j` / `k` — zoom out/in (4% step)
-`h` / `l` / arrows — pan when zoomed past viewport
+`k` / `j` — grow / shrink by 1 row
+`h` / `l` — pan horizontally when zoomed past viewport
 `Tab` — cycle image   `q` — quit
 "#;
 
@@ -127,40 +115,66 @@ struct ScaledImage {
     original: image::DynamicImage,
     scaled: image::DynamicImage,
     protocol: Option<StatefulProtocol>,
-    scale: f64,
+    target_rows: u16,
+    natural_rows: u16,
     failed: bool,
     scroll_x: u16,
-    scroll_y: u16,
 }
 
 impl ScaledImage {
-    fn new(img: image::DynamicImage) -> Self {
-        Self {
+    fn new(
+        img: image::DynamicImage,
+        initial_rows: u16,
+        font_w: u16,
+        font_h: u16,
+        proto: ProtocolType,
+        max_w: u16,
+    ) -> Self {
+        let nat = natural_rows(img.width(), img.height(), font_w, font_h, proto, max_w);
+        let rows = initial_rows.max(1);
+        let mut s = Self {
             original: img.clone(),
             scaled: img,
             protocol: None,
-            scale: 1.0,
+            target_rows: rows,
+            natural_rows: nat,
             failed: false,
             scroll_x: 0,
-            scroll_y: 0,
-        }
+        };
+        s.resize_to_target(font_w, font_h, proto, max_w);
+        s
     }
 
-    fn apply_scale(&mut self, _picker: &mut Picker) {
-        let sw = ((self.original.width() as f64 * self.scale).ceil() as u32).max(1);
-        let sh = ((self.original.height() as f64 * self.scale).ceil() as u32).max(1);
+    fn resize_to_target(&mut self, font_w: u16, font_h: u16, proto: ProtocolType, max_w: u16) {
+        let pw = self.original.width();
+        let ph = self.original.height();
+
+        let target_px_h = rows_to_pixel_height(self.target_rows, font_h, proto);
+        let scale_h = target_px_h as f64 / ph as f64;
+
+        let nat_cw = (pw as f64 / font_w as f64).ceil() as u16;
+        let scale_w = if nat_cw > max_w {
+            max_w as f64 * font_w as f64 / pw as f64
+        } else {
+            1.0
+        };
+
+        let scale = scale_h.min(scale_w);
+        let sw = ((pw as f64 * scale).ceil() as u32).max(1);
+        let sh = ((ph as f64 * scale).ceil() as u32).max(1);
+
         self.scaled = self.original.resize_exact(sw, sh, image::imageops::FilterType::Triangle);
         self.protocol = None;
     }
 
-    fn zoom_in(&mut self, picker: &mut Picker) {
-        self.scale = (self.scale * ZOOM_STEP).min(10.0);
-        self.apply_scale(picker);
+    fn grow(&mut self, font_w: u16, font_h: u16, proto: ProtocolType, max_w: u16) {
+        self.target_rows = self.target_rows.saturating_add(1).min(200);
+        self.resize_to_target(font_w, font_h, proto, max_w);
     }
 
-    fn zoom_out(&mut self, picker: &mut Picker) {
-        self.scale = (self.scale / ZOOM_STEP).max(0.02);
-        self.apply_scale(picker);
+    fn shrink(&mut self, font_w: u16, font_h: u16, proto: ProtocolType, max_w: u16) {
+        self.target_rows = self.target_rows.saturating_sub(1).max(1);
+        self.resize_to_target(font_w, font_h, proto, max_w);
     }
 
     fn cell_size(&self, font_w: u16, font_h: u16, proto: ProtocolType) -> (u16, u16) {
@@ -174,37 +188,42 @@ impl ScaledImage {
         font_w: u16,
         font_h: u16,
         proto: ProtocolType,
-    ) -> (image::DynamicImage, u16, u16) {
+    ) -> (image::DynamicImage, u16) {
         let (full_cw, full_ch) = self.cell_size(font_w, font_h, proto);
         if full_cw <= vp_w && full_ch <= vp_h {
-            return (self.scaled.clone(), 0, 0);
+            return (self.scaled.clone(), 0);
         }
 
         let sx = self.scroll_x.min(full_cw.saturating_sub(vp_w));
-        let sy = self.scroll_y.min(full_ch.saturating_sub(vp_h));
         let vis_w = full_cw.saturating_sub(sx).min(vp_w);
-        let vis_h = full_ch.saturating_sub(sy).min(vp_h);
+        let vis_h = full_ch.min(vp_h);
 
-        let (px_x, py_y) = cell_to_pixel(sx, sy, font_w, font_h, proto);
-        let (px_w, py_h) = cell_to_pixel(vis_w, vis_h, font_w, font_h, proto);
+        let px_x = sx as u32 * font_w as u32;
+        let px_w = vis_w as u32 * font_w as u32;
+        let py_h = (vis_h as f64 * height_divisor(font_h, proto)).ceil() as u32;
 
         let img_w = self.scaled.width();
         let img_h = self.scaled.height();
-        let x0 = (px_x as u32).min(img_w);
-        let y0 = (py_y as u32).min(img_h);
+        let x0 = px_x.min(img_w);
+        let y0 = 0u32;
         let x1 = (x0 + px_w).min(img_w);
-        let y1 = (y0 + py_h).min(img_h);
+        let y1 = py_h.min(img_h);
 
         if x1 <= x0 || y1 <= y0 {
-            return (self.scaled.clone(), 0, 0);
+            return (self.scaled.clone(), 0);
         }
 
         let cropped = self.scaled.crop_imm(x0, y0, x1 - x0, y1 - y0);
-        (cropped, sx, sy)
+        (cropped, sx)
     }
 
     fn rebuild_proto(&mut self, picker: &mut Picker, img: image::DynamicImage) {
         self.protocol = Some(picker.new_resize_protocol(img));
+    }
+
+    fn display_percent(&self) -> f64 {
+        if self.natural_rows == 0 { return 100.0; }
+        self.target_rows as f64 / self.natural_rows as f64 * 100.0
     }
 }
 
@@ -243,11 +262,7 @@ impl ImageResolver for FsImageResolver {
         let w = cw.min(max_width);
         if w < cw {
             let ratio = img.height() as f64 * w as f64 / (img.width() as f64).max(1.0);
-            let height_div = match self.protocol_type {
-                ProtocolType::Halfblocks => self.font_h as f64 * 2.0,
-                _ => self.font_h as f64,
-            };
-            let h = (ratio / height_div).ceil() as u16;
+            let h = (ratio / height_divisor(self.font_h, self.protocol_type)).ceil() as u16;
             (w.max(1), h.max(1))
         } else {
             (w.max(1), ch.max(1))
@@ -273,6 +288,7 @@ struct AppState {
     font_w: u16,
     font_h: u16,
     proto: ProtocolType,
+    max_w: u16,
 }
 
 impl AppState {
@@ -291,7 +307,7 @@ impl AppState {
             &self.theme,
             &resolved_scaled,
             &mut self.resolver,
-            70,
+            self.max_w,
             20,
         )
     }
@@ -304,9 +320,10 @@ fn main() -> anyhow::Result<()> {
     let mut terminal = Terminal::new(backend)?;
 
     let theme = Theme;
+    let max_w: u16 = 70;
     let renderer = MarkdownRenderer::new(76);
 
-    let mut picker = match Picker::from_query_stdio() {
+    let picker = match Picker::from_query_stdio() {
         Ok(mut p) => { fix_protocol_override(&mut p); p }
         Err(_) => Picker::halfblocks(),
     };
@@ -324,14 +341,8 @@ fn main() -> anyhow::Result<()> {
     let default_rows: Vec<u16> = vec![2, 3];
     let mut scaled_images: Vec<ScaledImage> = Vec::new();
     for (i, ri) in resolved.iter().enumerate() {
-        let target_rows = default_rows.get(i).copied().unwrap_or(3);
-        let init_scale = scale_to_fit_rows(
-            ri.image.width(), ri.image.height(), target_rows,
-            font_w, font_h, proto, 70,
-        );
-        let mut si = ScaledImage::new(ri.image.clone());
-        si.scale = init_scale;
-        si.apply_scale(&mut picker);
+        let rows = default_rows.get(i).copied().unwrap_or(3);
+        let si = ScaledImage::new(ri.image.clone(), rows, font_w, font_h, proto, max_w);
         scaled_images.push(si);
     }
 
@@ -350,6 +361,7 @@ fn main() -> anyhow::Result<()> {
         font_w,
         font_h,
         proto,
+        max_w,
     };
 
     let mut output = state.rebuild_output();
@@ -400,7 +412,7 @@ fn main() -> anyhow::Result<()> {
                 let (full_cw, full_ch) = si.cell_size(state.font_w, state.font_h, state.proto);
                 if full_ch < 1 || full_cw < 1 { continue; }
 
-                let (cropped, scroll_x, scroll_y) = si.crop_for_viewport(
+                let (cropped, scroll_x) = si.crop_for_viewport(
                     vp_w, vp_h, state.font_w, state.font_h, state.proto,
                 );
 
@@ -443,8 +455,6 @@ fn main() -> anyhow::Result<()> {
                 if img_render_idx == selected_idx {
                     if show_v_scroll {
                         let sb_area = Rect::new(inner.x + inner.width - 1, base_y, 1, render_h);
-                        let max_off = full_ch.saturating_sub(vp_h) as usize;
-                        let pos = if max_off > 0 { scroll_y as usize * max_off / max_off } else { 0 };
                         let sb = Scrollbar::default()
                             .orientation(ScrollbarOrientation::VerticalRight)
                             .thumb_symbol("█")
@@ -454,14 +464,14 @@ fn main() -> anyhow::Result<()> {
                         let mut sb_state = ScrollbarState::default()
                             .content_length(full_ch as usize)
                             .viewport_content_length(vp_h as usize)
-                            .position(pos);
+                            .position(0);
                         f.render_stateful_widget(sb, sb_area, &mut sb_state);
                     }
 
                     if show_h_scroll {
                         let sb_area = Rect::new(base_x, base_y + render_h, render_w, 1);
-                        let max_off = full_cw.saturating_sub(vp_w) as usize;
-                        let pos = if max_off > 0 { scroll_x as usize * max_off / max_off } else { 0 };
+                        let max_off = full_cw.saturating_sub(vp_w);
+                        let pos = if max_off > 0 { scroll_x as usize } else { 0 };
                         let sb = Scrollbar::default()
                             .orientation(ScrollbarOrientation::HorizontalBottom)
                             .thumb_symbol("█")
@@ -482,27 +492,24 @@ fn main() -> anyhow::Result<()> {
             let si_info = state.scaled_images.iter()
                 .filter(|i| !i.failed)
                 .nth(selected_idx);
-            let (zoom_pct, scroll_info) = match si_info {
+            let info = match si_info {
                 Some(si) => {
+                    let pct = si.display_percent();
                     let (full_cw, full_ch) = si.cell_size(state.font_w, state.font_h, state.proto);
-                    let cropped = full_cw > vp_w || full_ch > vp_h;
-                    let extra = if cropped {
-                        let sx = si.scroll_x;
-                        let sy = si.scroll_y;
-                        format!(" | crop {},{}", sx, sy)
+                    let overflow = if full_cw > vp_w || full_ch > vp_h {
+                        format!(" | overflow {}x{}", full_cw, full_ch)
                     } else {
                         String::new()
                     };
-                    (si.scale * 100.0, extra)
+                    format!(
+                        "img {}/{} | {} rows ({:.0}%){} | k/j +/-row h/l pan | Tab | q",
+                        selected_idx + 1, sel_count, si.target_rows, pct, overflow,
+                    )
                 }
-                None => (0.0, String::new()),
+                None => format!("img 0/{} | q quit", sel_count),
             };
-            let info_text = format!(
-                "img {}/{} | zoom {:.0}%{} | j/k zoom h/l pan | Tab cycle | q quit",
-                selected_idx + 1, sel_count, zoom_pct, scroll_info,
-            );
             let info_line = Line::from(vec![
-                Span::styled(info_text, Style::default().fg(Color::DarkGray)),
+                Span::styled(info, Style::default().fg(Color::DarkGray)),
             ]);
             let info_y = area.y + area.height - 1;
             f.render_widget(Paragraph::new(vec![info_line]), Rect::new(area.x + 1, info_y, area.width - 2, 1));
@@ -512,34 +519,25 @@ fn main() -> anyhow::Result<()> {
             match event::read()? {
                 Event::Key(key) if key.kind == KeyEventKind::Press => match key.code {
                     KeyCode::Char('q') => break,
-                    KeyCode::Char('j') | KeyCode::Down => {
-                        let mut idx = 0;
-                        for si in state.scaled_images.iter_mut() {
-                            if si.failed { continue; }
-                            if idx == selected_idx {
-                                let (_full_cw, full_ch) = si.cell_size(state.font_w, state.font_h, state.proto);
-                                if full_ch > last_vp_h {
-                                    si.scroll_y = si.scroll_y.saturating_add(1).min(full_ch.saturating_sub(last_vp_h));
-                                } else {
-                                    si.zoom_out(&mut state.picker);
-                                    state.need_rerender = true;
-                                }
-                                break;
-                            }
-                            idx += 1;
-                        }
-                    }
                     KeyCode::Char('k') | KeyCode::Up => {
                         let mut idx = 0;
                         for si in state.scaled_images.iter_mut() {
                             if si.failed { continue; }
                             if idx == selected_idx {
-                                if si.scroll_y > 0 {
-                                    si.scroll_y = si.scroll_y.saturating_sub(1);
-                                } else {
-                                    si.zoom_in(&mut state.picker);
-                                    state.need_rerender = true;
-                                }
+                                si.grow(state.font_w, state.font_h, state.proto, state.max_w);
+                                state.need_rerender = true;
+                                break;
+                            }
+                            idx += 1;
+                        }
+                    }
+                    KeyCode::Char('j') | KeyCode::Down => {
+                        let mut idx = 0;
+                        for si in state.scaled_images.iter_mut() {
+                            if si.failed { continue; }
+                            if idx == selected_idx {
+                                si.shrink(state.font_w, state.font_h, state.proto, state.max_w);
+                                state.need_rerender = true;
                                 break;
                             }
                             idx += 1;
@@ -563,30 +561,6 @@ fn main() -> anyhow::Result<()> {
                             if idx == selected_idx {
                                 let (full_cw, _) = si.cell_size(state.font_w, state.font_h, state.proto);
                                 si.scroll_x = si.scroll_x.saturating_add(1).min(full_cw.saturating_sub(last_vp_w));
-                                break;
-                            }
-                            idx += 1;
-                        }
-                    }
-                    KeyCode::Char('+') => {
-                        let mut idx = 0;
-                        for si in state.scaled_images.iter_mut() {
-                            if si.failed { continue; }
-                            if idx == selected_idx {
-                                si.zoom_in(&mut state.picker);
-                                state.need_rerender = true;
-                                break;
-                            }
-                            idx += 1;
-                        }
-                    }
-                    KeyCode::Char('-') => {
-                        let mut idx = 0;
-                        for si in state.scaled_images.iter_mut() {
-                            if si.failed { continue; }
-                            if idx == selected_idx {
-                                si.zoom_out(&mut state.picker);
-                                state.need_rerender = true;
                                 break;
                             }
                             idx += 1;

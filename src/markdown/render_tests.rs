@@ -2757,17 +2757,24 @@ mod example_image_tests {
     }
 
     #[test]
-    fn zoom_step_4_percent_grows_slowly() {
-        let mut scale = 1.0_f64;
-        for _ in 0..25 { scale *= 1.04; }
-        assert!((scale - 2.66).abs() < 0.02, "25 steps of 4% should ~2.66x, got {:.4}", scale);
+    fn grow_by_one_row_each_press() {
+        let mut rows = 2u16;
+        for _ in 0..10 { rows = rows.saturating_add(1); }
+        assert_eq!(rows, 12, "10 grows from 2 = 12 rows");
     }
 
     #[test]
-    fn zoom_step_4_percent_shrinks_slowly() {
-        let mut scale = 1.0_f64;
-        for _ in 0..25 { scale /= 1.04; }
-        assert!((scale - 0.375).abs() < 0.005, "25 steps of 4% down should ~0.375x, got {:.4}", scale);
+    fn shrink_by_one_row_each_press() {
+        let mut rows = 12u16;
+        for _ in 0..10 { rows = rows.saturating_sub(1).max(1); }
+        assert_eq!(rows, 2, "10 shrinks from 12 = 2 rows");
+    }
+
+    #[test]
+    fn shrink_clamps_at_one_row() {
+        let mut rows = 2u16;
+        for _ in 0..10 { rows = rows.saturating_sub(1).max(1); }
+        assert_eq!(rows, 1, "cannot go below 1 row");
     }
 
     #[test]
