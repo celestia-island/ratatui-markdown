@@ -222,16 +222,6 @@ pub fn poll_and_handle(state: &mut AppState) -> anyhow::Result<bool> {
     Ok(false)
 }
 
-pub fn lorem(n: usize) -> String {
-    let paragraphs = [
-        "Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Vestibulum tortor quam, feugiat vitae, ultricies eget, tempor sit amet, ante. Donec eu libero sit amet quam egestas semper. Aenean ultricies mi vitae est. Mauris placerat eleifend leo.",
-        "Nulla facilisi. Sed non libero eget justo fermentum dignissim. Cras malesuada blandit magna, id euismod arcu fermentum ut. Integer eget massa vel urna pretium faucibus. Proin dapibus nisi vitae vestibulum.",
-        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut at purus et arcu cursus mattis. Morbi eleifend nulla ut sapien rhoncus, vel vestibulum odio dictum. Fusce ac felis vel nunc tincidunt lacinia.",
-        "Curabitur pretium tincidunt lacus. Nulla gravida orci a odio. Nullam varius, turpis et commodo pharetra, est eros bibendum elit, nec luctus magna felis sollicitudin mauris.",
-        "Duis ultricies pharetra magna. Donec accumsan malesuada orci. Ut quis tortor sed neque vehicula aliquet. Duis mollis, est non commodo luctus, nisi erat porttitor ligula, eget lacinia odio sem nec elit.",
-    ];
-    (0..n)
-        .map(|i| paragraphs[i % paragraphs.len()])
-        .collect::<Vec<_>>()
-        .join("\n\n")
+pub fn lorem(words: usize) -> String {
+    lipsum::lipsum(words)
 }

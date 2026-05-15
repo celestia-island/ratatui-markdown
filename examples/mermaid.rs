@@ -75,8 +75,8 @@ fn main() -> anyhow::Result<()> {
     let mut terminal = setup_terminal()?;
 
     let md = MARKDOWN_TEMPLATE
-        .replace("LOREM_2", &lorem(2))
-        .replace("LOREM_3", &lorem(3));
+        .replace("LOREM_2", &lorem(100))
+        .replace("LOREM_3", &lorem(150));
 
     let theme = Theme;
     let renderer = MarkdownRenderer::new(76);
