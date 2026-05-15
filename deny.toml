@@ -1,6 +1,11 @@
 [graph]
 targets = ["x86_64-unknown-linux-gnu"]
 
+[advisories]
+ignore = [
+    "RUSTSEC-2024-0436", # paste - unmaintained, comes from ratatui
+]
+
 [licenses]
 allow = [
     "MIT",
@@ -17,6 +22,10 @@ ignore = false
 
 [bans]
 multiple-versions = "warn"
+skip = [
+    { name = "hashbrown", version = "0.15.5" },   # via lru (ratatui) vs indexmap (toml_edit)
+    { name = "unicode-width", version = "0.1.14" }, # via unicode-truncate (ratatui) vs ratatui 0.29
+]
 
 [sources]
 unknown-registry = "deny"
