@@ -550,7 +550,7 @@ impl MarkdownRenderer {
     fn default_code_block_header(&self, lang: &str, theme: &impl RichTextTheme) -> Line<'static> {
         if !lang.is_empty() {
             Line::from(Span::styled(
-                format!("{ROUNDED_TL}{HLINE} {} {HLINE}", lang),
+                format!("{ROUNDED_TL}{HLINE} {}", lang),
                 Style::default().fg(theme.get_muted_text_color()),
             ))
         } else {
