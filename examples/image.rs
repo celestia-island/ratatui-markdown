@@ -416,13 +416,15 @@ fn main() -> anyhow::Result<()> {
                 }
 
                 let abs_y = text_top + placement.row as u16;
-                let base_y = abs_y.saturating_sub(state.scroll);
+                let base_y_i32 = abs_y as i32 - state.scroll as i32;
                 let img_x = text_left;
 
-                let img_bottom = base_y.saturating_add(img_h).saturating_sub(1);
-                if img_bottom < text_top || base_y > text_bot {
+                let img_bottom_i32 = base_y_i32 + img_h as i32 - 1;
+                if img_bottom_i32 < text_top as i32 || base_y_i32 > text_bot as i32 {
                     continue;
                 }
+
+                let base_y = base_y_i32.max(0) as u16;
 
                 let visible_top = base_y.max(text_top);
                 let visible_bot = (base_y + img_h).min(text_bot.saturating_add(1));
