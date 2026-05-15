@@ -6,6 +6,12 @@ mod treesitter;
 #[cfg(feature = "highlight")]
 mod hooks;
 
+#[cfg(feature = "highlight-lang-mcfunction")]
+mod mcfunction;
+
+#[cfg(feature = "highlight-lang-brainfuck")]
+mod brainfuck;
+
 pub use segment::segments_to_lines;
 
 #[cfg(feature = "highlight")]
@@ -13,6 +19,12 @@ pub use treesitter::TreeSitterHighlighter;
 
 #[cfg(feature = "highlight")]
 pub use hooks::HighlightHooks;
+
+#[cfg(feature = "highlight-lang-mcfunction")]
+pub use mcfunction::McfunctionHighlighter;
+
+#[cfg(feature = "highlight-lang-brainfuck")]
+pub use brainfuck::BrainfuckHighlighter;
 
 use ratatui::style::Style;
 use ratatui::text::Line;

@@ -34,6 +34,8 @@ highlight-lang-css = ["highlight", "dep:tree-sitter-css"]
 highlight-lang-json = ["highlight", "dep:tree-sitter-json"]
 highlight-lang-toml = ["highlight", "dep:tree-sitter-toml-ng"]
 highlight-lang-sql = ["highlight", "dep:tree-sitter-sequel"]
+highlight-lang-mcfunction = ["highlight", "dep:pest", "dep:pest_derive"]
+highlight-lang-brainfuck = ["highlight"]
 highlight-lang-all = [
     "highlight-lang-rust",
     "highlight-lang-python",
@@ -44,6 +46,8 @@ highlight-lang-all = [
     "highlight-lang-json",
     "highlight-lang-toml",
     "highlight-lang-sql",
+    "highlight-lang-mcfunction",
+    "highlight-lang-brainfuck",
 ]
 
 [dependencies]
@@ -82,4 +86,4 @@ required-features = ["mermaid"]
 
 [[example]]
 name = "code"
-required-features = ["highlight-lang-all"]
+required-features = ["highlight-lang-rust", "highlight-lang-mcfunction", "highlight-lang-brainfuck"]

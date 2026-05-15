@@ -1,0 +1,26 @@
+file = { SOI ~ (line ~ nl)* ~ line? ~ EOI }
+
+line = { sp* ~ (comment | command)? ~ sp* }
+
+comment = { "#" ~ (!nl ~ ANY)* }
+
+command = { cmd_name ~ (sp+ ~ arg)* }
+cmd_name = @{ ASCII_ALPHA ~ (ASCII_ALPHA | "_")* }
+
+arg = { selector | nbt | string | coord | number | raw_arg }
+
+selector = { "@" ~ sel_type ~ sel_args? }
+sel_type = @{ "a" | "p" | "s" | "e" | "r" }
+sel_args = { "[" ~ (!"]" ~ ANY)* ~ "]" }
+
+nbt = { "{" ~ nbt_inner ~ "}" }
+nbt_inner = { (!"}" ~ ANY)* }
+
+string = { ("\"" ~ (!"\"" ~ ANY)* ~ "\"") | ("'" ~ (!"'" ~ ANY)* ~ "'") }
+
+coord = { ("~" | "^") ~ ASCII_DIGIT* }
+number = @{ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? }
+raw_arg = @{ (!sp ~ !nl ~ ANY)+ }
+
+sp = _{ " " | "\t" }
+nl = _{ "\r\n" | "\n" }
