@@ -13,9 +13,16 @@ pub enum MarkdownBlock {
     },
     InlineCode(String),
     ListItem(String, u8),
+    TaskItem {
+        text: String,
+        indent: u8,
+        checked: bool,
+    },
     Blockquote {
         level: u8,
         children: Vec<MarkdownBlock>,
+        header_override: Option<String>,
+        footer_override: Option<String>,
     },
     HorizontalRule,
     BlankLine,
@@ -44,11 +51,32 @@ impl MarkdownBlock {
         Self::Blockquote {
             level: 1,
             children: vec![MarkdownBlock::Paragraph(vec![text.into()])],
+            header_override: None,
+            footer_override: None,
         }
     }
 
     pub fn blockquote(level: u8, children: Vec<MarkdownBlock>) -> Self {
-        Self::Blockquote { level, children }
+        Self::Blockquote {
+            level,
+            children,
+            header_override: None,
+            footer_override: None,
+        }
+    }
+
+    pub fn blockquote_with_overrides(
+        level: u8,
+        children: Vec<MarkdownBlock>,
+        header_override: Option<String>,
+        footer_override: Option<String>,
+    ) -> Self {
+        Self::Blockquote {
+            level,
+            children,
+            header_override,
+            footer_override,
+        }
     }
 
     pub fn line_count(&self) -> usize {
@@ -61,12 +89,17 @@ impl MarkdownBlock {
             | MarkdownBlock::BlankLine => 1,
             MarkdownBlock::Paragraph(lines) => lines.len().max(1),
             MarkdownBlock::CodeBlock { code, .. } => code.lines().count().max(1) + 2,
-            MarkdownBlock::ListItem(_, _) => 1,
-            MarkdownBlock::Blockquote { children, .. } => children
-                .iter()
-                .map(|c| c.line_count())
-                .sum::<usize>()
-                .max(1),
+            MarkdownBlock::ListItem(_, _) | MarkdownBlock::TaskItem { .. } => 1,
+            MarkdownBlock::Blockquote { children, header_override, footer_override, .. } => {
+                let base = children
+                    .iter()
+                    .map(|c| c.line_count())
+                    .sum::<usize>()
+                    .max(1);
+                let extra = header_override.as_ref().map_or(0, |_| 1)
+                    + footer_override.as_ref().map_or(0, |_| 1);
+                base + extra
+            }
             MarkdownBlock::Table { rows, .. } => {
                 let header_lines = 2;
                 let row_lines = rows.len() * 2 + 1;

@@ -446,7 +446,20 @@ impl MarkdownRenderer {
                 );
                 lines.extend(wrapped);
             }
-            MarkdownBlock::Blockquote { level, children } => {
+            MarkdownBlock::TaskItem {
+                text,
+                indent,
+                checked,
+            } => {
+                let indent_str = "  ".repeat(*indent as usize);
+                let checkbox = if *checked { "☑ " } else { "☐ " };
+                let wrapped = self.wrap_text_with_inline_formatting(
+                    &format!("{}{}{}", indent_str, checkbox, text),
+                    theme,
+                );
+                lines.extend(wrapped);
+            }
+            MarkdownBlock::Blockquote { level, children, header_override, footer_override } => {
                 if let Some(h) = hooks {
                     if let Some(custom) = h.blockquote(*level, children) {
                         lines.extend(custom);
@@ -456,6 +469,13 @@ impl MarkdownRenderer {
 
                 let prefix_str = "│ ".repeat(*level as usize);
                 let prefix_style = Style::default().fg(theme.get_muted_text_color());
+
+                if let Some(ref hdr) = header_override {
+                    lines.push(Line::from(Span::styled(
+                        format!("{}{}", prefix_str, hdr),
+                        prefix_style,
+                    )));
+                }
 
                 let mut inner_lines = Vec::new();
                 for (child_idx, child) in children.iter().enumerate() {
@@ -473,6 +493,13 @@ impl MarkdownRenderer {
                         span.style = new_style;
                     }
                     lines.push(line);
+                }
+
+                if let Some(ref ftr) = footer_override {
+                    lines.push(Line::from(Span::styled(
+                        format!("{}{}", prefix_str, ftr),
+                        prefix_style,
+                    )));
                 }
             }
             MarkdownBlock::HorizontalRule => {

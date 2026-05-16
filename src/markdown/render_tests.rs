@@ -1263,7 +1263,7 @@ fn blockquote_parsed_with_level_and_children() -> anyhow::Result<()> {
     let blocks = renderer.parse("> quoted text");
     assert_eq!(blocks.len(), 1);
     match &blocks[0] {
-        MarkdownBlock::Blockquote { level, children } => {
+        MarkdownBlock::Blockquote { level, children, .. } => {
             assert_eq!(*level, 1);
             assert!(!children.is_empty());
         }
@@ -1282,7 +1282,7 @@ fn blockquote_multiline_grouped() -> anyhow::Result<()> {
         "consecutive > lines should be grouped into one blockquote"
     );
     match &blocks[0] {
-        MarkdownBlock::Blockquote { level, children } => {
+        MarkdownBlock::Blockquote { level, children, .. } => {
             assert_eq!(*level, 1);
             assert!(!children.is_empty());
         }
@@ -1297,7 +1297,7 @@ fn nested_blockquote_parsed() -> anyhow::Result<()> {
     let blocks = renderer.parse("> level 1\n> > level 2");
     assert!(!blocks.is_empty(), "should parse nested blockquote");
     match &blocks[0] {
-        MarkdownBlock::Blockquote { level, children } => {
+        MarkdownBlock::Blockquote { level, children, .. } => {
             assert_eq!(*level, 1);
             let has_nested = children
                 .iter()
@@ -1696,4 +1696,125 @@ mod mermaid_render_tests {
         );
         Ok(())
     }
+}
+
+// ==================== Link Inline Parsing Tests ====================
+
+#[test]
+fn inline_link_renders_underlined() -> anyhow::Result<()> {
+    let lines = render_markdown("click [here](https://example.com) now", 80);
+    assert_eq!(lines.len(), 1);
+    let has_here = lines[0]
+        .spans
+        .iter()
+        .any(|s| s.content == "here" && s.style.add_modifier == Modifier::UNDERLINED);
+    assert!(has_here, "link text should be underlined");
+    Ok(())
+}
+
+#[test]
+fn inline_link_without_url_unchanged() -> anyhow::Result<()> {
+    let lines = render_markdown("plain [text] here", 80);
+    let all_text: String = lines
+        .iter()
+        .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
+        .collect();
+    assert!(
+        all_text.contains("[text]"),
+        "non-link bracket text should remain unchanged"
+    );
+    Ok(())
+}
+
+// ==================== Strikethrough Tests ====================
+
+#[test]
+fn strikethrough_renders_crossed_out() -> anyhow::Result<()> {
+    let lines = render_markdown("this is ~~deleted~~ text", 80);
+    assert_eq!(lines.len(), 1);
+    let has_crossed = lines[0]
+        .spans
+        .iter()
+        .any(|s| s.content == "deleted" && s.style.add_modifier == Modifier::CROSSED_OUT);
+    assert!(has_crossed, "strikethrough text should have CROSSED_OUT modifier");
+    Ok(())
+}
+
+#[test]
+fn strikethrough_unterminated_unchanged() -> anyhow::Result<()> {
+    let lines = render_markdown("~~no end", 80);
+    let all_text: String = lines
+        .iter()
+        .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
+        .collect();
+    assert!(
+        all_text.contains("~~no end"),
+        "unterminated strikethrough should remain as-is"
+    );
+    Ok(())
+}
+
+// ==================== Task List Tests ====================
+
+#[test]
+fn task_list_unchecked_parsed() -> anyhow::Result<()> {
+    let renderer = MarkdownRenderer::new(80);
+    let blocks = renderer.parse("- [ ] pending task");
+    assert_eq!(blocks.len(), 1);
+    match &blocks[0] {
+        MarkdownBlock::TaskItem { text, checked, .. } => {
+            assert_eq!(text, "pending task");
+            assert!(!checked);
+        }
+        other => panic!("expected TaskItem, got {:?}", other),
+    }
+    Ok(())
+}
+
+#[test]
+fn task_list_checked_parsed() -> anyhow::Result<()> {
+    let renderer = MarkdownRenderer::new(80);
+    let blocks = renderer.parse("- [x] done task");
+    assert_eq!(blocks.len(), 1);
+    match &blocks[0] {
+        MarkdownBlock::TaskItem { text, checked, .. } => {
+            assert_eq!(text, "done task");
+            assert!(checked);
+        }
+        other => panic!("expected TaskItem, got {:?}", other),
+    }
+    Ok(())
+}
+
+#[test]
+fn task_list_renders_checkbox() -> anyhow::Result<()> {
+    let lines = render_markdown("- [ ] todo\n- [x] done", 80);
+    let all_text: String = lines
+        .iter()
+        .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
+        .collect();
+    assert!(
+        all_text.contains("☐ todo"),
+        "unchecked task should render ☐: got '{}'",
+        all_text
+    );
+    assert!(
+        all_text.contains("☑ done"),
+        "checked task should render ☑: got '{}'",
+        all_text
+    );
+    Ok(())
+}
+
+#[test]
+fn task_list_uppercase_x_checked() -> anyhow::Result<()> {
+    let renderer = MarkdownRenderer::new(80);
+    let blocks = renderer.parse("- [X] done");
+    match &blocks[0] {
+        MarkdownBlock::TaskItem { checked, .. } => {
+            assert!(checked);
+        }
+        other => panic!("expected TaskItem, got {:?}", other),
+    }
+    Ok(())
 }
