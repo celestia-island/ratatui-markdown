@@ -213,11 +213,16 @@ fn render_mermaid_to_image(
     let cell_h = (svg_h / font_h as f64).ceil() as u32;
     let px_h = cell_h * font_h;
     let px_w = (px_h as f64 * aspect).round() as u32;
-    let cell_w = (px_w as f64 / font_w as f64).ceil() as u32;
+    let cell_w = (px_w as f64 / font_w as f64).floor().max(1.0) as u32;
     let px_w = cell_w * font_w;
 
     let mut pixmap = tiny_skia::Pixmap::new(px_w, px_h)?;
-    pixmap.fill(tiny_skia::Color::from_rgba8(0, 0, 0, 0));
+    let bg_fill = match mermaid_theme.background {
+        ratatui::style::Color::Rgb(r, g, b) => tiny_skia::Color::from_rgba8(r, g, b, 255),
+        ratatui::style::Color::Black => tiny_skia::Color::from_rgba8(0, 0, 0, 255),
+        _ => tiny_skia::Color::from_rgba8(0, 0, 0, 255),
+    };
+    pixmap.fill(bg_fill);
 
     let scale = px_h as f32 / svg_h as f32;
     let ts = tiny_skia::Transform::from_scale(scale, scale);
