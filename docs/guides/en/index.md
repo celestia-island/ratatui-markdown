@@ -111,8 +111,8 @@ ratatui-markdown = "0.2"
 ```bash
 cargo run --example basic
 cargo run --example code --features highlight-lang-all
-cargo run --example image --features image
-cargo run --example mermaid --features mermaid
+cargo run --example image
+cargo run --example mermaid
 cargo run --example tree_list
 ```
 
@@ -125,18 +125,18 @@ All features are enabled by default. Disable default features and enable only wh
 ratatui-markdown = { version = "0.2", default-features = false, features = ["markdown"] }
 ```
 
-| Feature              | Depends on                           | Description                                     |
-|----------------------|--------------------------------------|-------------------------------------------------|
-| `markdown`           | —                                    | Markdown parser and renderer                    |
-| `image`              | —                                    | Image resolution via `ImageResolver` trait      |
-| `scroll`             | —                                    | HybridScrollView, scrollable lists, scrollbar   |
-| `tree`               | `scroll`, `serde_json`, `toml`       | Collapsible JSON/TOML tree                      |
-| `preview`            | `markdown`, `scroll`, `tree`         | MarkdownPreview unified widget                  |
-| `mermaid`            | `markdown`                           | Mermaid diagram rendering                       |
-| `viewer`             | `markdown`, `scroll`                 | MarkdownViewer widget                           |
-| `highlight`          | —                                    | Syntax highlighting via tree-sitter             |
-| `highlight-lang-*`   | `highlight`                          | Individual language grammars                    |
-| `highlight-lang-all` | `highlight`                          | All bundled language grammars                   |
+| Feature              | Depends on                           | Description                                     | Default |
+|----------------------|--------------------------------------|-------------------------------------------------|---------|
+| `markdown`           | —                                    | Markdown parser and renderer                    | ✓       |
+| `image`              | —                                    | Image resolution via `ImageResolver` trait      | ✓       |
+| `scroll`             | —                                    | HybridScrollView, scrollable lists, scrollbar   | ✓       |
+| `tree`               | `scroll`, `serde_json`, `toml`       | Collapsible JSON/TOML tree                      | ✓       |
+| `preview`            | `markdown`, `scroll`, `tree`         | MarkdownPreview unified widget                  | ✓       |
+| `mermaid`            | `markdown`                           | Mermaid diagram rendering                       | ✓       |
+| `viewer`             | `markdown`, `scroll`                 | MarkdownViewer widget                           | ✓       |
+| `highlight`          | —                                    | Syntax highlighting via tree-sitter             |         |
+| `highlight-lang-*`   | `highlight`                          | Individual language grammars                    |         |
+| `highlight-lang-all` | `highlight`                          | All bundled language grammars                   |         |
 
 ## Documentation
 

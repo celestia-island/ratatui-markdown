@@ -39,6 +39,8 @@
 //! | `scroll`   | —                                       | HybridScrollView, scrollable lists        |
 //! | `tree`     | `scroll`, `serde_json`, `toml`          | Collapsible JSON/TOML tree                |
 //! | `preview`  | `markdown`, `scroll`, `tree`            | `MarkdownPreview` unified widget          |
+//! | `mermaid`  | `markdown`                              | Mermaid diagram rendering                 |
+//! | `viewer`   | `markdown`, `scroll`                    | `MarkdownViewer` widget                   |
 //!
 //! ## Quick Start
 //!
@@ -138,6 +140,8 @@
 //! | [`scroll`] | `scroll` | Hybrid scroll system with focusable items |
 //! | [`tree`] | `tree` | Collapsible JSON/TOML tree view |
 //! | [`preview`] | `preview` | Unified `MarkdownPreview` widget |
+//! | [`mermaid`] | `mermaid` | Mermaid diagram rendering |
+//! | [`viewer`] | `viewer` | `MarkdownViewer` widget |
 //! | [`theme`] | always | `RichTextTheme` trait for theming |
 //! | [`constants`] | always | Box-drawing chars, tree connectors, arrows |
 

@@ -86,18 +86,18 @@ ratatui-markdown = { version = "0.2", features = ["preview"] }
 
 Individual features can be enabled selectively:
 
-| Feature              | Description                                          |
-|----------------------|------------------------------------------------------|
-| `markdown`           | Markdown parsing and rendering                       |
-| `image`              | Image resolution via `ImageResolver` trait           |
-| `scroll`             | Hybrid scroll and scrollable widgets                 |
-| `tree`               | JSON/TOML collapsible tree (requires `scroll`)       |
-| `preview`            | `MarkdownPreview` unified widget (requires `markdown`, `scroll`, `tree`) |
-| `mermaid`            | Mermaid diagram rendering (requires `markdown`)      |
-| `viewer`             | `MarkdownViewer` widget (requires `markdown`, `scroll`) |
-| `highlight`          | Syntax highlighting via tree-sitter                  |
-| `highlight-lang-*`   | Individual language grammars (requires `highlight`)  |
-| `highlight-lang-all` | All bundled language grammars                        |
+| Feature              | Description                                          | Default |
+|----------------------|------------------------------------------------------|---------|
+| `markdown`           | Markdown parsing and rendering                       | ✓       |
+| `image`              | Image resolution via `ImageResolver` trait           | ✓       |
+| `scroll`             | Hybrid scroll and scrollable widgets                 | ✓       |
+| `tree`               | JSON/TOML collapsible tree (requires `scroll`)       | ✓       |
+| `preview`            | `MarkdownPreview` unified widget (requires `markdown`, `scroll`, `tree`) | ✓ |
+| `mermaid`            | Mermaid diagram rendering (requires `markdown`)      | ✓       |
+| `viewer`             | `MarkdownViewer` widget (requires `markdown`, `scroll`) | ✓    |
+| `highlight`          | Syntax highlighting via tree-sitter                  |         |
+| `highlight-lang-*`   | Individual language grammars (requires `highlight`)  |         |
+| `highlight-lang-all` | All bundled language grammars                        |         |
 
 ### Examples
 
@@ -113,8 +113,8 @@ Individual features can be enabled selectively:
 ```bash
 cargo run --example basic
 cargo run --example code --features highlight-lang-all
-cargo run --example image --features image
-cargo run --example mermaid --features mermaid
+cargo run --example image
+cargo run --example mermaid
 cargo run --example tree_list
 ```
 

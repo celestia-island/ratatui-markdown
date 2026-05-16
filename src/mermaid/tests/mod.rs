@@ -1,7 +1,6 @@
 mod block;
 mod class_diagram;
 mod common;
-mod dump;
 mod flowchart;
 mod gantt;
 mod pie;
