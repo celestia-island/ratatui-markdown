@@ -167,6 +167,48 @@ impl MarkdownRenderer {
                     ctx.lines.push(Line::from(ctx.resolver.fallback(path, alt)));
                 }
             }
+            MarkdownBlock::CodeBlock { lang, code, .. } if lang == LANG_MERMAID => {
+                let hooks = self.hooks.as_deref();
+                if let Some(h) = hooks {
+                    if let Some(img) = h.render_mermaid_image(code) {
+                        let prefix_w: usize = 2;
+                        let (w_cells, h_cells) = ctx.resolver.cell_dimensions(
+                            &img,
+                            ctx.max_image_width.saturating_sub(prefix_w as u16),
+                            ctx.max_image_height,
+                        );
+                        if w_cells > 0 && h_cells > 0 {
+                            let border_style = Style::default().fg(theme.get_muted_text_color());
+                            ctx.lines.push(Line::from(Span::styled(
+                                format!("{ROUNDED_TL}{HLINE} mermaid"),
+                                border_style,
+                            )));
+                            let prefix = format!("{VLINE} ");
+                            let row = ctx.lines.len();
+                            for _ in 0..h_cells {
+                                ctx.lines.push(Line::from(Span::styled(
+                                    prefix.clone(),
+                                    border_style,
+                                )));
+                            }
+                            ctx.placements.push(super::image::ImagePlacement {
+                                row,
+                                col: prefix_w,
+                                width_cells: w_cells,
+                                height_cells: h_cells,
+                                image: img,
+                                crop: None,
+                            });
+                            ctx.lines.push(Line::from(Span::styled(
+                                format!("{ROUNDED_BL}{HLINE}"),
+                                border_style,
+                            )));
+                            return;
+                        }
+                    }
+                }
+                self.render_block(block, _block_idx, theme, _blocks, ctx.lines);
+            }
             _ => self.render_block(block, _block_idx, theme, _blocks, ctx.lines),
         }
     }
