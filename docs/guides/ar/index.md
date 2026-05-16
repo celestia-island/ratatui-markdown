@@ -111,8 +111,8 @@ ratatui-markdown = "0.2"
 ```bash
 cargo run --example basic
 cargo run --example code --features highlight-lang-all
-cargo run --example image --features image
-cargo run --example mermaid --features mermaid
+cargo run --example image
+cargo run --example mermaid
 cargo run --example tree_list
 ```
 
@@ -125,18 +125,18 @@ cargo run --example tree_list
 ratatui-markdown = { version = "0.2", default-features = false, features = ["markdown"] }
 ```
 
-| الميزة                | التبعيات                            | الوصف                                            |
-|-----------------------|-------------------------------------|--------------------------------------------------|
-| `markdown`            | —                                   | محلل وعارض Markdown                              |
-| `image`               | —                                   | حل الصور عبر `ImageResolver`                    |
-| `scroll`              | —                                   | HybridScrollView وقوائم قابلة للتمرير            |
-| `tree`                | `scroll`, `serde_json`, `toml`      | شجرة JSON/TOML قابلة للطي                        |
-| `preview`             | `markdown`, `scroll`, `tree`        | عنصر MarkdownPreview الموحد                      |
-| `mermaid`             | `markdown`                          | عرض مخططات Mermaid                               |
-| `viewer`              | `markdown`, `scroll`                | عنصر MarkdownViewer                              |
-| `highlight`           | —                                   | تلوين بناء الجملة عبر tree-sitter                |
-| `highlight-lang-*`    | `highlight`                         | قواعد لغوية فردية                                |
-| `highlight-lang-all`  | `highlight`                         | جميع القواعد اللغوية المضمنة                      |
+| الميزة                | التبعيات                            | الوصف                                            | افتراضي |
+|-----------------------|-------------------------------------|--------------------------------------------------|---------|
+| `markdown`            | —                                   | محلل وعارض Markdown                              | ✓       |
+| `image`               | —                                   | حل الصور عبر `ImageResolver`                    | ✓       |
+| `scroll`              | —                                   | HybridScrollView وقوائم قابلة للتمرير            | ✓       |
+| `tree`                | `scroll`, `serde_json`, `toml`      | شجرة JSON/TOML قابلة للطي                        | ✓       |
+| `preview`             | `markdown`, `scroll`, `tree`        | عنصر MarkdownPreview الموحد                      | ✓       |
+| `mermaid`             | `markdown`                          | عرض مخططات Mermaid                               | ✓       |
+| `viewer`              | `markdown`, `scroll`                | عنصر MarkdownViewer                              | ✓       |
+| `highlight`           | —                                   | تلوين بناء الجملة عبر tree-sitter                |         |
+| `highlight-lang-*`    | `highlight`                         | قواعد لغوية فردية                                |         |
+| `highlight-lang-all`  | `highlight`                         | جميع القواعد اللغوية المضمنة                      |         |
 
 ## التوثيق
 

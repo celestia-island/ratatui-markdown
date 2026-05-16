@@ -1,3 +1,5 @@
+use std::boxed::Box;
+
 use ratatui::{
     layout::Rect,
     style::{Modifier, Style},
@@ -11,8 +13,6 @@ use crate::{
     theme::RichTextTheme,
     tree::CollapsibleTree,
 };
-
-use std::boxed::Box;
 
 const FRONTMATTER_DELIMITER: &str = "+++";
 

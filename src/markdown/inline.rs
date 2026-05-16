@@ -159,6 +159,69 @@ pub fn parse_inline_formatting(text: &str, theme: &impl RichTextTheme) -> Vec<Sp
             continue;
         }
 
+        if chars[i] == '~' && i + 1 < len && chars[i + 1] == '~' {
+            let start = i + 2;
+            let mut end = start;
+            let mut found = false;
+            while end + 1 < len {
+                if chars[end] == '~' && chars[end + 1] == '~' {
+                    let t: String = chars[start..end].iter().collect();
+                    flush_current!();
+                    spans.push(Span::styled(
+                        t,
+                        Style::default()
+                            .fg(theme.get_text_color())
+                            .add_modifier(Modifier::CROSSED_OUT),
+                    ));
+                    i = end + 2;
+                    found = true;
+                    break;
+                }
+                end += 1;
+            }
+            if !found {
+                current.push('~');
+                current.push('~');
+                i += 2;
+            }
+            continue;
+        }
+
+        if chars[i] == '[' {
+            let mut end_bracket = i + 1;
+            let mut found_link = false;
+            while end_bracket < len {
+                if chars[end_bracket] == ']' {
+                    if end_bracket + 1 < len && chars[end_bracket + 1] == '(' {
+                        let url_start = end_bracket + 2;
+                        let mut url_end = url_start;
+                        while url_end < len {
+                            if chars[url_end] == ')' {
+                                let link_text: String = chars[i + 1..end_bracket].iter().collect();
+                                let _url: String = chars[url_start..url_end].iter().collect();
+                                flush_current!();
+                                spans.push(Span::styled(
+                                    link_text,
+                                    Style::default()
+                                        .fg(theme.get_primary_color())
+                                        .add_modifier(Modifier::UNDERLINED),
+                                ));
+                                i = url_end + 1;
+                                found_link = true;
+                                break;
+                            }
+                            url_end += 1;
+                        }
+                    }
+                    break;
+                }
+                end_bracket += 1;
+            }
+            if found_link {
+                continue;
+            }
+        }
+
         current.push(chars[i]);
         i += 1;
     }

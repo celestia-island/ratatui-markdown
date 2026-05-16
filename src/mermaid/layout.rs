@@ -1,6 +1,23 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
-use super::types::*;
+use unicode_width::UnicodeWidthStr;
+
+use super::{graph::LayeredGraph, types::*};
+
+fn label_display_width(label: &str) -> usize {
+    label.lines().map(UnicodeWidthStr::width).max().unwrap_or(0)
+}
+
+fn label_line_count(label: &str) -> usize {
+    let n = label.lines().count();
+    if n == 0 {
+        1
+    } else {
+        n
+    }
+}
+
+// ── pixel-space types ──────────────────────────────────────────
 
 #[derive(Debug, Clone)]
 pub struct LayoutNode {
@@ -28,18 +45,25 @@ pub struct Layout {
     pub grid_height: usize,
 }
 
+// ── constants ──────────────────────────────────────────────────
+
 const NODE_H_PADDING: usize = 2;
-const NODE_V_HEIGHT: usize = 3;
+const MIN_NODE_WIDTH: usize = 6;
+const NODE_V_HEIGHT: usize = 3; // vertical direction
+const NODE_V_HEIGHT_LR: usize = 5; // horizontal direction
 const H_SPACING: usize = 4;
 const V_SPACING: usize = 3;
-const MIN_NODE_WIDTH: usize = 6;
+const MIN_GAP: usize = 3; // minimum cells between node borders (line + arrow + margin)
+
+// ── public entry point ─────────────────────────────────────────
 
 pub fn compute_layout(
     diagram: &MermaidDiagram,
+    graph: &LayeredGraph,
     max_width: usize,
     max_height: Option<usize>,
 ) -> Layout {
-    if diagram.nodes.is_empty() {
+    if diagram.nodes.is_empty() || graph.layers.is_empty() {
         return Layout {
             nodes: Vec::new(),
             edges: Vec::new(),
@@ -48,17 +72,24 @@ pub fn compute_layout(
         };
     }
 
-    let (h_spacing, v_spacing) = adapt_spacing(diagram, max_width, max_height);
+    let is_vertical = matches!(diagram.direction, Direction::TopDown | Direction::BottomUp);
+    let node_v_height = if is_vertical {
+        NODE_V_HEIGHT
+    } else {
+        NODE_V_HEIGHT_LR
+    };
 
-    let layers = assign_layers(diagram);
+    let (h_spacing, v_spacing) =
+        adapt_spacing(diagram, &graph.layers, node_v_height, max_width, max_height);
 
     let mut layout_nodes = Vec::new();
     let mut node_positions: HashMap<String, (usize, usize)> = HashMap::new();
 
-    let is_vertical = matches!(diagram.direction, Direction::TopDown | Direction::BottomUp);
-
     let mut y_offset = 0usize;
-    for layer in &layers {
+    for layer in &graph.layers {
+        if layer.is_empty() {
+            continue;
+        }
         let node_count = layer.len();
 
         let mut node_widths: Vec<usize> = layer
@@ -69,28 +100,18 @@ pub fn compute_layout(
                     .iter()
                     .find(|n| &n.id == id)
                     .expect("layer node must exist in diagram nodes");
-                let text_w = unicode_width::UnicodeWidthStr::width(node.label.as_str());
+                let text_w = if node.label.contains('\n') {
+                    label_display_width(&node.label)
+                } else {
+                    unicode_width::UnicodeWidthStr::width(node.label.as_str())
+                };
                 (text_w + NODE_H_PADDING * 2).max(MIN_NODE_WIDTH)
             })
             .collect();
 
-        let total_w: usize = node_widths.iter().sum::<usize>() + h_spacing * (node_count - 1);
-        let scale = if total_w > max_width && max_width > 0 {
-            let available = max_width.saturating_sub(h_spacing * (node_count - 1));
-            let min_total: usize = node_widths.len() * MIN_NODE_WIDTH;
-            if available >= min_total {
-                let current_total: usize = node_widths.iter().sum();
-                if current_total > 0 {
-                    available as f64 / current_total as f64
-                } else {
-                    1.0
-                }
-            } else {
-                1.0
-            }
-        } else {
-            1.0
-        };
+        let total_w: usize =
+            node_widths.iter().sum::<usize>() + h_spacing * node_count.saturating_sub(1);
+        let scale = scale_factor(total_w, max_width, &node_widths, h_spacing);
 
         if scale < 1.0 {
             for w in &mut node_widths {
@@ -100,7 +121,7 @@ pub fn compute_layout(
         }
 
         let actual_total_w: usize =
-            node_widths.iter().sum::<usize>() + h_spacing * (node_count.saturating_sub(1));
+            node_widths.iter().sum::<usize>() + h_spacing * node_count.saturating_sub(1);
 
         let x_start = if is_vertical {
             if actual_total_w < max_width {
@@ -113,6 +134,7 @@ pub fn compute_layout(
         };
 
         let mut x = x_start;
+        let mut layer_max_h = 0usize;
         for (i, id) in layer.iter().enumerate() {
             let node = diagram
                 .nodes
@@ -120,6 +142,20 @@ pub fn compute_layout(
                 .find(|n| &n.id == id)
                 .expect("layer node must exist in diagram nodes");
             let w = node_widths[i];
+            let is_multiline = node.label.contains('\n');
+            let h = if is_multiline {
+                label_line_count(&node.label)
+            } else {
+                node_v_height
+            };
+            if h > layer_max_h {
+                layer_max_h = h;
+            }
+            let label = if is_multiline {
+                node.label.clone()
+            } else {
+                truncate_label(&node.label, w.saturating_sub(NODE_H_PADDING * 2))
+            };
 
             let (nx, ny) = if is_vertical {
                 (x, y_offset)
@@ -129,29 +165,29 @@ pub fn compute_layout(
 
             layout_nodes.push(LayoutNode {
                 id: id.clone(),
-                label: truncate_label(&node.label, w.saturating_sub(NODE_H_PADDING * 2)),
+                label,
                 shape: node.shape.clone(),
                 x: nx,
                 y: ny,
                 width: w,
-                height: NODE_V_HEIGHT,
+                height: h,
             });
-            node_positions.insert(id.clone(), (nx + w / 2, ny + NODE_V_HEIGHT / 2));
+            node_positions.insert(id.clone(), (nx + w / 2, ny + h / 2));
             x += w + h_spacing;
         }
 
-        y_offset += NODE_V_HEIGHT + v_spacing;
+        if is_vertical {
+            y_offset += layer_max_h + v_spacing;
+        } else {
+            let max_w = node_widths.iter().copied().max().unwrap_or(0);
+            y_offset += max_w + h_spacing;
+        }
     }
 
+    // edge paths
     let mut layout_edges = Vec::new();
     for edge in &diagram.edges {
-        let waypoints = compute_edge_path(
-            edge,
-            &layout_nodes,
-            &diagram.direction,
-            v_spacing,
-            h_spacing,
-        );
+        let waypoints = compute_edge_path(edge, &layout_nodes, &diagram.direction, v_spacing);
         layout_edges.push(LayoutEdge {
             label: edge.label.clone(),
             edge_type: edge.edge_type.clone(),
@@ -159,6 +195,7 @@ pub fn compute_layout(
         });
     }
 
+    // grid dimensions
     let grid_w = layout_nodes
         .iter()
         .map(|n| n.x + n.width)
@@ -170,22 +207,23 @@ pub fn compute_layout(
         .max()
         .unwrap_or(0);
 
-    let grid_w = grid_w.min(max_width);
-
     Layout {
         nodes: layout_nodes,
         edges: layout_edges,
-        grid_width: grid_w.max(1),
+        grid_width: grid_w.min(max_width).max(1),
         grid_height: grid_h.max(1),
     }
 }
 
+// ── spacing adaptation ─────────────────────────────────────────
+
 fn adapt_spacing(
     diagram: &MermaidDiagram,
+    layers: &[Vec<String>],
+    node_v_height: usize,
     max_width: usize,
     max_height: Option<usize>,
 ) -> (usize, usize) {
-    let layers = assign_layers(diagram);
     let layer_count = layers.len().max(1);
     let max_layer_size = layers.iter().map(|l| l.len()).max().unwrap_or(1);
 
@@ -196,15 +234,19 @@ fn adapt_spacing(
             .nodes
             .iter()
             .map(|n| {
-                let tw = unicode_width::UnicodeWidthStr::width(n.label.as_str());
+                let tw = if n.label.contains('\n') {
+                    label_display_width(&n.label)
+                } else {
+                    unicode_width::UnicodeWidthStr::width(n.label.as_str())
+                };
                 (tw + NODE_H_PADDING * 2).max(MIN_NODE_WIDTH)
             })
             .sum::<usize>()
             / diagram.nodes.len()
     };
 
-    let natural_w = avg_node_w * max_layer_size + H_SPACING * (max_layer_size - 1);
-    let natural_h = NODE_V_HEIGHT * layer_count + V_SPACING * (layer_count - 1);
+    let natural_w = avg_node_w * max_layer_size + H_SPACING * max_layer_size.saturating_sub(1);
+    let natural_h = node_v_height * layer_count + V_SPACING * layer_count.saturating_sub(1);
 
     let mut hs = H_SPACING;
     let mut vs = V_SPACING;
@@ -213,15 +255,17 @@ fn adapt_spacing(
         let needed = avg_node_w * max_layer_size;
         if needed < max_width {
             hs = (max_width - needed) / max_layer_size.saturating_sub(1).max(1);
-            hs = hs.max(1);
+            hs = hs.max(MIN_GAP);
         } else {
-            hs = 1;
+            hs = MIN_GAP;
         }
+    } else {
+        hs = hs.max(MIN_GAP);
     }
 
     if let Some(mh) = max_height {
         if natural_h > mh {
-            let needed = NODE_V_HEIGHT * layer_count;
+            let needed = node_v_height * layer_count;
             if needed < mh {
                 vs = (mh - needed) / layer_count.saturating_sub(1).max(1);
                 vs = vs.max(1);
@@ -234,90 +278,33 @@ fn adapt_spacing(
     (hs, vs)
 }
 
-fn assign_layers(diagram: &MermaidDiagram) -> Vec<Vec<String>> {
-    let mut in_degree: HashMap<&str, usize> = HashMap::new();
-    let mut adj: HashMap<&str, Vec<&str>> = HashMap::new();
-    let mut reverse_adj: HashMap<&str, Vec<&str>> = HashMap::new();
-    let mut layer_map: HashMap<&str, usize> = HashMap::new();
+// ── scale factor ───────────────────────────────────────────────
 
-    for node in &diagram.nodes {
-        in_degree.insert(&node.id, 0);
-        adj.insert(&node.id, Vec::new());
-        reverse_adj.insert(&node.id, Vec::new());
-        layer_map.insert(&node.id, 0);
+fn scale_factor(total_w: usize, max_width: usize, node_widths: &[usize], h_spacing: usize) -> f64 {
+    if total_w <= max_width || max_width == 0 {
+        return 1.0;
     }
-
-    let mut seen_edges: HashSet<(&str, &str)> = HashSet::new();
-    for edge in &diagram.edges {
-        if seen_edges.contains(&(&edge.source, &edge.target)) {
-            continue;
-        }
-        seen_edges.insert((&edge.source, &edge.target));
-        if let Some(deg) = in_degree.get_mut(edge.target.as_str()) {
-            *deg += 1;
-        }
-        if let Some(neighbors) = adj.get_mut(edge.source.as_str()) {
-            neighbors.push(&edge.target);
-        }
-        if let Some(ra) = reverse_adj.get_mut(edge.target.as_str()) {
-            ra.push(&edge.source);
-        }
+    let node_count = node_widths.len().max(1);
+    let available = max_width.saturating_sub(h_spacing * node_count.saturating_sub(1));
+    let min_total: usize = node_widths.len() * MIN_NODE_WIDTH;
+    if available < min_total {
+        return 1.0;
     }
-
-    let mut queue: Vec<&str> = in_degree
-        .iter()
-        .filter(|(_, &d)| d == 0)
-        .map(|(&id, _)| id)
-        .collect();
-
-    let mut processed = 0usize;
-    while let Some(id) = queue.pop() {
-        processed += 1;
-        if let Some(neighbors) = adj.get(id) {
-            for &target in neighbors {
-                let parent_layer = layer_map[id];
-                let current = layer_map[target];
-                if parent_layer + 1 > current {
-                    layer_map.insert(target, parent_layer + 1);
-                }
-                if let Some(deg) = in_degree.get_mut(target) {
-                    *deg -= 1;
-                    if *deg == 0 {
-                        queue.push(target);
-                    }
-                }
-            }
-        }
+    let current_total: usize = node_widths.iter().sum();
+    if current_total == 0 {
+        1.0
+    } else {
+        available as f64 / current_total as f64
     }
-
-    if processed < diagram.nodes.len() {
-        for node in &diagram.nodes {
-            if !layer_map.contains_key(node.id.as_str()) {
-                layer_map.insert(&node.id, 0);
-            }
-        }
-    }
-
-    let max_layer = layer_map.values().copied().max().unwrap_or(0);
-    let mut layers: Vec<Vec<String>> = vec![Vec::new(); max_layer + 1];
-    for node in &diagram.nodes {
-        let l = layer_map[&node.id[..]];
-        layers[l].push(node.id.clone());
-    }
-
-    for layer in &mut layers {
-        layer.sort();
-    }
-
-    layers
 }
+
+// ── edge path geometry ─────────────────────────────────────────
 
 fn compute_edge_path(
     edge: &MermaidEdge,
     nodes: &[LayoutNode],
     direction: &Direction,
     v_spacing: usize,
-    _h_spacing: usize,
 ) -> Vec<(usize, usize)> {
     let source = match nodes.iter().find(|n| n.id == edge.source) {
         Some(n) => n,
@@ -334,9 +321,13 @@ fn compute_edge_path(
         let sx = source.x + source.width / 2;
         let sy = source.y + source.height;
         let tx = target.x + target.width / 2;
-        let ty = target.y;
+        let ty = target.y.saturating_sub(1); // stop one cell ABOVE target top border
 
-        let mid_y = sy + v_spacing / 2;
+        let mid_y = if ty > sy {
+            (sy + ty) / 2
+        } else {
+            sy + v_spacing / 2
+        };
 
         if sx == tx {
             vec![(sx, sy), (sx, mid_y), (tx, ty)]
@@ -346,10 +337,14 @@ fn compute_edge_path(
     } else {
         let sx = source.x + source.width;
         let sy = source.y + source.height / 2;
-        let tx = target.x;
+        let tx = target.x.saturating_sub(1); // stop one cell LEFT of target left border
         let ty = target.y + target.height / 2;
 
-        let mid_x = sx + v_spacing / 2;
+        let mid_x = if tx > sx {
+            (sx + tx) / 2
+        } else {
+            sx + v_spacing / 2
+        };
 
         if sy == ty {
             vec![(sx, sy), (mid_x, sy), (tx, ty)]
@@ -358,6 +353,8 @@ fn compute_edge_path(
         }
     }
 }
+
+// ── label truncation ───────────────────────────────────────────
 
 fn truncate_label(label: &str, max_chars: usize) -> String {
     if max_chars == 0 {

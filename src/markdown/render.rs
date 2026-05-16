@@ -4,6 +4,8 @@ use ratatui::{
     text::{Line, Span},
 };
 
+#[cfg(feature = "image")]
+use super::image::{ImageResolver, MarkdownRenderOutput};
 use super::{
     inline::parse_inline_formatting,
     types::{MarkdownBlock, TextToken},
@@ -16,12 +18,6 @@ use crate::{
     },
     theme::RichTextTheme,
 };
-
-#[cfg(feature = "image")]
-use super::image::ImageResolver;
-
-#[cfg(feature = "image")]
-use super::image::MarkdownRenderOutput;
 
 const LANG_MERMAID: &str = "mermaid";
 
@@ -169,6 +165,46 @@ impl MarkdownRenderer {
                     }
                     ctx.lines.push(Line::from(ctx.resolver.fallback(path, alt)));
                 }
+            }
+            MarkdownBlock::CodeBlock { lang, code, .. } if lang == LANG_MERMAID => {
+                let hooks = self.hooks.as_deref();
+                if let Some(h) = hooks {
+                    if let Some(img) = h.render_mermaid_image(code) {
+                        let prefix_w: usize = 2;
+                        let (w_cells, h_cells) = ctx.resolver.cell_dimensions(
+                            &img,
+                            ctx.max_image_width.saturating_sub(prefix_w as u16),
+                            ctx.max_image_height,
+                        );
+                        if w_cells > 0 && h_cells > 0 {
+                            let border_style = Style::default().fg(theme.get_muted_text_color());
+                            ctx.lines.push(Line::from(Span::styled(
+                                format!("{ROUNDED_TL}{HLINE} mermaid"),
+                                border_style,
+                            )));
+                            let prefix = format!("{VLINE} ");
+                            let row = ctx.lines.len();
+                            for _ in 0..h_cells {
+                                ctx.lines
+                                    .push(Line::from(Span::styled(prefix.clone(), border_style)));
+                            }
+                            ctx.placements.push(super::image::ImagePlacement {
+                                row,
+                                col: prefix_w,
+                                width_cells: w_cells,
+                                height_cells: h_cells,
+                                image: img,
+                                crop: None,
+                            });
+                            ctx.lines.push(Line::from(Span::styled(
+                                format!("{ROUNDED_BL}{HLINE}"),
+                                border_style,
+                            )));
+                            return;
+                        }
+                    }
+                }
+                self.render_block(block, _block_idx, theme, _blocks, ctx.lines);
             }
             _ => self.render_block(block, _block_idx, theme, _blocks, ctx.lines),
         }
@@ -446,7 +482,25 @@ impl MarkdownRenderer {
                 );
                 lines.extend(wrapped);
             }
-            MarkdownBlock::Blockquote { level, children } => {
+            MarkdownBlock::TaskItem {
+                text,
+                indent,
+                checked,
+            } => {
+                let indent_str = "  ".repeat(*indent as usize);
+                let checkbox = if *checked { "☑ " } else { "☐ " };
+                let wrapped = self.wrap_text_with_inline_formatting(
+                    &format!("{}{}{}", indent_str, checkbox, text),
+                    theme,
+                );
+                lines.extend(wrapped);
+            }
+            MarkdownBlock::Blockquote {
+                level,
+                children,
+                header_override,
+                footer_override,
+            } => {
                 if let Some(h) = hooks {
                     if let Some(custom) = h.blockquote(*level, children) {
                         lines.extend(custom);
@@ -456,6 +510,13 @@ impl MarkdownRenderer {
 
                 let prefix_str = "│ ".repeat(*level as usize);
                 let prefix_style = Style::default().fg(theme.get_muted_text_color());
+
+                if let Some(ref hdr) = header_override {
+                    lines.push(Line::from(Span::styled(
+                        format!("{}{}", prefix_str, hdr),
+                        prefix_style,
+                    )));
+                }
 
                 let mut inner_lines = Vec::new();
                 for (child_idx, child) in children.iter().enumerate() {
@@ -473,6 +534,13 @@ impl MarkdownRenderer {
                         span.style = new_style;
                     }
                     lines.push(line);
+                }
+
+                if let Some(ref ftr) = footer_override {
+                    lines.push(Line::from(Span::styled(
+                        format!("{}{}", prefix_str, ftr),
+                        prefix_style,
+                    )));
                 }
             }
             MarkdownBlock::HorizontalRule => {

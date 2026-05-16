@@ -14,7 +14,7 @@
 ratatui-markdown = "0.1"
 ```
 
-يفعّل هذا جميع الميزات افتراضيًا (`markdown`، `scroll`، `tree`، `preview`).
+يفعّل هذا جميع الميزات افتراضيًا (`markdown`، `scroll`، `tree`، `preview`، `mermaid`، `image`، `viewer`).
 
 ### الميزات الانتقائية
 

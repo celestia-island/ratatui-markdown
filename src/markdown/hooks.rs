@@ -1,6 +1,8 @@
 use ratatui::text::Line;
 
 use super::types::MarkdownBlock;
+#[cfg(feature = "image")]
+use crate::markdown::image::image;
 
 pub trait RenderHooks: Send + Sync {
     fn heading1(&self, _text: &str) -> Option<Line<'static>> {
@@ -100,6 +102,11 @@ pub trait RenderHooks: Send + Sync {
     }
 
     fn image_fallback(&self, _alt: &str, _path: &str) -> Option<Vec<Line<'static>>> {
+        None
+    }
+
+    #[cfg(feature = "image")]
+    fn render_mermaid_image(&self, _source: &str) -> Option<image::DynamicImage> {
         None
     }
 }

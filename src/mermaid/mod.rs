@@ -1,18 +1,30 @@
+mod block;
+mod class_diagram;
 mod gantt;
+mod graph;
 mod layout;
 mod parser;
 mod pie;
+mod quadrant;
 mod render;
 mod sequence;
+#[cfg(test)]
+mod tests;
+pub mod theme;
 mod types;
 
+pub use block::{BlockDiagram, BlockEntry};
+pub use class_diagram::{
+    ClassDefinition, ClassDiagram, ClassMember, ClassRelationship, RelationshipType, Visibility,
+};
+pub use quadrant::{QuadrantChart, QuadrantPoint};
+use ratatui::text::Line;
 pub use types::{
     Direction, EdgeType, GanttChart, GanttSection, GanttTask, MermaidDiagram, MermaidEdge,
     MermaidNode, NodeShape, PieChart, SeqArrowKind, SequenceDiagram, SequenceMessage,
 };
 
 use crate::theme::RichTextTheme;
-use ratatui::text::Line;
 
 pub fn render_mermaid(
     source: &str,
@@ -32,6 +44,16 @@ pub fn render_mermaid(
         render_gantt_chart(source, max_width, theme)
     } else if first_line.starts_with("stateDiagram") {
         render_state_diagram(source, max_width, max_height, theme)
+    } else if first_line.starts_with("classDiagram") {
+        class_diagram::render_class_diagram(source, max_width, max_height, theme)
+    } else if first_line.starts_with("quadrantChart") {
+        let chart = quadrant::parse_quadrant(source)?;
+        Some(quadrant::render_quadrant(&chart, max_width, theme))
+    } else if first_line.starts_with("block-beta")
+        || first_line == "block"
+        || first_line.starts_with("block ")
+    {
+        block::render_block_diagram(source, max_width, max_height, theme)
     } else {
         render_flowchart(source, max_width, max_height, theme)
     }
@@ -45,7 +67,8 @@ fn render_flowchart(
 ) -> Option<Vec<Line<'static>>> {
     let diagram = parser::parse(source).ok()?;
     let direction = diagram.direction.clone();
-    let layout = layout::compute_layout(&diagram, max_width, max_height);
+    let graph = graph::assign_layers(&diagram);
+    let layout = layout::compute_layout(&diagram, &graph, max_width, max_height);
     let lines = render::render_layout(&layout, &direction, theme);
     Some(lines)
 }
@@ -85,7 +108,8 @@ fn render_state_diagram(
 ) -> Option<Vec<Line<'static>>> {
     let diagram = parse_state_diagram(source)?;
     let direction = diagram.direction.clone();
-    let layout = layout::compute_layout(&diagram, max_width, max_height);
+    let graph = graph::assign_layers(&diagram);
+    let layout = layout::compute_layout(&diagram, &graph, max_width, max_height);
     let lines = render::render_layout(&layout, &direction, theme);
     Some(lines)
 }
@@ -183,7 +207,7 @@ fn parse_state_diagram(source: &str) -> Option<MermaidDiagram> {
 }
 
 #[cfg(test)]
-mod tests {
+mod parse_tests {
     use super::*;
 
     #[test]

@@ -6,7 +6,7 @@
 
 `MarkdownPreview` is the top-level integration widget. It combines markdown rendering, collapsible tree display, and action items into a single `HybridScrollView`. This is the recommended entry point for most applications.
 
-Gated behind the `preview` feature flag (enabled by default, requires all other features).
+Gated behind the `preview` feature flag (enabled by default, requires `markdown`, `scroll`, `tree`).
 
 ## API
 

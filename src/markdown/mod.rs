@@ -11,14 +11,13 @@ mod tests;
 mod text;
 mod types;
 
-pub use hooks::RenderHooks;
-pub use inline::parse_inline_formatting;
-pub use types::MarkdownBlock;
+use std::boxed::Box;
 
+pub use hooks::RenderHooks;
 #[cfg(feature = "image")]
 pub use image::{CropRect, ImagePlacement, ImageResolver, MarkdownRenderOutput, NoopImageResolver};
-
-use std::boxed::Box;
+pub use inline::parse_inline_formatting;
+pub use types::MarkdownBlock;
 
 pub struct MarkdownRenderer {
     pub(crate) max_width: usize,

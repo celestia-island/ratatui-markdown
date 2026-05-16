@@ -111,8 +111,8 @@ ratatui-markdown = "0.2"
 ```bash
 cargo run --example basic
 cargo run --example code --features highlight-lang-all
-cargo run --example image --features image
-cargo run --example mermaid --features mermaid
+cargo run --example image
+cargo run --example mermaid
 cargo run --example tree_list
 ```
 
@@ -125,18 +125,18 @@ cargo run --example tree_list
 ratatui-markdown = { version = "0.2", default-features = false, features = ["markdown"] }
 ```
 
-| 기능                  | 의존성                             | 설명                                   |
-|----------------------|------------------------------------|---------------------------------------|
-| `markdown`           | —                                  | Markdown 파서 및 렌더러                |
-| `image`              | —                                  | `ImageResolver`를 통한 이미지 해결      |
-| `scroll`             | —                                  | HybridScrollView, 스크롤 가능 리스트    |
-| `tree`               | `scroll`, `serde_json`, `toml`     | 접이식 JSON/TOML 트리                  |
-| `preview`            | `markdown`, `scroll`, `tree`       | MarkdownPreview 통합 위젯              |
-| `mermaid`            | `markdown`                         | Mermaid 다이어그램 렌더링               |
-| `viewer`             | `markdown`, `scroll`               | MarkdownViewer 위젯                    |
-| `highlight`          | —                                  | tree-sitter 기반 구문 강조              |
-| `highlight-lang-*`   | `highlight`                        | 개별 언어 문법                         |
-| `highlight-lang-all` | `highlight`                        | 모든 번들 언어 문법                     |
+| 기능                  | 의존성                             | 설명                                   | 기본값 |
+|----------------------|------------------------------------|---------------------------------------|---------|
+| `markdown`           | —                                  | Markdown 파서 및 렌더러                | ✓       |
+| `image`              | —                                  | `ImageResolver`를 통한 이미지 해결      | ✓       |
+| `scroll`             | —                                  | HybridScrollView, 스크롤 가능 리스트    | ✓       |
+| `tree`               | `scroll`, `serde_json`, `toml`     | 접이식 JSON/TOML 트리                  | ✓       |
+| `preview`            | `markdown`, `scroll`, `tree`       | MarkdownPreview 통합 위젯              | ✓       |
+| `mermaid`            | `markdown`                         | Mermaid 다이어그램 렌더링               | ✓       |
+| `viewer`             | `markdown`, `scroll`               | MarkdownViewer 위젯                    | ✓       |
+| `highlight`          | —                                  | tree-sitter 기반 구문 강조              |         |
+| `highlight-lang-*`   | `highlight`                        | 개별 언어 문법                         |         |
+| `highlight-lang-all` | `highlight`                        | 모든 번들 언어 문법                     |         |
 
 ## 문서
 

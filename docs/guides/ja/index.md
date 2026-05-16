@@ -111,8 +111,8 @@ ratatui-markdown = "0.2"
 ```bash
 cargo run --example basic
 cargo run --example code --features highlight-lang-all
-cargo run --example image --features image
-cargo run --example mermaid --features mermaid
+cargo run --example image
+cargo run --example mermaid
 cargo run --example tree_list
 ```
 
@@ -125,18 +125,18 @@ cargo run --example tree_list
 ratatui-markdown = { version = "0.2", default-features = false, features = ["markdown"] }
 ```
 
-| 機能                 | 依存関係                            | 説明                                  |
-|----------------------|-------------------------------------|--------------------------------------|
-| `markdown`           | —                                   | Markdown パーサーとレンダラー          |
-| `image`              | —                                   | `ImageResolver` による画像解決        |
-| `scroll`             | —                                   | HybridScrollView、スクロール可能リスト |
-| `tree`               | `scroll`, `serde_json`, `toml`      | 折りたたみ JSON/TOML ツリー           |
-| `preview`            | `markdown`, `scroll`, `tree`        | MarkdownPreview 統合ウィジェット      |
-| `mermaid`            | `markdown`                          | Mermaid ダイアグラムレンダリング       |
-| `viewer`             | `markdown`, `scroll`                | MarkdownViewer ウィジェット           |
-| `highlight`          | —                                   | tree-sitter ベースのシンタックスハイライト |
-| `highlight-lang-*`   | `highlight`                         | 個別言語グラマー                      |
-| `highlight-lang-all` | `highlight`                         | 全バンドル言語グラマー                 |
+| 機能                 | 依存関係                            | 説明                                  | デフォルト |
+|----------------------|-------------------------------------|--------------------------------------|---------|
+| `markdown`           | —                                   | Markdown パーサーとレンダラー          | ✓       |
+| `image`              | —                                   | `ImageResolver` による画像解決        | ✓       |
+| `scroll`             | —                                   | HybridScrollView、スクロール可能リスト | ✓       |
+| `tree`               | `scroll`, `serde_json`, `toml`      | 折りたたみ JSON/TOML ツリー           | ✓       |
+| `preview`            | `markdown`, `scroll`, `tree`        | MarkdownPreview 統合ウィジェット      | ✓       |
+| `mermaid`            | `markdown`                          | Mermaid ダイアグラムレンダリング       | ✓       |
+| `viewer`             | `markdown`, `scroll`                | MarkdownViewer ウィジェット           | ✓       |
+| `highlight`          | —                                   | tree-sitter ベースのシンタックスハイライト |         |
+| `highlight-lang-*`   | `highlight`                         | 個別言語グラマー                      |         |
+| `highlight-lang-all` | `highlight`                         | 全バンドル言語グラマー                 |         |
 
 ## ドキュメント
 

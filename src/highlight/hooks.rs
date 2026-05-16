@@ -6,7 +6,6 @@ use ratatui::{
 };
 
 use super::CodeHighlighter;
-
 use crate::constants::list_prefix::{HLINE, ROUNDED_BL, ROUNDED_TL, VLINE};
 
 pub struct HighlightHooks {

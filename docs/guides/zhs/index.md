@@ -111,8 +111,8 @@ ratatui-markdown = "0.2"
 ```bash
 cargo run --example basic
 cargo run --example code --features highlight-lang-all
-cargo run --example image --features image
-cargo run --example mermaid --features mermaid
+cargo run --example image
+cargo run --example mermaid
 cargo run --example tree_list
 ```
 
@@ -125,18 +125,18 @@ cargo run --example tree_list
 ratatui-markdown = { version = "0.2", default-features = false, features = ["markdown"] }
 ```
 
-| 功能                | 依赖                               | 描述                               |
-|---------------------|------------------------------------|-----------------------------------|
-| `markdown`          | —                                  | Markdown 解析器和渲染器             |
-| `image`             | —                                  | 通过 `ImageResolver` 解析图片       |
-| `scroll`            | —                                  | HybridScrollView、可滚动列表、滚动条  |
-| `tree`              | `scroll`, `serde_json`, `toml`     | 可折叠 JSON/TOML 树                 |
-| `preview`           | `markdown`, `scroll`, `tree`       | MarkdownPreview 统一组件            |
-| `mermaid`           | `markdown`                         | Mermaid 图表渲染                    |
-| `viewer`            | `markdown`, `scroll`               | MarkdownViewer 组件                 |
-| `highlight`         | —                                  | 基于 tree-sitter 的语法高亮          |
-| `highlight-lang-*`  | `highlight`                        | 单语言语法                          |
-| `highlight-lang-all`| `highlight`                        | 所有内置语言语法                     |
+| 功能                | 依赖                               | 描述                               | 默认 |
+|---------------------|------------------------------------|-----------------------------------|------|
+| `markdown`          | —                                  | Markdown 解析器和渲染器             | ✓    |
+| `image`             | —                                  | 通过 `ImageResolver` 解析图片       | ✓    |
+| `scroll`            | —                                  | HybridScrollView、可滚动列表、滚动条  | ✓    |
+| `tree`              | `scroll`, `serde_json`, `toml`     | 可折叠 JSON/TOML 树                 | ✓    |
+| `preview`           | `markdown`, `scroll`, `tree`       | MarkdownPreview 统一组件            | ✓    |
+| `mermaid`           | `markdown`                         | Mermaid 图表渲染                    | ✓    |
+| `viewer`            | `markdown`, `scroll`               | MarkdownViewer 组件                 | ✓    |
+| `highlight`         | —                                  | 基于 tree-sitter 的语法高亮          |      |
+| `highlight-lang-*`  | `highlight`                        | 单语言语法                          |      |
+| `highlight-lang-all`| `highlight`                        | 所有内置语言语法                     |      |
 
 ## 文档
 

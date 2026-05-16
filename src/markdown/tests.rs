@@ -3,63 +3,17 @@ use ratatui::{style::Style, text::Span};
 use super::MarkdownRenderer;
 use crate::{
     constants::{BD_DL, BD_DR, BD_T_UP},
-    theme::RichTextTheme,
+    theme::{RichTextTheme, ThemeConfig},
 };
 
-struct TestTheme;
-
-impl RichTextTheme for TestTheme {
-    fn generation(&self) -> crate::theme::Generation {
-        crate::theme::Generation(1)
-    }
-    fn get_text_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::White
-    }
-    fn get_muted_text_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::DarkGray
-    }
-    fn get_primary_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::Cyan
-    }
-    fn get_popup_selected_background(&self) -> ratatui::style::Color {
-        ratatui::style::Color::DarkGray
-    }
-    fn get_popup_selected_text_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::White
-    }
-    fn get_border_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::DarkGray
-    }
-    fn get_focused_border_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::Cyan
-    }
-    fn get_secondary_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::Yellow
-    }
-    fn get_info_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::Blue
-    }
-    fn get_background_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::Reset
-    }
-    fn get_json_key_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::Cyan
-    }
-    fn get_json_string_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::Green
-    }
-    fn get_json_number_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::Magenta
-    }
-    fn get_json_bool_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::Yellow
-    }
-    fn get_json_null_color(&self) -> ratatui::style::Color {
-        ratatui::style::Color::DarkGray
-    }
-    fn get_accent_yellow(&self) -> ratatui::style::Color {
-        ratatui::style::Color::Yellow
-    }
+fn test_theme() -> ThemeConfig {
+    ThemeConfig::default()
+        .with_info_color(ratatui::style::Color::Blue)
+        .with_focused_border_color(ratatui::style::Color::Cyan)
+        .with_secondary_color(ratatui::style::Color::Yellow)
+        .with_json_key_color(ratatui::style::Color::Cyan)
+        .with_json_bool_color(ratatui::style::Color::Yellow)
+        .with_json_number_color(ratatui::style::Color::Magenta)
 }
 
 #[test]
@@ -266,7 +220,7 @@ fn table_hline_and_row_same_display_width() {
     assert_eq!(hline_w, 10 + 8 + 12 + 4);
 
     let cells = ["abc".to_string(), "de".to_string(), "fgh".to_string()];
-    let theme = TestTheme;
+    let theme = test_theme();
     let cell_spans: Vec<Vec<Span<'static>>> = cells
         .iter()
         .map(|s| {
@@ -289,7 +243,7 @@ fn table_hline_and_row_same_display_width() {
 #[test]
 fn table_cjk_cells_aligned() {
     let col_widths: Vec<usize> = vec![12, 12];
-    let theme = TestTheme;
+    let theme = test_theme();
     let cells = ["你好世界".to_string(), "テスト".to_string()];
     let cell_spans: Vec<Vec<Span<'static>>> = cells
         .iter()

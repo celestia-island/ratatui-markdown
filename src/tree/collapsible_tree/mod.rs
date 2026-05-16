@@ -142,68 +142,15 @@ fn toml_to_json(toml_value: &toml::Value) -> serde_json::Value {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::theme::RichTextTheme;
+    use crate::theme::ThemeConfig;
     use ratatui::style::Color;
     use ratatui::text::Span;
 
-    struct TestTheme;
-
-    impl RichTextTheme for TestTheme {
-        fn generation(&self) -> crate::theme::Generation {
-            crate::theme::Generation(1)
-        }
-        fn get_text_color(&self) -> Color {
-            Color::White
-        }
-        fn get_muted_text_color(&self) -> Color {
-            Color::DarkGray
-        }
-        fn get_primary_color(&self) -> Color {
-            Color::Cyan
-        }
-        fn get_popup_selected_background(&self) -> Color {
-            Color::DarkGray
-        }
-        fn get_popup_selected_text_color(&self) -> Color {
-            Color::White
-        }
-        fn get_border_color(&self) -> Color {
-            Color::DarkGray
-        }
-        fn get_focused_border_color(&self) -> Color {
-            Color::Cyan
-        }
-        fn get_secondary_color(&self) -> Color {
-            Color::Blue
-        }
-        fn get_info_color(&self) -> Color {
-            Color::Blue
-        }
-        fn get_background_color(&self) -> Color {
-            Color::Black
-        }
-        fn get_json_key_color(&self) -> Color {
-            Color::Cyan
-        }
-        fn get_json_string_color(&self) -> Color {
-            Color::Green
-        }
-        fn get_json_number_color(&self) -> Color {
-            Color::Yellow
-        }
-        fn get_json_bool_color(&self) -> Color {
-            Color::Magenta
-        }
-        fn get_json_null_color(&self) -> Color {
-            Color::DarkGray
-        }
-        fn get_accent_yellow(&self) -> Color {
-            Color::Yellow
-        }
-    }
-
-    fn test_theme() -> TestTheme {
-        TestTheme
+    fn test_theme() -> ThemeConfig {
+        ThemeConfig::default()
+            .with_focused_border_color(Color::Cyan)
+            .with_json_key_color(Color::Cyan)
+            .with_info_color(Color::Blue)
     }
 
     #[test]

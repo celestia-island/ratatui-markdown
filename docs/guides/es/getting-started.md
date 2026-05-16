@@ -14,7 +14,7 @@ Agregue a su `Cargo.toml`:
 ratatui-markdown = "0.1"
 ```
 
-Esto habilita todas las funcionalidades por defecto (`markdown`, `scroll`, `tree`, `preview`).
+Esto habilita todas las funcionalidades por defecto (`markdown`, `scroll`, `tree`, `preview`, `mermaid`, `image`, `viewer`).
 
 ### Funcionalidades Selectivas
 

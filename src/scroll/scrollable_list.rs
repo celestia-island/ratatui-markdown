@@ -76,6 +76,10 @@ impl<T: ListItemRenderer> ScrollableList<T> {
         &self.items
     }
 
+    pub fn items_mut(&mut self) -> &mut Vec<T> {
+        &mut self.items
+    }
+
     pub fn is_empty(&self) -> bool {
         self.items.is_empty()
     }
@@ -88,7 +92,7 @@ impl<T: ListItemRenderer> ScrollableList<T> {
         self.items.iter().filter(|i| !i.is_separator()).count()
     }
 
-    fn selectable_index_to_item_index(&self, selectable_idx: usize) -> usize {
+    pub fn selectable_index_to_item_index(&self, selectable_idx: usize) -> usize {
         let mut count = 0;
         for (idx, item) in self.items.iter().enumerate() {
             if !item.is_separator() {

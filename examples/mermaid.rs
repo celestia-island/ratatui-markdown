@@ -112,6 +112,63 @@ stateDiagram-v2
 ```
 
 LOREM_3
+
+## Class Diagram
+
+```mermaid
+classDiagram
+    class Animal {
+        +String name
+        +int age
+        +makeSound() void
+    }
+    class Dog {
+        +String breed
+        +bark() void
+        +fetch() void
+    }
+    class Cat {
+        +String color
+        +meow() void
+    }
+    Animal <|-- Dog : Inheritance
+    Animal <|-- Cat : Inheritance
+    Dog ..|> Runnable : Implements
+```
+
+LOREM_3
+
+## Quadrant Chart
+
+```mermaid
+quadrantChart
+    title Campaign Performance
+    x-axis Low Reach --> High Reach
+    y-axis Low Engagement --> High Engagement
+    quadrant-1 Stars
+    quadrant-2 Promote
+    quadrant-3 Improve
+    quadrant-4 Hidden Gems
+    Campaign A: [0.3, 0.6]
+    Campaign B: [0.45, 0.23]
+    Campaign C: [0.57, 0.69]
+    Campaign D: [0.78, 0.34]
+    Campaign E: [0.4, 0.34]
+```
+
+LOREM_3
+
+## Block Diagram
+
+```mermaid
+block-beta
+    columns 3
+    Frontend Web Mobile
+    API Gateway
+    Services Auth Payment Data
+```
+
+LOREM_3
 "#;
 
 fn main() -> anyhow::Result<()> {

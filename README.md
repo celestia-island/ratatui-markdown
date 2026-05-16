@@ -86,18 +86,18 @@ ratatui-markdown = { version = "0.2", features = ["preview"] }
 
 Individual features can be enabled selectively:
 
-| Feature              | Description                                          |
-|----------------------|------------------------------------------------------|
-| `markdown`           | Markdown parsing and rendering                       |
-| `image`              | Image resolution via `ImageResolver` trait           |
-| `scroll`             | Hybrid scroll and scrollable widgets                 |
-| `tree`               | JSON/TOML collapsible tree (requires `scroll`)       |
-| `preview`            | `MarkdownPreview` unified widget (requires `markdown`, `scroll`, `tree`) |
-| `mermaid`            | Mermaid diagram rendering (requires `markdown`)      |
-| `viewer`             | `MarkdownViewer` widget (requires `markdown`, `scroll`) |
-| `highlight`          | Syntax highlighting via tree-sitter                  |
-| `highlight-lang-*`   | Individual language grammars (requires `highlight`)  |
-| `highlight-lang-all` | All bundled language grammars                        |
+| Feature              | Description                                          | Default |
+|----------------------|------------------------------------------------------|---------|
+| `markdown`           | Markdown parsing and rendering                       | ✓       |
+| `image`              | Image resolution via `ImageResolver` trait           | ✓       |
+| `scroll`             | Hybrid scroll and scrollable widgets                 | ✓       |
+| `tree`               | JSON/TOML collapsible tree (requires `scroll`)       | ✓       |
+| `preview`            | `MarkdownPreview` unified widget (requires `markdown`, `scroll`, `tree`) | ✓ |
+| `mermaid`            | Mermaid diagram rendering (requires `markdown`)      | ✓       |
+| `viewer`             | `MarkdownViewer` widget (requires `markdown`, `scroll`) | ✓    |
+| `highlight`          | Syntax highlighting via tree-sitter                  |         |
+| `highlight-lang-*`   | Individual language grammars (requires `highlight`)  |         |
+| `highlight-lang-all` | All bundled language grammars                        |         |
 
 ### Examples
 
@@ -113,8 +113,8 @@ Individual features can be enabled selectively:
 ```bash
 cargo run --example basic
 cargo run --example code --features highlight-lang-all
-cargo run --example image --features image
-cargo run --example mermaid --features mermaid
+cargo run --example image
+cargo run --example mermaid
 cargo run --example tree_list
 ```
 
@@ -128,20 +128,6 @@ cargo run --example tree_list
 - [Theme Customization](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/en/theme.md)
 - [Contributing](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/en/contributing.md)
 - [API Reference](https://docs.rs/ratatui-markdown)
-
-### Languages
-
-| Language | Documentation |
-|----------|---------------|
-| English | [docs/guides/en/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/en/index.md) |
-| 简体中文 | [docs/guides/zhs/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/zhs/index.md) |
-| 繁體中文 | [docs/guides/zht/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/zht/index.md) |
-| 日本語 | [docs/guides/ja/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/ja/index.md) |
-| 한국어 | [docs/guides/ko/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/ko/index.md) |
-| Français | [docs/guides/fr/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/fr/index.md) |
-| Español | [docs/guides/es/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/es/index.md) |
-| Русский | [docs/guides/ru/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/ru/index.md) |
-| العربية | [docs/guides/ar/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/ar/index.md) |
 
 ## License
 

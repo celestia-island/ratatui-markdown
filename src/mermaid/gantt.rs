@@ -136,7 +136,6 @@ pub fn render_gantt(
     let dur_style = Style::default().fg(theme.get_info_color());
 
     let all_tasks: Vec<&GanttTask> = chart.sections.iter().flat_map(|s| &s.tasks).collect();
-    let n_tasks = all_tasks.len().max(1);
 
     let label_col = 16usize;
     let dur_col = 8usize;
@@ -146,6 +145,35 @@ pub fn render_gantt(
         .saturating_sub(dur_col)
         .saturating_sub(4);
     let bar_max = bar_max.clamp(8, 40);
+
+    let mut task_end: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut timeline_pos: usize = 0;
+    let mut resolved_tasks: Vec<(String, usize, usize)> = Vec::new();
+
+    for task in &all_tasks {
+        let start = if task.deps.is_empty() {
+            0usize
+        } else {
+            task.deps
+                .iter()
+                .filter_map(|d| task_end.get(d).copied())
+                .max()
+                .unwrap_or(0)
+        };
+        let dur: usize = task
+            .duration
+            .as_deref()
+            .and_then(|d| d.strip_suffix('d'))
+            .and_then(|d| d.parse().ok())
+            .unwrap_or(5);
+        let end = start + dur;
+        if let Some(ref id) = task.id {
+            task_end.insert(id.clone(), end);
+        }
+        resolved_tasks.push((task.name.clone(), start, dur));
+        timeline_pos = timeline_pos.max(end);
+    }
+    let timeline_pos = timeline_pos.max(1);
 
     let mut lines: Vec<Line<'static>> = Vec::new();
 
@@ -183,14 +211,10 @@ pub fn render_gantt(
             let nw = unicode_width::UnicodeWidthStr::width(name_display.as_str());
             let name_pad = label_col.saturating_sub(nw);
 
-            let bar_offset =
-                (task_idx as f64 / n_tasks as f64 * bar_max as f64 * 0.3).round() as usize;
-            let bar_len = if n_tasks <= 1 {
-                bar_max / 2
-            } else {
-                (bar_max as f64 / n_tasks as f64).round() as usize
-            };
-            let bar_len = bar_len.max(4).min(bar_max - bar_offset);
+            let (.., start, dur) = resolved_tasks[task_idx];
+            let bar_offset = (start as f64 / timeline_pos as f64 * bar_max as f64).round() as usize;
+            let bar_len = (dur as f64 / timeline_pos as f64 * bar_max as f64).round() as usize;
+            let bar_len = bar_len.max(4).min(bar_max.saturating_sub(bar_offset));
 
             let mut bar_str = " ".repeat(bar_offset);
             bar_str.push_str(&BLOCK.to_string().repeat(bar_len));

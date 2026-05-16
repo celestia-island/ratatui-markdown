@@ -1,7 +1,6 @@
-use super::{types::MarkdownBlock, MarkdownRenderer};
-
 #[cfg(feature = "image")]
 use super::image::ImageResolver;
+use super::{types::MarkdownBlock, MarkdownRenderer};
 
 const MD_FENCE: &str = "```";
 const MD_HRULE_DASH: &str = "---";
@@ -216,6 +215,29 @@ impl MarkdownRenderer {
                 || trimmed.starts_with(MD_LIST_STAR)
                 || trimmed.starts_with(MD_LIST_PLUS)
             {
+                let after_marker: String = trimmed.chars().skip(2).collect::<String>();
+                let after_marker_trimmed = after_marker.trim_start();
+
+                if after_marker_trimmed.starts_with("[ ] ")
+                    || after_marker_trimmed.starts_with("[x] ")
+                    || after_marker_trimmed.starts_with("[X] ")
+                {
+                    Self::flush_table(&mut table_buffer, &mut blocks, &mut paragraph_lines);
+                    if !paragraph_lines.is_empty() {
+                        blocks.push(MarkdownBlock::Paragraph(paragraph_lines.clone()));
+                        paragraph_lines.clear();
+                    }
+                    let checked = after_marker_trimmed.starts_with("[x] ")
+                        || after_marker_trimmed.starts_with("[X] ");
+                    let text = after_marker_trimmed.chars().skip(4).collect::<String>();
+                    blocks.push(MarkdownBlock::TaskItem {
+                        text,
+                        indent: list_indent,
+                        checked,
+                    });
+                    continue;
+                }
+
                 Self::flush_table(&mut table_buffer, &mut blocks, &mut paragraph_lines);
                 if !paragraph_lines.is_empty() {
                     blocks.push(MarkdownBlock::Paragraph(paragraph_lines.clone()));
@@ -282,11 +304,21 @@ impl MarkdownRenderer {
 
         if max_level == 1 {
             let children = Self::parse_blockquote_content(&inner_lines);
-            return MarkdownBlock::blockquote(1, children);
+            return MarkdownBlock::Blockquote {
+                level: 1,
+                children,
+                header_override: None,
+                footer_override: None,
+            };
         }
 
         let children = Self::parse_nested_blockquote(&inner_lines, 1);
-        MarkdownBlock::blockquote(1, children)
+        MarkdownBlock::Blockquote {
+            level: 1,
+            children,
+            header_override: None,
+            footer_override: None,
+        }
     }
 
     fn strip_blockquote_prefix(line: &str) -> (u8, String) {
@@ -346,14 +378,24 @@ impl MarkdownRenderer {
 
         if has_deeper {
             let children = Self::parse_nested_blockquote(&adjusted, target_level);
-            MarkdownBlock::blockquote(target_level, children)
+            MarkdownBlock::Blockquote {
+                level: target_level,
+                children,
+                header_override: None,
+                footer_override: None,
+            }
         } else {
             let contents: Vec<String> = adjusted
                 .iter()
                 .map(|(_, c)| c.clone())
                 .filter(|c| !c.is_empty())
                 .collect();
-            MarkdownBlock::blockquote(target_level, vec![MarkdownBlock::Paragraph(contents)])
+            MarkdownBlock::Blockquote {
+                level: target_level,
+                children: vec![MarkdownBlock::Paragraph(contents)],
+                header_override: None,
+                footer_override: None,
+            }
         }
     }
 
