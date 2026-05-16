@@ -25,6 +25,7 @@ mermaid = ["markdown", "dep:pest", "dep:pest_derive"]
 viewer = ["markdown", "scroll"]
 
 highlight = ["dep:tree-sitter", "dep:tree-sitter-highlight"]
+highlight-pest = ["highlight", "dep:pest"]
 highlight-lang-bash = ["highlight", "dep:tree-sitter-bash"]
 highlight-lang-c = ["highlight", "dep:tree-sitter-c"]
 highlight-lang-cpp = ["highlight", "dep:tree-sitter-cpp"]
@@ -101,6 +102,7 @@ highlight-lang-all = [
     "highlight-lang-xml",
     "highlight-lang-yaml",
     "highlight-lang-zig",
+    "highlight-pest",
 ]
 
 [dependencies]
@@ -155,6 +157,7 @@ unicode-width = "^0.2"
 anyhow = "^1"
 crossterm = "^0.28"
 lipsum = "^0.9"
+pest_derive = "^2"
 ratatui-image = { version = "9", default-features = false, features = ["crossterm"] }
 
 [[example]]
@@ -167,4 +170,4 @@ required-features = ["mermaid"]
 
 [[example]]
 name = "code"
-required-features = ["highlight-lang-rust"]
+required-features = ["highlight-lang-rust", "highlight-pest"]
