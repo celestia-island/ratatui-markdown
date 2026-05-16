@@ -12,63 +12,17 @@ use anyhow::Context as _;
 
 use crate::{
     markdown::{MarkdownBlock, MarkdownRenderer, RenderHooks},
-    theme::RichTextTheme,
+    theme::ThemeConfig,
 };
 
-struct TestTheme;
-
-impl RichTextTheme for TestTheme {
-    fn generation(&self) -> crate::theme::Generation {
-        crate::theme::Generation::default()
-    }
-    fn get_text_color(&self) -> Color {
-        Color::White
-    }
-    fn get_muted_text_color(&self) -> Color {
-        Color::DarkGray
-    }
-    fn get_primary_color(&self) -> Color {
-        Color::Cyan
-    }
-    fn get_info_color(&self) -> Color {
-        Color::Blue
-    }
-    fn get_popup_selected_background(&self) -> Color {
-        Color::DarkGray
-    }
-    fn get_popup_selected_text_color(&self) -> Color {
-        Color::White
-    }
-    fn get_border_color(&self) -> Color {
-        Color::DarkGray
-    }
-    fn get_focused_border_color(&self) -> Color {
-        Color::Cyan
-    }
-    fn get_secondary_color(&self) -> Color {
-        Color::Yellow
-    }
-    fn get_background_color(&self) -> Color {
-        Color::Black
-    }
-    fn get_json_key_color(&self) -> Color {
-        Color::Cyan
-    }
-    fn get_json_string_color(&self) -> Color {
-        Color::Green
-    }
-    fn get_json_number_color(&self) -> Color {
-        Color::Magenta
-    }
-    fn get_json_bool_color(&self) -> Color {
-        Color::Yellow
-    }
-    fn get_json_null_color(&self) -> Color {
-        Color::DarkGray
-    }
-    fn get_accent_yellow(&self) -> Color {
-        Color::Yellow
-    }
+fn test_theme() -> ThemeConfig {
+    ThemeConfig::default()
+        .with_info_color(Color::Blue)
+        .with_focused_border_color(Color::Cyan)
+        .with_secondary_color(Color::Yellow)
+        .with_json_key_color(Color::Cyan)
+        .with_json_bool_color(Color::Yellow)
+        .with_json_number_color(Color::Magenta)
 }
 
 fn render_to_buffer(lines: Vec<Line<'static>>, width: u16, height: u16) -> anyhow::Result<Buffer> {
@@ -84,7 +38,7 @@ fn render_to_buffer(lines: Vec<Line<'static>>, width: u16, height: u16) -> anyho
 fn render_markdown(markdown: &str, max_width: usize) -> Vec<Line<'static>> {
     let renderer = MarkdownRenderer::new(max_width);
     let blocks = renderer.parse(markdown);
-    renderer.render(&blocks, &TestTheme)
+    renderer.render(&blocks, &test_theme())
 }
 
 #[test]
@@ -300,7 +254,7 @@ fn table_bottom_border_uses_bl_br_corners() -> anyhow::Result<()> {
 
 #[test]
 fn inline_bold_renders() -> anyhow::Result<()> {
-    let spans = crate::markdown::parse_inline_formatting("**bold**", &TestTheme);
+    let spans = crate::markdown::parse_inline_formatting("**bold**", &test_theme());
     assert_eq!(spans.len(), 1);
     assert_eq!(spans[0].content, "bold");
     assert!(spans[0].style.add_modifier.contains(Modifier::BOLD));
@@ -309,7 +263,7 @@ fn inline_bold_renders() -> anyhow::Result<()> {
 
 #[test]
 fn inline_italic_renders() -> anyhow::Result<()> {
-    let spans = crate::markdown::parse_inline_formatting("*italic*", &TestTheme);
+    let spans = crate::markdown::parse_inline_formatting("*italic*", &test_theme());
     assert_eq!(spans.len(), 1);
     assert_eq!(spans[0].content, "italic");
     assert!(spans[0].style.add_modifier.contains(Modifier::ITALIC));
@@ -318,7 +272,7 @@ fn inline_italic_renders() -> anyhow::Result<()> {
 
 #[test]
 fn inline_bold_italic_renders() -> anyhow::Result<()> {
-    let spans = crate::markdown::parse_inline_formatting("***both***", &TestTheme);
+    let spans = crate::markdown::parse_inline_formatting("***both***", &test_theme());
     assert_eq!(spans.len(), 1);
     assert_eq!(spans[0].content, "both");
     assert!(spans[0]
@@ -330,7 +284,7 @@ fn inline_bold_italic_renders() -> anyhow::Result<()> {
 
 #[test]
 fn inline_code_renders() -> anyhow::Result<()> {
-    let spans = crate::markdown::parse_inline_formatting("some `code` here", &TestTheme);
+    let spans = crate::markdown::parse_inline_formatting("some `code` here", &test_theme());
     assert!(spans.iter().any(|s| s.content == "code"));
     let code_span = spans.iter().find(|s| s.content == "code").context("find")?;
     assert_eq!(code_span.style.fg, Some(Color::Yellow));
@@ -340,7 +294,7 @@ fn inline_code_renders() -> anyhow::Result<()> {
 #[test]
 fn mixed_inline_formatting() -> anyhow::Result<()> {
     let spans =
-        crate::markdown::parse_inline_formatting("normal **bold** *italic* `code`", &TestTheme);
+        crate::markdown::parse_inline_formatting("normal **bold** *italic* `code`", &test_theme());
     assert!(
         spans.len() >= 4,
         "expected at least 4 spans for mixed formatting"
@@ -461,7 +415,7 @@ mod example_tree_list_tests {
     fn tree_hook_root_items_have_tree_markers() {
         let renderer = MarkdownRenderer::new(76).with_render_hooks(Box::new(TreeListHooks));
         let blocks = renderer.parse("- A\n  - B\n  - C\n- D");
-        let lines = renderer.render(&blocks, &TestTheme);
+        let lines = renderer.render(&blocks, &test_theme());
         let has_tree_marker = lines.iter().any(|l| {
             l.spans.iter().any(|s| {
                 s.content.contains("┌─") || s.content.contains("├─") || s.content.contains("└─")
@@ -474,7 +428,7 @@ mod example_tree_list_tests {
     fn tree_hook_nested_items_have_pipe_prefix() {
         let renderer = MarkdownRenderer::new(76).with_render_hooks(Box::new(TreeListHooks));
         let blocks = renderer.parse("- A\n  - B\n- C");
-        let lines = renderer.render(&blocks, &TestTheme);
+        let lines = renderer.render(&blocks, &test_theme());
         let all_text: String = lines
             .iter()
             .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
@@ -490,7 +444,7 @@ mod example_tree_list_tests {
     fn tree_hook_last_item_uses_corner_marker() {
         let renderer = MarkdownRenderer::new(76).with_render_hooks(Box::new(TreeListHooks));
         let blocks = renderer.parse("- A\n- B");
-        let lines = renderer.render(&blocks, &TestTheme);
+        let lines = renderer.render(&blocks, &test_theme());
         let has_corner = lines
             .iter()
             .any(|l| l.spans.iter().any(|s| s.content.contains("└─")));
@@ -501,7 +455,7 @@ mod example_tree_list_tests {
     fn tree_hook_render_to_buffer_no_panic() -> anyhow::Result<()> {
         let renderer = MarkdownRenderer::new(76).with_render_hooks(Box::new(TreeListHooks));
         let blocks = renderer.parse("- A\n  - B\n- C");
-        let lines = renderer.render(&blocks, &TestTheme);
+        let lines = renderer.render(&blocks, &test_theme());
         let buffer = render_to_buffer(lines, 80, 40)?;
         assert_eq!(buffer.area.height, 40);
         Ok(())
@@ -512,7 +466,7 @@ mod example_tree_list_tests {
         let renderer = MarkdownRenderer::new(40).with_render_hooks(Box::new(TreeListHooks));
         let md = "- Alpha\n  - Beta\n  - Gamma\n\nSome paragraph text between.\n\n- Delta\n  - Epsilon\n  - Zeta";
         let blocks = renderer.parse(md);
-        let lines = renderer.render(&blocks, &TestTheme);
+        let lines = renderer.render(&blocks, &test_theme());
 
         let texts: Vec<String> = lines
             .iter()
@@ -555,7 +509,7 @@ mod example_tree_list_tests {
         let renderer = MarkdownRenderer::new(40).with_render_hooks(Box::new(TreeListHooks));
         let md = "- A1\n  - B1\n  - B2\n- A2\n  - B3\n\nParagraph.\n\n- C1\n  - D1\n- C2\n  - D2";
         let blocks = renderer.parse(md);
-        let lines = renderer.render(&blocks, &TestTheme);
+        let lines = renderer.render(&blocks, &test_theme());
         let texts: Vec<String> = lines
             .iter()
             .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect())
@@ -788,7 +742,7 @@ mod example_scrollable_tests {
         let md = "# Scrollable\n\nLine 1\nLine 2\nLine 3\nLine 4\nLine 5\n";
         let renderer = MarkdownRenderer::new(120);
         let blocks = renderer.parse(md);
-        let lines = renderer.render(&blocks, &TestTheme);
+        let lines = renderer.render(&blocks, &test_theme());
         let max_w = lines
             .iter()
             .map(|l| {
@@ -973,7 +927,7 @@ mod example_image_tests {
             },
         ];
         let mut r = SimpleResolver::new(9, 18);
-        let output = renderer.render_full(&blocks, &TestTheme, &resolved, &mut r, 70, 20);
+        let output = renderer.render_full(&blocks, &test_theme(), &resolved, &mut r, 70, 20);
         assert_eq!(output.images.len(), 2);
         assert!(
             output.images[0].height_cells <= 2,
@@ -1001,7 +955,7 @@ mod example_image_tests {
             image: img.clone(),
         }];
         let mut r1 = SimpleResolver::new(9, 18);
-        let output1 = renderer.render_full(&blocks, &TestTheme, &resolved_base, &mut r1, 70, 20);
+        let output1 = renderer.render_full(&blocks, &test_theme(), &resolved_base, &mut r1, 70, 20);
 
         let zoomed = img.resize_exact(200, 200, image::imageops::FilterType::Triangle);
         let resolved_zoomed = vec![ResolvedImage {
@@ -1009,7 +963,8 @@ mod example_image_tests {
             image: zoomed,
         }];
         let mut r2 = SimpleResolver::new(9, 18);
-        let output2 = renderer.render_full(&blocks, &TestTheme, &resolved_zoomed, &mut r2, 70, 20);
+        let output2 =
+            renderer.render_full(&blocks, &test_theme(), &resolved_zoomed, &mut r2, 70, 20);
 
         assert!(
             output2.images[0].height_cells >= output1.images[0].height_cells,
@@ -1039,7 +994,7 @@ mod example_image_tests {
             image: img.clone(),
         }];
         let mut r1 = SimpleResolver::new(9, 18);
-        let output1 = renderer.render_full(&blocks, &TestTheme, &resolved_base, &mut r1, 70, 20);
+        let output1 = renderer.render_full(&blocks, &test_theme(), &resolved_base, &mut r1, 70, 20);
 
         let shrunk = img.resize_exact(50, 50, image::imageops::FilterType::Triangle);
         let resolved_shrunk = vec![ResolvedImage {
@@ -1047,7 +1002,8 @@ mod example_image_tests {
             image: shrunk,
         }];
         let mut r2 = SimpleResolver::new(9, 18);
-        let output2 = renderer.render_full(&blocks, &TestTheme, &resolved_shrunk, &mut r2, 70, 20);
+        let output2 =
+            renderer.render_full(&blocks, &test_theme(), &resolved_shrunk, &mut r2, 70, 20);
 
         assert!(
             output2.images[0].height_cells <= output1.images[0].height_cells,
@@ -1073,7 +1029,7 @@ mod example_image_tests {
             image: make_img(90, 36),
         }];
         let mut r = SimpleResolver::new(9, 18);
-        let output = renderer.render_full(&blocks, &TestTheme, &resolved, &mut r, 70, 20);
+        let output = renderer.render_full(&blocks, &test_theme(), &resolved, &mut r, 70, 20);
 
         let img = &output.images[0];
         let row = img.row;
@@ -1112,7 +1068,7 @@ mod example_image_tests {
             image: base_img,
         }];
         let mut r1 = SimpleResolver::new(9, 18);
-        let out1 = renderer.render_full(&blocks, &TestTheme, &resolved_base, &mut r1, 70, 20);
+        let out1 = renderer.render_full(&blocks, &test_theme(), &resolved_base, &mut r1, 70, 20);
 
         let zoom_sw = (sw as f64 * 2.0).ceil() as u32;
         let zoom_sh = (sh as f64 * 2.0).ceil() as u32;
@@ -1122,7 +1078,7 @@ mod example_image_tests {
             image: zoomed,
         }];
         let mut r2 = SimpleResolver::new(9, 18);
-        let out2 = renderer.render_full(&blocks, &TestTheme, &resolved_zoom, &mut r2, 70, 20);
+        let out2 = renderer.render_full(&blocks, &test_theme(), &resolved_zoom, &mut r2, 70, 20);
 
         assert!(
             out2.images[0].height_cells > out1.images[0].height_cells,
@@ -1242,7 +1198,7 @@ mod example_image_tests {
             image: make_img(90, 36),
         }];
         let mut r = SimpleResolver::new(9, 18);
-        let output = renderer.render_full(&blocks, &TestTheme, &resolved, &mut r, 70, 20);
+        let output = renderer.render_full(&blocks, &test_theme(), &resolved, &mut r, 70, 20);
         assert_eq!(output.images.len(), 1);
         assert!(
             output.images[0].crop.is_none(),
@@ -1419,7 +1375,7 @@ fn code_block_override_header() -> anyhow::Result<()> {
         prefix_override: None,
     };
     let renderer = MarkdownRenderer::new(80);
-    let lines = renderer.render(&[block], &TestTheme);
+    let lines = renderer.render(&[block], &test_theme());
     let header_text: String = lines[0].spans.iter().map(|s| s.content.as_ref()).collect();
     assert!(
         header_text.contains("Input"),
@@ -1439,7 +1395,7 @@ fn code_block_override_footer() -> anyhow::Result<()> {
         prefix_override: None,
     };
     let renderer = MarkdownRenderer::new(80);
-    let lines = renderer.render(&[block], &TestTheme);
+    let lines = renderer.render(&[block], &test_theme());
     let last = lines.last().context("last line")?;
     let footer_text: String = last.spans.iter().map(|s| s.content.as_ref()).collect();
     assert!(
@@ -1460,7 +1416,7 @@ fn code_block_override_prefix() -> anyhow::Result<()> {
         prefix_override: Some("║ ".into()),
     };
     let renderer = MarkdownRenderer::new(80);
-    let lines = renderer.render(&[block], &TestTheme);
+    let lines = renderer.render(&[block], &test_theme());
     let code_line = &lines[1];
     let text: String = code_line.spans.iter().map(|s| s.content.as_ref()).collect();
     assert!(
@@ -1612,7 +1568,7 @@ mod mermaid_render_tests {
     #[test]
     fn mermaid_direct_render_api() -> anyhow::Result<()> {
         let source = "graph TD\nA[Hello] --> B[World]";
-        let result = crate::mermaid::render_mermaid(source, 80, None, &TestTheme);
+        let result = crate::mermaid::render_mermaid(source, 80, None, &test_theme());
         assert!(result.is_some());
         let lines = result.context("parse result")?;
         assert!(!lines.is_empty());
@@ -1629,7 +1585,7 @@ mod mermaid_render_tests {
     #[test]
     fn mermaid_max_height_constraint() -> anyhow::Result<()> {
         let source = "graph TD\nA --> B\nB --> C\nC --> D\nD --> E";
-        let result = crate::mermaid::render_mermaid(source, 80, Some(10), &TestTheme);
+        let result = crate::mermaid::render_mermaid(source, 80, Some(10), &test_theme());
         assert!(result.is_some());
         let lines = result.context("parse result")?;
         assert!(
@@ -1704,7 +1660,7 @@ mod mermaid_render_tests {
     #[test]
     fn mermaid_diamond_uses_rounded_corners() -> anyhow::Result<()> {
         let source = "graph TD\nA{Decision} --> B[Result]";
-        let result = crate::mermaid::render_mermaid(source, 80, None, &TestTheme);
+        let result = crate::mermaid::render_mermaid(source, 80, None, &test_theme());
         assert!(result.is_some());
         let lines = result.context("parse result")?;
         let all_text: String = lines
@@ -1726,7 +1682,7 @@ mod mermaid_render_tests {
     #[test]
     fn mermaid_no_dangling_cross_chars() -> anyhow::Result<()> {
         let source = "graph TD\nA[Start] --> B[End]";
-        let result = crate::mermaid::render_mermaid(source, 80, None, &TestTheme);
+        let result = crate::mermaid::render_mermaid(source, 80, None, &test_theme());
         assert!(result.is_some());
         let lines = result.context("parse result")?;
         let all_text: String = lines

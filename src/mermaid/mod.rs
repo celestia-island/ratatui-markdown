@@ -1,11 +1,19 @@
+mod block;
+mod class_diagram;
 mod gantt;
 mod layout;
 mod parser;
 mod pie;
+mod quadrant;
 mod render;
 mod sequence;
 mod types;
 
+pub use block::{BlockDiagram, BlockEntry};
+pub use class_diagram::{
+    ClassDefinition, ClassDiagram, ClassMember, ClassRelationship, RelationshipType, Visibility,
+};
+pub use quadrant::{QuadrantChart, QuadrantPoint};
 pub use types::{
     Direction, EdgeType, GanttChart, GanttSection, GanttTask, MermaidDiagram, MermaidEdge,
     MermaidNode, NodeShape, PieChart, SeqArrowKind, SequenceDiagram, SequenceMessage,
@@ -32,6 +40,16 @@ pub fn render_mermaid(
         render_gantt_chart(source, max_width, theme)
     } else if first_line.starts_with("stateDiagram") {
         render_state_diagram(source, max_width, max_height, theme)
+    } else if first_line.starts_with("classDiagram") {
+        class_diagram::render_class_diagram(source, max_width, max_height, theme)
+    } else if first_line.starts_with("quadrantChart") {
+        let chart = quadrant::parse_quadrant(source)?;
+        Some(quadrant::render_quadrant(&chart, max_width, theme))
+    } else if first_line.starts_with("block-beta")
+        || first_line == "block"
+        || first_line.starts_with("block ")
+    {
+        block::render_block_diagram(source, max_width, max_height, theme)
     } else {
         render_flowchart(source, max_width, max_height, theme)
     }

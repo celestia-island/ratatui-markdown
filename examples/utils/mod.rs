@@ -12,61 +12,81 @@ use ratatui::{
     },
     Frame, Terminal,
 };
-use ratatui_markdown::theme::{Generation, RichTextTheme};
+use ratatui_markdown::theme::ThemeConfig;
 
 pub struct Theme;
 
-impl RichTextTheme for Theme {
-    fn generation(&self) -> Generation {
-        Generation(1)
+// Keep Theme struct backward compatible by delegating to ThemeConfig
+impl std::ops::Deref for Theme {
+    type Target = ThemeConfig;
+    fn deref(&self) -> &ThemeConfig {
+        &THEME
+    }
+}
+
+static THEME: ThemeConfig = ThemeConfig {
+    gen: ratatui_markdown::theme::Generation(1),
+    text_color: Color::White,
+    muted_text_color: Color::DarkGray,
+    primary_color: Color::Cyan,
+    secondary_color: Color::Blue,
+    info_color: Color::LightBlue,
+    border_color: Color::DarkGray,
+    focused_border_color: Color::White,
+    popup_selected_background: Color::DarkGray,
+    json_key_color: Color::LightCyan,
+    json_string_color: Color::Green,
+    json_number_color: Color::Yellow,
+    json_bool_color: Color::Magenta,
+    json_null_color: Color::DarkGray,
+    accent_yellow: Color::Yellow,
+};
+
+impl ratatui_markdown::theme::RichTextTheme for Theme {
+    fn generation(&self) -> ratatui_markdown::theme::Generation {
+        THEME.gen
     }
     fn get_text_color(&self) -> Color {
-        Color::White
+        THEME.text_color
     }
     fn get_muted_text_color(&self) -> Color {
-        Color::DarkGray
+        THEME.muted_text_color
     }
     fn get_primary_color(&self) -> Color {
-        Color::Cyan
+        THEME.primary_color
     }
     fn get_secondary_color(&self) -> Color {
-        Color::Blue
+        THEME.secondary_color
     }
     fn get_info_color(&self) -> Color {
-        Color::LightBlue
-    }
-    fn get_background_color(&self) -> Color {
-        Color::Black
+        THEME.info_color
     }
     fn get_border_color(&self) -> Color {
-        Color::DarkGray
+        THEME.border_color
     }
     fn get_focused_border_color(&self) -> Color {
-        Color::White
+        THEME.focused_border_color
     }
     fn get_popup_selected_background(&self) -> Color {
-        Color::DarkGray
-    }
-    fn get_popup_selected_text_color(&self) -> Color {
-        Color::White
+        THEME.popup_selected_background
     }
     fn get_json_key_color(&self) -> Color {
-        Color::LightCyan
+        THEME.json_key_color
     }
     fn get_json_string_color(&self) -> Color {
-        Color::Green
+        THEME.json_string_color
     }
     fn get_json_number_color(&self) -> Color {
-        Color::Yellow
+        THEME.json_number_color
     }
     fn get_json_bool_color(&self) -> Color {
-        Color::Magenta
+        THEME.json_bool_color
     }
     fn get_json_null_color(&self) -> Color {
-        Color::DarkGray
+        THEME.json_null_color
     }
     fn get_accent_yellow(&self) -> Color {
-        Color::Yellow
+        THEME.accent_yellow
     }
 }
 
