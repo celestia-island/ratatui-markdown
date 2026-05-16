@@ -110,14 +110,6 @@ sequenceDiagram
 LOREM_3
 "#;
 
-fn color_to_rgba(c: ratatui::style::Color) -> image::Rgba<u8> {
-    match c {
-        ratatui::style::Color::Rgb(r, g, b) => image::Rgba([r, g, b, 255]),
-        ratatui::style::Color::Black => image::Rgba([0, 0, 0, 255]),
-        _ => image::Rgba([0, 0, 0, 255]),
-    }
-}
-
 fn to_renderer_theme(src: &ratatui_markdown::mermaid::theme::MermaidTheme) -> mermaid_rs_renderer::Theme {
     use ratatui_markdown::mermaid::theme::{color_to_hex, GIT_COLORS_HSL};
     let hex = |c: ratatui::style::Color| format!("#{}", color_to_hex(c));
@@ -169,7 +161,6 @@ fn to_renderer_theme(src: &ratatui_markdown::mermaid::theme::MermaidTheme) -> me
 fn render_mermaid_to_image(
     source: &str,
     mermaid_theme: &ratatui_markdown::mermaid::theme::MermaidTheme,
-    bg_color: image::Rgba<u8>,
     font_w: u32,
     font_h: u32,
 ) -> Option<image::DynamicImage> {
@@ -212,27 +203,28 @@ fn render_mermaid_to_image(
 
     let tree = usvg::Tree::from_str(&svg, &usvg_opts).ok()?;
     let size = tree.size();
-    let raw_w = (size.width() as f64).round() as u32;
-    let raw_h = (size.height() as f64).round() as u32;
-    if raw_w == 0 || raw_h == 0 || font_w == 0 || font_h == 0 {
+    let svg_w = size.width() as f64;
+    let svg_h = size.height() as f64;
+    if svg_w <= 0.0 || svg_h <= 0.0 || font_w == 0 || font_h == 0 {
         return None;
     }
-    let cell_w = (raw_w as f64 / font_w as f64).ceil() as u32;
-    let cell_h = (raw_h as f64 / font_h as f64).ceil() as u32;
-    let aligned_w = cell_w * font_w;
-    let aligned_h = cell_h * font_h;
 
-    let mut pixmap = tiny_skia::Pixmap::new(aligned_w, aligned_h)?;
-    let bg = tiny_skia::Color::from_rgba8(bg_color.0[0], bg_color.0[1], bg_color.0[2], bg_color.0[3]);
-    pixmap.fill(bg);
+    let aspect = svg_w / svg_h;
+    let cell_h = (svg_h / font_h as f64).ceil() as u32;
+    let px_h = cell_h * font_h;
+    let px_w = (px_h as f64 * aspect).round() as u32;
+    let cell_w = (px_w as f64 / font_w as f64).ceil() as u32;
+    let px_w = cell_w * font_w;
 
-    let sx = aligned_w as f32 / size.width();
-    let sy = aligned_h as f32 / size.height();
-    let ts = tiny_skia::Transform::from_scale(sx, sy);
+    let mut pixmap = tiny_skia::Pixmap::new(px_w, px_h)?;
+    pixmap.fill(tiny_skia::Color::from_rgba8(0, 0, 0, 0));
+
+    let scale = px_h as f32 / svg_h as f32;
+    let ts = tiny_skia::Transform::from_scale(scale, scale);
     resvg::render(&tree, ts, &mut pixmap.as_mut());
 
     let rgba = pixmap.data().to_vec();
-    image::RgbaImage::from_raw(aligned_w, aligned_h, rgba).map(image::DynamicImage::ImageRgba8)
+    image::RgbaImage::from_raw(px_w, px_h, rgba).map(image::DynamicImage::ImageRgba8)
 }
 
 fn detect_system_font() -> Option<String> {
@@ -286,14 +278,13 @@ impl MermaidImage {
 
 struct MermaidImageHooks {
     mermaid_theme: ratatui_markdown::mermaid::theme::MermaidTheme,
-    bg_color: image::Rgba<u8>,
     font_w: u32,
     font_h: u32,
 }
 
 impl RenderHooks for MermaidImageHooks {
     fn render_mermaid_image(&self, source: &str) -> Option<image::DynamicImage> {
-        render_mermaid_to_image(source, &self.mermaid_theme, self.bg_color, self.font_w, self.font_h)
+        render_mermaid_to_image(source, &self.mermaid_theme, self.font_w, self.font_h)
     }
 }
 
@@ -342,8 +333,7 @@ struct AppState {
     scroll: u16,
     font_w: u16,
     font_h: u16,
-    max_w: u16,
-    bg_color: image::Rgba<u8>,
+     max_w: u16,
 }
 
 impl AppState {
@@ -381,14 +371,12 @@ fn main() -> anyhow::Result<()> {
     let max_w = area.width.saturating_sub(4);
     let content_width = max_w as usize;
 
-    let bg_rgba = color_to_rgba(theme.get_background_color());
-    let mermaid_theme = theme.get_mermaid_theme();
-    let hooks = MermaidImageHooks {
-        mermaid_theme: mermaid_theme.clone(),
-        bg_color: bg_rgba,
-        font_w: font_w as u32,
-        font_h: font_h as u32,
-    };
+     let mermaid_theme = theme.get_mermaid_theme();
+     let hooks = MermaidImageHooks {
+         mermaid_theme: mermaid_theme.clone(),
+         font_w: font_w as u32,
+         font_h: font_h as u32,
+     };
     let renderer = MarkdownRenderer::new(content_width).with_render_hooks(Box::new(hooks));
 
     let md = MARKDOWN_TEMPLATE
@@ -404,13 +392,12 @@ fn main() -> anyhow::Result<()> {
         picker,
         resolver,
         blocks,
-        images: Vec::new(),
-        scroll: 0,
-        font_w,
-        font_h,
-        max_w,
-        bg_color: bg_rgba,
-    };
+         images: Vec::new(),
+         scroll: 0,
+         font_w,
+         font_h,
+         max_w,
+     };
 
     let output = state.rebuild_output();
 
@@ -543,11 +530,7 @@ fn main() -> anyhow::Result<()> {
                     {
                         img_for_proto
                     } else {
-                        let mut canvas = image::RgbaImage::from_pixel(
-                            target_px_w,
-                            target_px_h,
-                            state.bg_color,
-                        );
+                        let mut canvas = image::RgbaImage::new(target_px_w, target_px_h);
                         let ox = (target_px_w.saturating_sub(img_for_proto.width())) / 2;
                         let oy = (target_px_h.saturating_sub(img_for_proto.height())) / 2;
                         image::imageops::overlay(
