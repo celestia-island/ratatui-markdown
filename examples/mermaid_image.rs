@@ -466,14 +466,7 @@ fn main() -> anyhow::Result<()> {
                 let (img_w, img_h) = mi.cell_size();
                 if img_h < 1 || img_w < 1 { continue; }
 
-                let prefix_w = placement.col as i32;
-                let avail_w = content_w as i32 - prefix_w;
-                let center_off = if avail_w > img_w as i32 {
-                    (avail_w - img_w as i32) / 2
-                } else {
-                    0
-                };
-                let img_l = text_left as i32 + prefix_w + center_off;
+                let img_l = text_left as i32 + placement.col as i32;
                 let img_t = text_top as i32 + placement.row as i32 - state.scroll as i32;
                 let img_r = img_l + img_w as i32 - 1;
                 let img_b = img_t + img_h as i32 - 1;

@@ -191,14 +191,14 @@ impl MarkdownRenderer {
                                     border_style,
                                 )));
                             }
-                            ctx.placements.push(super::image::ImagePlacement {
-                                row,
-                                col: prefix_w,
-                                width_cells: w_cells,
-                                height_cells: h_cells,
-                                image: img,
-                                crop: None,
-                            });
+                        ctx.placements.push(super::image::ImagePlacement {
+                            row,
+                            col: prefix_w,
+                            width_cells: w_cells,
+                            height_cells: h_cells,
+                            image: img,
+                            crop: None,
+                        });
                             ctx.lines.push(Line::from(Span::styled(
                                 format!("{ROUNDED_BL}{HLINE}"),
                                 border_style,

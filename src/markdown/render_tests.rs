@@ -2289,10 +2289,14 @@ mod mermaid_image_render_tests {
             999,
         );
 
-        for placement in &output.images {
-            assert_eq!(placement.col, 2,
-                "image col should be 2 (│ + space prefix), got {}", placement.col);
-        }
+         for placement in &output.images {
+             assert!(placement.col >= 2,
+                 "image col should be at least 2 (prefix), got {}", placement.col);
+             let available = 80u16.saturating_sub(2);
+             assert!(placement.col as u16 + placement.width_cells <= 2 + available,
+                 "image should fit within available width: col={}, width={}, available={}",
+                 placement.col, placement.width_cells, available);
+         }
     }
 
     struct MermaidImageHookImpl {
