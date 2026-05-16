@@ -26,11 +26,9 @@ pub trait RichTextTheme {
     fn get_json_null_color(&self) -> Color;
     fn get_accent_yellow(&self) -> Color;
 
-    #[deprecated(since = "0.3.0", note = "No longer used")]
     fn get_popup_selected_text_color(&self) -> Color {
         Color::White
     }
-    #[deprecated(since = "0.3.0", note = "No longer used")]
     fn get_background_color(&self) -> Color {
         Color::Black
     }
