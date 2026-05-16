@@ -129,20 +129,6 @@ cargo run --example tree_list
 - [Contributing](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/en/contributing.md)
 - [API Reference](https://docs.rs/ratatui-markdown)
 
-### Languages
-
-| Language | Documentation |
-|----------|---------------|
-| English | [docs/guides/en/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/en/index.md) |
-| 简体中文 | [docs/guides/zhs/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/zhs/index.md) |
-| 繁體中文 | [docs/guides/zht/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/zht/index.md) |
-| 日本語 | [docs/guides/ja/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/ja/index.md) |
-| 한국어 | [docs/guides/ko/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/ko/index.md) |
-| Français | [docs/guides/fr/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/fr/index.md) |
-| Español | [docs/guides/es/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/es/index.md) |
-| Русский | [docs/guides/ru/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/ru/index.md) |
-| العربية | [docs/guides/ar/](https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/ar/index.md) |
-
 ## License
 
 Dual-licensed under MIT OR Apache-2.0.
