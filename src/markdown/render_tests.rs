@@ -2306,17 +2306,15 @@ mod mermaid_image_render_tests {
 
     #[test]
     fn mermaid_image_svg_background_is_patched() {
-        let svg = mermaid_rs_renderer::render("graph TD\n    A-->B").unwrap();
-        let custom_bg = "1a1b2c";
-        let patched = svg.replace("#FFFFFF", custom_bg)
-            .replace("#ffffff", custom_bg)
-            .replace("white", custom_bg);
-        assert!(!patched.contains("#FFFFFF"), "should have no #FFFFFF left");
-        assert!(!patched.contains("white"), "should have no 'white' color name");
-        assert!(patched.contains(custom_bg), "should contain custom bg hex");
+        let bg_hex = "1a1b2c";
+        let mut opts = mermaid_rs_renderer::RenderOptions::default();
+        opts.theme.background = bg_hex.to_string();
+        let svg = mermaid_rs_renderer::render_with_options("graph TD\n    A-->B", opts).unwrap();
+        assert!(!svg.contains("#FFFFFF"), "should have no #FFFFFF left");
+        assert!(svg.contains(bg_hex), "should contain custom bg hex");
 
-        let raw = mermaid_rs_renderer::render("graph TD\n    A-->B").unwrap();
-        assert!(raw.contains("#FFFFFF") || raw.contains("white"),
-            "unpatched SVG should contain white bg");
+        let default_svg = mermaid_rs_renderer::render("graph TD\n    A-->B").unwrap();
+        assert!(default_svg.contains("#FFFFFF"),
+            "default theme should contain white bg");
     }
 }

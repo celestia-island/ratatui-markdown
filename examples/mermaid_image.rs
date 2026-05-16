@@ -118,22 +118,16 @@ fn color_to_rgba(c: ratatui::style::Color) -> image::Rgba<u8> {
     }
 }
 
-fn patch_svg_background(svg: &str, bg_hex: &str) -> String {
-    svg.replace("#FFFFFF", bg_hex)
-        .replace("#ffffff", bg_hex)
-        .replace("white", bg_hex)
-}
-
 fn render_mermaid_to_image(
     source: &str,
     bg_color: image::Rgba<u8>,
     font_w: u32,
     font_h: u32,
 ) -> Option<image::DynamicImage> {
-    let svg = mermaid_rs_renderer::render(source).ok()?;
-
     let bg_hex = format!("{:02X}{:02X}{:02X}", bg_color.0[0], bg_color.0[1], bg_color.0[2]);
-    let svg = patch_svg_background(&svg, &bg_hex);
+    let mut opts = mermaid_rs_renderer::RenderOptions::default();
+    opts.theme.background = bg_hex;
+    let svg = mermaid_rs_renderer::render_with_options(source, opts).ok()?;
 
     let mut font_db = fontdb::Database::new();
 
