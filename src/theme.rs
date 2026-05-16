@@ -82,7 +82,7 @@ impl ThemeConfig {
 
     pub fn builder() -> ThemeBuilder {
         ThemeBuilder {
-            config: ThemeConfig::default(),
+            config: Self::default(),
         }
     }
 

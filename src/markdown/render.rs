@@ -18,10 +18,7 @@ use crate::{
 };
 
 #[cfg(feature = "image")]
-use super::image::ImageResolver;
-
-#[cfg(feature = "image")]
-use super::image::MarkdownRenderOutput;
+use super::image::{ImageResolver, MarkdownRenderOutput};
 
 const LANG_MERMAID: &str = "mermaid";
 

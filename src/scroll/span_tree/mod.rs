@@ -114,11 +114,13 @@ impl SpanTree {
     }
 
     pub fn total_lines(&self) -> usize {
+        if self.entries.is_empty() {
+            return 0;
+        }
         self.entries
             .iter()
             .map(|e| e.total_lines())
-            .sum::<usize>()
-            .max(self.entries.len())
+            .sum()
     }
 
     pub fn entry_count(&self) -> usize {
@@ -127,6 +129,14 @@ impl SpanTree {
 
     pub fn scroll_offset(&self) -> usize {
         self.scroll_offset
+    }
+
+    pub fn set_scroll_offset(&mut self, offset: usize) {
+        self.scroll_offset = offset.min(self.max_scroll_offset());
+    }
+
+    pub fn viewport_height(&self) -> usize {
+        self.viewport_height
     }
 
     pub fn is_empty(&self) -> bool {
@@ -208,6 +218,16 @@ impl SpanTree {
             } else if entry_end > self.scroll_offset + vp {
                 self.scroll_offset = entry_end.saturating_sub(vp);
             }
+        }
+    }
+
+    pub fn center_on_selected(&mut self) {
+        if let Some(idx) = self.selected_index() {
+            let entry_start = self.line_offset_for_entry(idx);
+            let entry_lines = self.entries[idx].total_lines();
+            let entry_center = entry_start + entry_lines / 2;
+            let target = entry_center.saturating_sub(self.viewport_height / 2);
+            self.scroll_offset = target.min(self.max_scroll_offset());
         }
     }
 
