@@ -2303,4 +2303,20 @@ mod mermaid_image_render_tests {
             render_svg_to_image(source, self.bg)
         }
     }
+
+    #[test]
+    fn mermaid_image_svg_background_is_patched() {
+        let svg = mermaid_rs_renderer::render("graph TD\n    A-->B").unwrap();
+        let custom_bg = "1a1b2c";
+        let patched = svg.replace("#FFFFFF", custom_bg)
+            .replace("#ffffff", custom_bg)
+            .replace("white", custom_bg);
+        assert!(!patched.contains("#FFFFFF"), "should have no #FFFFFF left");
+        assert!(!patched.contains("white"), "should have no 'white' color name");
+        assert!(patched.contains(custom_bg), "should contain custom bg hex");
+
+        let raw = mermaid_rs_renderer::render("graph TD\n    A-->B").unwrap();
+        assert!(raw.contains("#FFFFFF") || raw.contains("white"),
+            "unpatched SVG should contain white bg");
+    }
 }
