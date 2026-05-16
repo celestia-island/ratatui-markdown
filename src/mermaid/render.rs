@@ -359,10 +359,11 @@ fn fix_edge_junctions(grid: &mut [Vec<Cell>]) {
                 continue;
             }
 
-            let up = y > 0 && is_neighbor_connector(grid[y - 1][x].ch);
-            let down = y + 1 < gh && is_neighbor_connector(grid[y + 1][x].ch);
-            let left = x > 0 && is_neighbor_connector(grid[y][x - 1].ch);
-            let right = x + 1 < gw && is_neighbor_connector(grid[y][x + 1].ch);
+            // only count neighbors that are ALSO edge cells — never node borders
+            let up = y > 0 && grid[y - 1][x].is_edge && is_neighbor_connector(grid[y - 1][x].ch);
+            let down = y + 1 < gh && grid[y + 1][x].is_edge && is_neighbor_connector(grid[y + 1][x].ch);
+            let left = x > 0 && grid[y][x - 1].is_edge && is_neighbor_connector(grid[y][x - 1].ch);
+            let right = x + 1 < gw && grid[y][x + 1].is_edge && is_neighbor_connector(grid[y][x + 1].ch);
 
             let new_ch = pick_junction_char(up, down, left, right);
             if new_ch != ch {
