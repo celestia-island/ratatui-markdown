@@ -153,8 +153,8 @@ fn render_mermaid_to_image(source: &str, bg_color: image::Rgba<u8>) -> Option<im
 
     let tree = usvg::Tree::from_str(&svg, &usvg_opts).ok()?;
     let size = tree.size();
-    let w = (size.width() as f64).ceil() as u32;
-    let h = (size.height() as f64).ceil() as u32;
+    let w = (size.width() as f64).round() as u32;
+    let h = (size.height() as f64).round() as u32;
     let mut pixmap = tiny_skia::Pixmap::new(w, h)?;
     let bg = tiny_skia::Color::from_rgba8(bg_color.0[0], bg_color.0[1], bg_color.0[2], bg_color.0[3]);
     pixmap.fill(bg);
