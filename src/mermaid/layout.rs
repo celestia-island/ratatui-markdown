@@ -39,6 +39,7 @@ const NODE_V_HEIGHT: usize = 3;   // vertical direction
 const NODE_V_HEIGHT_LR: usize = 5; // horizontal direction
 const H_SPACING: usize = 4;
 const V_SPACING: usize = 3;
+const MIN_GAP: usize = 3; // minimum cells between node borders (line + arrow + margin)
 
 // ── public entry point ─────────────────────────────────────────
 
@@ -73,7 +74,6 @@ pub fn compute_layout(
         }
         let node_count = layer.len();
 
-        // measure node widths
         let mut node_widths: Vec<usize> = layer
             .iter()
             .map(|id| {
@@ -87,7 +87,6 @@ pub fn compute_layout(
             })
             .collect();
 
-        // scale if too wide
         let total_w: usize =
             node_widths.iter().sum::<usize>() + h_spacing * node_count.saturating_sub(1);
         let scale = scale_factor(total_w, max_width, &node_widths, h_spacing);
@@ -112,7 +111,6 @@ pub fn compute_layout(
             0
         };
 
-        // place nodes
         let mut x = x_start;
         for (i, id) in layer.iter().enumerate() {
             let node = diagram
@@ -121,13 +119,8 @@ pub fn compute_layout(
                 .find(|n| &n.id == id)
                 .expect("layer node must exist in diagram nodes");
             let w = node_widths[i];
-            let h = node_v_height;
 
-            let (nx, ny) = if is_vertical {
-                (x, y_offset)
-            } else {
-                (y_offset, x)
-            };
+            let (nx, ny) = if is_vertical { (x, y_offset) } else { (y_offset, x) };
 
             layout_nodes.push(LayoutNode {
                 id: id.clone(),
@@ -136,13 +129,18 @@ pub fn compute_layout(
                 x: nx,
                 y: ny,
                 width: w,
-                height: h,
+                height: node_v_height,
             });
-            node_positions.insert(id.clone(), (nx + w / 2, ny + h / 2));
+            node_positions.insert(id.clone(), (nx + w / 2, ny + node_v_height / 2));
             x += w + h_spacing;
         }
 
-        y_offset += node_v_height + v_spacing;
+        if is_vertical {
+            y_offset += node_v_height + v_spacing;
+        } else {
+            let max_w = node_widths.iter().copied().max().unwrap_or(0);
+            y_offset += max_w + h_spacing;
+        }
     }
 
     // edge paths
@@ -215,10 +213,12 @@ fn adapt_spacing(
         let needed = avg_node_w * max_layer_size;
         if needed < max_width {
             hs = (max_width - needed) / max_layer_size.saturating_sub(1).max(1);
-            hs = hs.max(1);
+            hs = hs.max(MIN_GAP);
         } else {
-            hs = 1;
+            hs = MIN_GAP;
         }
+    } else {
+        hs = hs.max(MIN_GAP);
     }
 
     if let Some(mh) = max_height {
@@ -284,9 +284,9 @@ fn compute_edge_path(
         let sx = source.x + source.width / 2;
         let sy = source.y + source.height;
         let tx = target.x + target.width / 2;
-        let ty = target.y;
+        let ty = target.y.saturating_sub(1); // stop one cell ABOVE target top border
 
-        let mid_y = sy + v_spacing / 2;
+        let mid_y = if ty > sy { (sy + ty) / 2 } else { sy + v_spacing / 2 };
 
         if sx == tx {
             vec![(sx, sy), (sx, mid_y), (tx, ty)]
@@ -296,10 +296,10 @@ fn compute_edge_path(
     } else {
         let sx = source.x + source.width;
         let sy = source.y + source.height / 2;
-        let tx = target.x;
+        let tx = target.x.saturating_sub(1); // stop one cell LEFT of target left border
         let ty = target.y + target.height / 2;
 
-        let mid_x = sx + v_spacing / 2;
+        let mid_x = if tx > sx { (sx + tx) / 2 } else { sx + v_spacing / 2 };
 
         if sy == ty {
             vec![(sx, sy), (mid_x, sy), (tx, ty)]

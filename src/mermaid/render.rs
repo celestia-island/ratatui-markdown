@@ -226,53 +226,39 @@ fn draw_edge(
         .fg(theme.get_primary_color())
         .add_modifier(Modifier::BOLD);
 
-    let n = wp.len();
-    for i in 0..n - 1 {
+    // draw line segments between consecutive waypoints
+    for i in 0..wp.len().saturating_sub(1) {
         let (x1, y1) = wp[i];
         let (x2, y2) = wp[i + 1];
-        let is_last = i == n - 2;
 
         if y1 == y2 {
-            let (lo, hi) = if x1 < x2 { (x1, x2) } else { (x2, x1) };
-            let hi = if is_last { hi.saturating_sub(1) } else { hi };
+            let (lo, hi) = if x1 <= x2 { (x1, x2) } else { (x2, x1) };
             for x in lo..=hi {
                 set_if_empty(grid, x, y1, HLINE, edge_style);
             }
         } else if x1 == x2 {
-            let (lo, hi) = if y1 < y2 { (y1, y2) } else { (y2, y1) };
-            let hi = if is_last { hi.saturating_sub(1) } else { hi };
+            let (lo, hi) = if y1 <= y2 { (y1, y2) } else { (y2, y1) };
             for y in lo..=hi {
                 set_if_empty(grid, x1, y, VLINE, edge_style);
             }
         }
     }
 
+    // arrow at last waypoint (already one cell before target border)
     if edge.edge_type == EdgeType::Arrow && wp.len() >= 2 {
-        let &(sx, sy) = &wp[wp.len() - 2];
-        let &(tx, ty) = wp.last().unwrap();
+        let &(ax, ay) = wp.last().unwrap();
+        let &(prev_x, prev_y) = &wp[wp.len() - 2];
         let arrow_ch = if is_vertical {
-            if ty > sy { '▼' } else { '▲' }
-        } else if tx > sx {
+            if ay > prev_y { '▼' } else { '▲' }
+        } else if ax > prev_x {
             '►'
         } else {
             '◄'
         };
-        let (ax, ay) = if is_vertical {
-            if ty > sy {
-                (tx, ty.saturating_sub(1))
-            } else {
-                (tx, ty + 1)
-            }
-        } else {
-            if tx > sx {
-                (tx.saturating_sub(1), ty)
-            } else {
-                (tx + 1, ty)
-            }
-        };
-        set_if_empty(grid, ax, ay, arrow_ch, arrow_style);
+        set_arrow(grid, ax, ay, arrow_ch, arrow_style);
     }
 
+    // label near middle of path
     if let Some(ref label) = edge.label {
         if wp.len() >= 2 {
             let mid = wp.len() / 2;
@@ -297,6 +283,19 @@ fn set_if_empty(grid: &mut [Vec<Cell>], x: usize, y: usize, ch: char, style: Sty
     if y < grid.len() && x < grid[0].len() {
         let cell = &mut grid[y][x];
         if cell.ch == ' ' {
+            cell.ch = ch;
+            cell.style = style;
+            cell.is_edge = true;
+        }
+    }
+}
+
+/// Like set_if_empty but also overwrites edge-line characters (─│).
+/// Never overwrites node borders (is_edge==false non-space cells).
+fn set_arrow(grid: &mut [Vec<Cell>], x: usize, y: usize, ch: char, style: Style) {
+    if y < grid.len() && x < grid[0].len() {
+        let cell = &mut grid[y][x];
+        if cell.ch == ' ' || cell.is_edge {
             cell.ch = ch;
             cell.style = style;
             cell.is_edge = true;
