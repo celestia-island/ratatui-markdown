@@ -2,7 +2,7 @@ use std::sync::Mutex;
 
 use tree_sitter_highlight::Highlighter;
 
-use super::config::{HIGHLIGHT_NAMES, highlight_to_style};
+use super::config::{highlight_to_style, HIGHLIGHT_NAMES};
 use super::{CodeHighlighter, StyleSegment};
 
 struct LangEntry {

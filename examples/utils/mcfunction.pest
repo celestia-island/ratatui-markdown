@@ -1,0 +1,29 @@
+WHITESPACE = _{ " " | "\t" }
+
+file = { SOI ~ (line ~ NEWLINE?)* ~ EOI }
+
+line = { comment | command }
+
+comment = { "#" ~ (!NEWLINE ~ ANY)* }
+
+command = { cmd_name ~ token* }
+
+token = _{ selector | coord | nbt | str | number | word }
+
+cmd_name = { ASCII_ALPHA+ }
+
+selector = { "@" ~ ASCII_ALPHA* ~ ("[" ~ (!"]" ~ ANY)* ~ "]")? }
+
+coord = { ("~" | "^") ~ "-"? ~ ASCII_DIGIT* ~ ("." ~ ASCII_DIGIT+)? }
+
+nbt = { "{" ~ nbt_inner* ~ "}" }
+nbt_inner = _{ nbt | str | number | (!("}" | "\"" | "'" | "{") ~ ANY) }
+
+str = @{
+    "\"" ~ (!("\"") ~ ANY)* ~ "\""
+  | "'" ~ (!("'") ~ ANY)* ~ "'"
+}
+
+number = { "-"? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? }
+
+word = { (ASCII_ALPHANUMERIC | "_" | ":" | "-" | "=" | "." | "/" | "<" | ">" | ",")+ }

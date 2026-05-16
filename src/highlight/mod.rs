@@ -15,7 +15,7 @@ mod pest_bridge;
 pub use segment::segments_to_lines;
 
 #[cfg(feature = "highlight")]
-pub use config::{HIGHLIGHT_NAMES, highlight_to_style};
+pub use config::{highlight_to_style, HIGHLIGHT_NAMES};
 
 #[cfg(feature = "highlight")]
 pub use treesitter::TreeSitterHighlighter;

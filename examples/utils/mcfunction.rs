@@ -3,7 +3,9 @@ use pest_derive::Parser;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui_markdown::highlight::{pest_pairs_to_segments, CodeHighlighter, StyleSegment};
 
-// Option A: inline the grammar directly (no external file needed)
+// pest_derive requires grammar files under src/ and only accepts string literals
+// for grammar_inline, so the grammar is duplicated inline here.
+// See examples/utils/mcfunction.pest for the same grammar in a standalone file.
 #[derive(Parser)]
 #[grammar_inline = r##"
 WHITESPACE = _{ " " | "\t" }
@@ -36,8 +38,6 @@ number = { "-"? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? }
 
 word = { (ASCII_ALPHANUMERIC | "_" | ":" | "-" | "=" | "." | "/" | "<" | ">" | ",")+ }
 "##]
-// Option B: reference an external .pest file (must reside under src/)
-// #[grammar = "highlight/mcfunction.pest"]
 struct McfunctionParser;
 
 pub struct McfunctionHighlighter;
