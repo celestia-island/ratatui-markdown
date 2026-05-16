@@ -1,5 +1,6 @@
 use crate::theme::RichTextTheme;
 use ratatui::text::Line;
+use unicode_width::UnicodeWidthChar;
 
 use super::{
     layout, render,
