@@ -161,7 +161,11 @@ fn parse_nref(pair: pest::iterators::Pair<Rule>) -> (String, Option<String>, Opt
 
 fn parse_shape(pair: pest::iterators::Pair<Rule>) -> (NodeShape, Option<String>) {
     for inner in pair.into_inner() {
-        let text = inner.clone().into_inner().next().map(|p| p.as_str().trim().to_string());
+        let text = inner
+            .clone()
+            .into_inner()
+            .next()
+            .map(|p| p.as_str().trim().to_string());
         let text = text.filter(|t| !t.is_empty());
         match inner.as_rule() {
             Rule::circ => return (NodeShape::Circle, text),

@@ -2,7 +2,9 @@ use ratatui::{
     layout::Rect,
     style::{Color, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Padding, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    widgets::{
+        Block, Borders, Padding, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
+    },
     Frame,
 };
 
@@ -101,7 +103,8 @@ impl MarkdownViewer {
             area.x,
             area.y,
             area.width,
-            area.height.saturating_sub(if self.key_hints.is_empty() { 0 } else { 1 }),
+            area.height
+                .saturating_sub(if self.key_hints.is_empty() { 0 } else { 1 }),
         );
 
         let mut block = Block::default()

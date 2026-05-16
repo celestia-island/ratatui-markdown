@@ -1,7 +1,9 @@
 #[path = "utils/mod.rs"]
 mod common;
 
-use common::{AppState, Theme, draw_frame, lorem, poll_and_handle, setup_terminal, restore_terminal};
+use common::{
+    draw_frame, lorem, poll_and_handle, restore_terminal, setup_terminal, AppState, Theme,
+};
 use ratatui_markdown::{
     constants::{BRANCH_END_SP, BRANCH_FIRST_SP, BRANCH_MID_SP, VLINE},
     markdown::{MarkdownRenderer, RenderHooks},
@@ -57,11 +59,7 @@ impl RenderHooks for TreeListHooks {
         Some(3)
     }
 
-    fn tree_continuation_prefix(
-        &self,
-        indent: u8,
-        ancestors_are_last: &[bool],
-    ) -> Option<String> {
+    fn tree_continuation_prefix(&self, indent: u8, ancestors_are_last: &[bool]) -> Option<String> {
         let unit: usize = Self::tree_indent_unit(self).unwrap_or(3);
         let mut prefix = String::new();
         for (i, &is_last_anc) in ancestors_are_last.iter().enumerate() {
@@ -122,43 +120,46 @@ fn generate_tree_markdown() -> String {
          ## Project TODO\n\n",
     );
 
-    build_list(&[
-        (0, t(8)),
-        (1, t(6)),
-        (1, t(6)),
-        (2, t(5)),
-        (2, t(5)),
-        (2, t(5)),
-        (0, t(8)),
-        (1, t(6)),
-        (2, t(6)),
-        (2, t(6)),
-        (2, t(6)),
-        (1, t(6)),
-        (2, t(6)),
-        (2, t(6)),
-        (2, t(6)),
-        (1, t(6)),
-        (2, t(5)),
-        (2, t(5)),
-        (0, t(6)),
-        (1, t(6)),
-        (1, t(6)),
-        (1, t(6)),
-        (0, t(6)),
-        (1, t(5)),
-        (1, t(5)),
-        (1, t(5)),
-        (0, t(6)),
-        (1, t(5)),
-        (1, t(5)),
-        (1, t(5)),
-        (1, t(5)),
-        (0, t(6)),
-        (1, t(5)),
-        (1, t(5)),
-        (1, t(5)),
-    ], &mut md);
+    build_list(
+        &[
+            (0, t(8)),
+            (1, t(6)),
+            (1, t(6)),
+            (2, t(5)),
+            (2, t(5)),
+            (2, t(5)),
+            (0, t(8)),
+            (1, t(6)),
+            (2, t(6)),
+            (2, t(6)),
+            (2, t(6)),
+            (1, t(6)),
+            (2, t(6)),
+            (2, t(6)),
+            (2, t(6)),
+            (1, t(6)),
+            (2, t(5)),
+            (2, t(5)),
+            (0, t(6)),
+            (1, t(6)),
+            (1, t(6)),
+            (1, t(6)),
+            (0, t(6)),
+            (1, t(5)),
+            (1, t(5)),
+            (1, t(5)),
+            (0, t(6)),
+            (1, t(5)),
+            (1, t(5)),
+            (1, t(5)),
+            (1, t(5)),
+            (0, t(6)),
+            (1, t(5)),
+            (1, t(5)),
+            (1, t(5)),
+        ],
+        &mut md,
+    );
 
     md.push_str("\n\n");
     md.push_str(&lorem(60));
@@ -167,18 +168,21 @@ fn generate_tree_markdown() -> String {
     let mut wi2 = 0;
     let mut t2 = |n: usize| -> String { take(&words, &mut wi2, n) };
 
-    build_list(&[
-        (0, t2(8)),
-        (1, t2(6)),
-        (1, t2(6)),
-        (1, t2(6)),
-        (0, t2(8)),
-        (1, t2(6)),
-        (1, t2(6)),
-        (0, t2(8)),
-        (1, t2(5)),
-        (1, t2(5)),
-    ], &mut md);
+    build_list(
+        &[
+            (0, t2(8)),
+            (1, t2(6)),
+            (1, t2(6)),
+            (1, t2(6)),
+            (0, t2(8)),
+            (1, t2(6)),
+            (1, t2(6)),
+            (0, t2(8)),
+            (1, t2(5)),
+            (1, t2(5)),
+        ],
+        &mut md,
+    );
 
     md.push('\n');
     md.push_str(&lorem(150));
@@ -190,8 +194,7 @@ fn main() -> anyhow::Result<()> {
 
     let md = generate_tree_markdown();
     let theme = Theme;
-    let renderer = MarkdownRenderer::new(76)
-        .with_render_hooks(Box::new(TreeListHooks));
+    let renderer = MarkdownRenderer::new(76).with_render_hooks(Box::new(TreeListHooks));
     let blocks = renderer.parse(&md);
     let lines = renderer.render(&blocks, &theme);
     let mut state = AppState::new(lines.len());

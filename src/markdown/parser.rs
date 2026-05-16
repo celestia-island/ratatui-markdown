@@ -259,7 +259,10 @@ impl MarkdownRenderer {
         }
 
         if in_code_block {
-            blocks.push(MarkdownBlock::code_block(code_lang, code_content.trim_end()));
+            blocks.push(MarkdownBlock::code_block(
+                code_lang,
+                code_content.trim_end(),
+            ));
         }
 
         blocks
@@ -308,10 +311,7 @@ impl MarkdownRenderer {
         (level, content)
     }
 
-    fn parse_nested_blockquote(
-        lines: &[(u8, String)],
-        current_level: u8,
-    ) -> Vec<MarkdownBlock> {
+    fn parse_nested_blockquote(lines: &[(u8, String)], current_level: u8) -> Vec<MarkdownBlock> {
         let mut children = Vec::new();
         let mut group: Vec<(u8, String)> = Vec::new();
 
@@ -336,10 +336,7 @@ impl MarkdownRenderer {
         children
     }
 
-    fn parse_nested_blockquote_inner(
-        lines: &[(u8, String)],
-        target_level: u8,
-    ) -> MarkdownBlock {
+    fn parse_nested_blockquote_inner(lines: &[(u8, String)], target_level: u8) -> MarkdownBlock {
         let adjusted: Vec<(u8, String)> = lines
             .iter()
             .map(|(level, content)| (*level, content.clone()))
@@ -400,10 +397,7 @@ impl MarkdownRenderer {
                 continue;
             }
 
-            if trimmed.starts_with("- ")
-                || trimmed.starts_with("* ")
-                || trimmed.starts_with("+ ")
-            {
+            if trimmed.starts_with("- ") || trimmed.starts_with("* ") || trimmed.starts_with("+ ") {
                 if !text_lines.is_empty() {
                     blocks.push(MarkdownBlock::Paragraph(text_lines.clone()));
                     text_lines.clear();

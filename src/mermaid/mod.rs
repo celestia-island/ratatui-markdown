@@ -11,8 +11,8 @@ pub use types::{
     MermaidNode, NodeShape, PieChart, SeqArrowKind, SequenceDiagram, SequenceMessage,
 };
 
-use ratatui::text::Line;
 use crate::theme::RichTextTheme;
+use ratatui::text::Line;
 
 pub fn render_mermaid(
     source: &str,
@@ -124,11 +124,7 @@ fn parse_state_diagram(source: &str) -> Option<MermaidDiagram> {
             let label_text = None;
 
             let (from_id, from_label, from_shape) = if from_raw == "[*]" {
-                (
-                    "__start__".to_string(),
-                    "●".to_string(),
-                    NodeShape::Circle,
-                )
+                ("__start__".to_string(), "●".to_string(), NodeShape::Circle)
             } else {
                 (
                     from_raw.to_string(),
@@ -138,17 +134,9 @@ fn parse_state_diagram(source: &str) -> Option<MermaidDiagram> {
             };
 
             let (to_id, to_label, to_shape) = if to_raw == "[*]" {
-                (
-                    "__end__".to_string(),
-                    "●".to_string(),
-                    NodeShape::Circle,
-                )
+                ("__end__".to_string(), "●".to_string(), NodeShape::Circle)
             } else {
-                (
-                    to_raw.to_string(),
-                    to_raw.to_string(),
-                    NodeShape::Rounded,
-                )
+                (to_raw.to_string(), to_raw.to_string(), NodeShape::Rounded)
             };
 
             if !node_set.contains(&from_id) {
@@ -200,8 +188,8 @@ mod tests {
 
     #[test]
     fn test_parse_simple_flowchart() -> anyhow::Result<()> {
-        let diagram = parser::parse("graph TD\nA[Start] --> B[End]")
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        let diagram =
+            parser::parse("graph TD\nA[Start] --> B[End]").map_err(|e| anyhow::anyhow!("{e}"))?;
         assert_eq!(
             diagram.nodes.len(),
             2,
@@ -220,8 +208,8 @@ mod tests {
 
     #[test]
     fn test_parse_with_labels() -> anyhow::Result<()> {
-        let diagram = parser::parse("graph TD\nA -->|yes| B")
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        let diagram =
+            parser::parse("graph TD\nA -->|yes| B").map_err(|e| anyhow::anyhow!("{e}"))?;
         assert_eq!(diagram.nodes.len(), 2);
         assert_eq!(diagram.edges[0].label.as_deref(), Some("yes"));
         Ok(())
@@ -229,8 +217,7 @@ mod tests {
 
     #[test]
     fn test_parse_lr_direction() -> anyhow::Result<()> {
-        let diagram = parser::parse("graph LR\nA --> B")
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        let diagram = parser::parse("graph LR\nA --> B").map_err(|e| anyhow::anyhow!("{e}"))?;
         assert_eq!(diagram.direction, Direction::LeftRight);
         Ok(())
     }
@@ -247,7 +234,8 @@ mod tests {
 
     #[test]
     fn test_parse_pie_chart() {
-        let chart = pie::parse_pie("pie title Pets\n    \"Dogs\" : 386\n    \"Cats\" : 85").unwrap();
+        let chart =
+            pie::parse_pie("pie title Pets\n    \"Dogs\" : 386\n    \"Cats\" : 85").unwrap();
         assert_eq!(chart.title.as_deref(), Some("Pets"));
         assert_eq!(chart.slices.len(), 2);
     }

@@ -95,7 +95,13 @@ fn parse_task(line: &str) -> Option<GanttTask> {
             }
         }
         if part.starts_with("after ") {
-            deps = Some(part.strip_prefix("after ").unwrap().split(',').map(|s| s.trim().to_string()).collect());
+            deps = Some(
+                part.strip_prefix("after ")
+                    .unwrap()
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .collect(),
+            );
             continue;
         }
         if duration.is_none() {
@@ -135,7 +141,10 @@ pub fn render_gantt(
     let label_col = 16usize;
     let dur_col = 8usize;
     let inner_w = max_width.saturating_sub(4);
-    let bar_max = inner_w.saturating_sub(label_col).saturating_sub(dur_col).saturating_sub(4);
+    let bar_max = inner_w
+        .saturating_sub(label_col)
+        .saturating_sub(dur_col)
+        .saturating_sub(4);
     let bar_max = bar_max.clamp(8, 40);
 
     let mut lines: Vec<Line<'static>> = Vec::new();
@@ -174,7 +183,8 @@ pub fn render_gantt(
             let nw = unicode_width::UnicodeWidthStr::width(name_display.as_str());
             let name_pad = label_col.saturating_sub(nw);
 
-            let bar_offset = (task_idx as f64 / n_tasks as f64 * bar_max as f64 * 0.3).round() as usize;
+            let bar_offset =
+                (task_idx as f64 / n_tasks as f64 * bar_max as f64 * 0.3).round() as usize;
             let bar_len = if n_tasks <= 1 {
                 bar_max / 2
             } else {

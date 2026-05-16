@@ -1,12 +1,88 @@
 #[path = "utils/mod.rs"]
 mod common;
+#[path = "utils/mcfunction.rs"]
+mod mcfunction;
 
 use std::sync::Arc;
 
-use common::{AppState, Theme, draw_frame, poll_and_handle, setup_terminal, restore_terminal};
-use ratatui_markdown::highlight::TreeSitterHighlighter;
-use ratatui_markdown::highlight::HighlightHooks;
+use common::{draw_frame, poll_and_handle, restore_terminal, setup_terminal, AppState, Theme};
+use mcfunction::McfunctionHighlighter;
+use ratatui::style::{Color, Modifier, Style};
+use ratatui_markdown::highlight::{
+    CodeHighlighter, HighlightHooks, StyleSegment, TreeSitterHighlighter,
+};
 use ratatui_markdown::markdown::{MarkdownRenderer, RenderHooks};
+
+struct BrainfuckHighlighter;
+
+impl CodeHighlighter for BrainfuckHighlighter {
+    fn highlight(&self, lang: &str, code: &str) -> Vec<StyleSegment> {
+        if lang != "brainfuck" && lang != "bf" {
+            return Vec::new();
+        }
+
+        let mut segments = Vec::new();
+        let mut run_start: usize = 0;
+        let mut prev: Option<Style> = None;
+
+        for (i, ch) in code.char_indices() {
+            let style = bf_char_style(ch);
+            if prev != Some(style) {
+                if let Some(ps) = prev {
+                    segments.push(StyleSegment {
+                        start: run_start,
+                        end: i,
+                        style: ps,
+                    });
+                }
+                run_start = i;
+                prev = Some(style);
+            }
+        }
+
+        if let Some(style) = prev {
+            segments.push(StyleSegment {
+                start: run_start,
+                end: code.len(),
+                style,
+            });
+        }
+
+        segments
+    }
+}
+
+fn bf_char_style(ch: char) -> Style {
+    match ch {
+        '>' | '<' => Style::default().fg(Color::Cyan),
+        '+' | '-' => Style::default().fg(Color::Green),
+        '.' | ',' => Style::default().fg(Color::Yellow),
+        '[' | ']' => Style::default()
+            .fg(Color::Magenta)
+            .add_modifier(Modifier::BOLD),
+        _ => Style::default().fg(Color::DarkGray),
+    }
+}
+
+struct CompositeHighlighter {
+    treesitter: TreeSitterHighlighter,
+    mcfunction: McfunctionHighlighter,
+    brainfuck: BrainfuckHighlighter,
+}
+
+impl CodeHighlighter for CompositeHighlighter {
+    fn highlight(&self, lang: &str, code: &str) -> Vec<StyleSegment> {
+        let segs = self.treesitter.highlight(lang, code);
+        if !segs.is_empty() {
+            return segs;
+        }
+        let segs = self.mcfunction.highlight(lang, code);
+        if !segs.is_empty() {
+            return segs;
+        }
+        self.brainfuck.highlight(lang, code)
+    }
+}
 
 struct CodeHooks {
     inner: HighlightHooks,
@@ -26,12 +102,10 @@ const MARKDOWN_TEMPLATE: &str = r#"
 # Syntax Highlighting
 
 This example demonstrates **syntax highlighting** for code blocks using
-tree-sitter, the same engine that powers GitHub.com code rendering.
+three different approaches: tree-sitter, pest PEG parsing, and direct
+segment construction.
 
-Tree-sitter provides incremental parsing, precise syntax highlighting,
-and support for many languages via pluggable grammar crates.
-
-## Rust
+## Rust (tree-sitter)
 
 ```rust
 use std::collections::HashMap;
@@ -43,203 +117,61 @@ fn word_count(text: &str) -> HashMap<&str, usize> {
     }
     map
 }
-
-fn main() {
-    let text = "hello world hello rust world";
-    for (word, count) in word_count(text) {
-        println!("{word}: {count}");
-    }
-}
 ```
 
-## Python
+## mcfunction (pest)
 
-```python
-from dataclasses import dataclass
-from typing import Optional
+Uses a **PEG grammar** parsed by pest to identify Minecraft command tokens:
+commands, selectors, coordinates, NBT data, strings, and comments.
 
-@dataclass
-class TreeNode:
-    value: int
-    left: Optional['TreeNode'] = None
-    right: Optional['TreeNode'] = None
+```mcfunction
+# Teleport all players 10 blocks up
+execute as @a at @s run tp ~ ~10 ~
 
-def inorder(node: Optional[TreeNode]) -> list[int]:
-    if node is None:
-        return []
-    return inorder(node.left) + [node.value] + inorder(node.right)
-
-# Build a simple BST
-root = TreeNode(4, TreeNode(2, TreeNode(1), TreeNode(3)), TreeNode(6))
-print(inorder(root))  # [1, 2, 3, 4, 6]
+give @p diamond_sword 1
+scoreboard players set @a kills 0
+fill ~1 ~-1 ~1 ~10 ~-1 ~10 stone
+summon zombie ~ ~ ~ {CustomName:'"Bob"',Health:20}
+kill @e[type=skeleton,distance=..10]
 ```
 
-## Go
+## brainfuck (segments)
 
-```go
-package main
+Directly constructs `StyleSegment` from character analysis without any
+parser framework. Pointer ops are cyan, value ops are green, I/O is
+yellow, loops are magenta, and everything else is dimmed.
 
-import (
-	"fmt"
-	"sync"
-	"time"
-)
-
-func fetch(id int, wg *sync.WaitGroup) {
-	defer wg.Done()
-	duration := time.Duration(id*100) * time.Millisecond
-	time.Sleep(duration)
-	fmt.Printf("Worker %d done (took %v)\n", id, duration)
-}
-
-func main() {
-	var wg sync.WaitGroup
-	for i := 1; i <= 5; i++ {
-		wg.Add(1)
-		go fetch(i, &wg)
-	}
-	wg.Wait()
-	fmt.Println("All workers complete")
-}
+```brainfuck
+[ Hello World ]
+++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]
+>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.
 ```
 
-## Java
-
-```java
-import java.util.stream.*;
-import java.util.List;
-
-public class Streams {
-    public static void main(String[] args) {
-        List<String> names = List.of("Alice", "Bob", "Charlie", "Diana");
-
-        List<String> upper = names.stream()
-            .filter(n -> n.length() > 3)
-            .map(String::toUpperCase)
-            .sorted()
-            .collect(Collectors.toList());
-
-        upper.forEach(System.out::println);
-        // ALICE, CHARLIE, DIANA
-    }
-}
-```
-
-## HTML
-
-```html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Todo App</title>
-  <style>
-    .done { text-decoration: line-through; opacity: 0.6; }
-  </style>
-</head>
-<body>
-  <h1>Todo List</h1>
-  <ul id="list"></ul>
-  <input id="input" placeholder="Add item..." autofocus />
-  <button onclick="addItem()">Add</button>
-</body>
-</html>
-```
-
-## CSS
-
-```css
-:root {
-  --primary: #6366f1;
-  --bg: #0f172a;
-  --surface: #1e293b;
-  --text: #e2e8f0;
-}
-
-.card {
-  background: var(--surface);
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 32px rgba(99, 102, 241, 0.25);
-}
-```
-
-## TOML
-
-```toml
-[package]
-name = "my-project"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-ratatui = "0.29"
-serde = { version = "1", features = ["derive"] }
-tokio = { version = "1", features = ["full"] }
-
-[profile.release]
-lto = true
-strip = true
-opt-level = 3
-```
-
-## JSON
-
-```json
-{
-  "name": "syntax-highlight",
-  "version": "1.0.0",
-  "private": true,
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "test": "vitest run"
-  },
-  "devDependencies": {
-    "typescript": "^5.4.0",
-    "vite": "^5.2.0"
-  }
-}
-```
-
-## SQL
-
-```sql
-WITH monthly_revenue AS (
-    SELECT
-        DATE_TRUNC('month', order_date) AS month,
-        SUM(quantity * unit_price)       AS revenue,
-        COUNT(DISTINCT customer_id)      AS customers
-    FROM orders
-    WHERE order_date >= '2024-01-01'
-    GROUP BY 1
-)
-SELECT
-    TO_CHAR(month, 'YYYY-MM')  AS month,
-    TO_CHAR(revenue, '$999,999') AS revenue,
-    customers,
-    LAG(revenue) OVER (ORDER BY month) AS prev_month
-FROM monthly_revenue
-ORDER BY month DESC
-LIMIT 12;
+```brainfuck
+Multiply 3 x 5: result in cell 2
++++            cell 0 = 3
+>+++++<        cell 1 = 5
+[              loop while cell 1 != 0
+  > ++++       add 3 to cell 2
+  < -          decrement cell 1
+]
+>> .           cell 2 = 15
 ```
 "#;
 
 fn main() -> anyhow::Result<()> {
-    let highlighter = Arc::new(TreeSitterHighlighter::new());
-    let hooks = HighlightHooks::new(highlighter, 74);
+    let composite = Arc::new(CompositeHighlighter {
+        treesitter: TreeSitterHighlighter::new(),
+        mcfunction: McfunctionHighlighter,
+        brainfuck: BrainfuckHighlighter,
+    });
+    let hooks = HighlightHooks::new(composite, 74);
 
     let mut terminal = setup_terminal()?;
 
     let theme = Theme;
-    let renderer = MarkdownRenderer::new(76)
-        .with_render_hooks(Box::new(CodeHooks { inner: hooks }));
+    let renderer =
+        MarkdownRenderer::new(76).with_render_hooks(Box::new(CodeHooks { inner: hooks }));
     let blocks = renderer.parse(MARKDOWN_TEMPLATE);
     let lines = renderer.render(&blocks, &theme);
     let mut state = AppState::new(lines.len());
@@ -248,7 +180,7 @@ fn main() -> anyhow::Result<()> {
         terminal.draw(|f| {
             draw_frame(
                 f,
-                "Code Highlighting (tree-sitter)",
+                "Code Highlighting",
                 &lines,
                 &mut state,
                 "\u{2191}\u{2193}/jk scroll \u{00b7} PgUp/PgDn \u{00b7} Home/End \u{00b7} q quit",

@@ -4,7 +4,7 @@
 
 # ratatui-markdown
 
-> 為 ratatui 提供 Markdown 渲染、可折疊 JSON/TOML 樹以及豐富滾動組件的 Rust 庫。
+> 為 ratatui 提供 Markdown 渲染、Mermaid 圖表、語法高亮、可折疊 JSON/TOML 樹以及豐富滾動組件的 Rust 庫。
 >
 > **建構基礎**: [ratatui](https://github.com/ratatui/ratatui) 0.29 + 純 Rust
 >
@@ -26,7 +26,7 @@
 
 ## 什麼是 ratatui-markdown？
 
-ratatui-markdown 是一個功能豐富的終端使用者介面渲染庫，基於 [ratatui](https://github.com/ratatui/ratatui) 建構。它提供四個主要功能模組，可以獨立使用，也可以透過 `MarkdownPreview` 組件組合使用。
+ratatui-markdown 是一個功能豐富的終端使用者介面渲染庫，基於 [ratatui](https://github.com/ratatui/ratatui) 建構。它提供多個功能模組，可以獨立使用，也可以透過 `MarkdownPreview` / `MarkdownViewer` 組件組合使用。
 
 ## 核心模組
 
@@ -37,7 +37,7 @@ ratatui-markdown 是一個功能豐富的終端使用者介面渲染庫，基於
 - **標題**: H1 (`#`), H2 (`##`), H3 (`###`)
 - **段落**: 支援 CJK 字元寬度感知的自動換行
 - **內聯格式**: `**粗體**`, `*斜體*`, `***粗體+斜體***`, `` `行內程式碼` ``
-- **圍欄程式碼塊**: 可選語言標籤（mermaid 塊會跳過）
+- **圍欄程式碼塊**: 可選語言標籤（mermaid 塊渲染為圖表）
 - **引用塊** (`>`)
 - **無序列表** (`-`, `*`, `+`) 和有序列表 (`1.`, `2.`)
 - **水平分隔線** (`---`, `***`, `___`)
@@ -64,7 +64,23 @@ ratatui-markdown 是一個功能豐富的終端使用者介面渲染庫，基於
 - **捲軸**: 基於箭頭的疊加顯示
 - **翻頁**: 支援 `page_up` / `page_down`
 
-### MarkdownPreview 組件
+### Mermaid 圖表
+
+在終端中直接渲染 Mermaid 圖表：
+
+- **時序圖**、**圓餅圖**、**甘特圖**、**狀態圖**
+- 透過 ` ```mermaid ` 程式碼塊觸發
+- 功能標誌：`mermaid`
+
+### 語法高亮
+
+基於 tree-sitter 的程式碼塊語法高亮：
+
+- 按語言選擇的功能標誌（`highlight-lang-rust`、`highlight-lang-python` 等）
+- `highlight-lang-all` 打包所有支援的語言
+- 可透過 `HighlightHooks` 自訂
+
+### MarkdownPreview / MarkdownViewer 組件
 
 整合一切的高層組件：
 
@@ -78,15 +94,26 @@ ratatui-markdown 是一個功能豐富的終端使用者介面渲染庫，基於
 
 ```toml
 [dependencies]
-ratatui-markdown = "0.1"
+ratatui-markdown = "0.2"
 ```
 
-```rust
-use ratatui_markdown::preview::MarkdownPreview;
+### 範例
 
-let mut preview = MarkdownPreview::new();
-preview.set_content("# 你好，世界！\n\n這是一個段落。");
-// 在 ratatui 應用迴圈中渲染並處理輸入
+| 範例                 | 描述                               | 所需功能標誌                   |
+|----------------------|------------------------------------|-------------------------------|
+| `basic`              | 基礎 Markdown 渲染                 | —                             |
+| `code`               | 語法高亮程式碼塊                   | `highlight-lang-all`          |
+| `custom_code_block`  | 自訂程式碼塊渲染鉤子               | —                             |
+| `image`              | 圖片嵌入和縮放                     | `image`                       |
+| `mermaid`            | Mermaid 圖表渲染                   | `mermaid`                     |
+| `tree_list`          | 可折疊 JSON/TOML 樹檢視            | —                             |
+
+```bash
+cargo run --example basic
+cargo run --example code --features highlight-lang-all
+cargo run --example image --features image
+cargo run --example mermaid --features mermaid
+cargo run --example tree_list
 ```
 
 ## 功能標誌
@@ -95,49 +122,21 @@ preview.set_content("# 你好，世界！\n\n這是一個段落。");
 
 ```toml
 [dependencies]
-ratatui-markdown = { version = "0.1", default-features = false, features = ["markdown"] }
+ratatui-markdown = { version = "0.2", default-features = false, features = ["markdown"] }
 ```
 
-| 功能       | 依賴             | 描述                               |
-|------------|------------------|-----------------------------------|
-| `markdown` | —                | Markdown 解析器和渲染器             |
-| `scroll`   | —                | HybridScrollView、可捲動列表、捲軸  |
-| `tree`     | `scroll`, `serde_json`, `toml` | 可折疊 JSON/TOML 樹    |
-| `preview`  | `markdown`, `scroll`, `tree` | MarkdownPreview 統一組件 |
-
-## 專案結構
-
-```
-ratatui-markdown/
-  src/
-   ├── lib.rs                  # 庫入口：按功能開關組織模組
-   ├── theme.rs                # RichTextTheme trait、Generation 令牌
-   ├── constants/
-   │   ├── mod.rs              # 重匯出
-   │   ├── box_chars.rs        # 製表符常數
-   │   └── list_prefix.rs      # 樹連接符、箭頭、標記
-   ├── markdown/
-   │   ├── mod.rs              # MarkdownRenderer 結構體
-   │   ├── parser.rs           # 塊級 Markdown 解析器
-   │   ├── types.rs            # MarkdownBlock 列舉、TextToken
-   │   ├── render.rs           # 塊級渲染器（含表格）
-   │   ├── inline.rs           # 內聯格式化解析器
-   │   └── text.rs             # CJK 感知的文字換行
-   ├── scroll/
-   │   ├── mod.rs              # 重匯出
-   │   ├── hybrid_scroll/      # HybridScrollView（核心組件）
-   │   ├── scrollable_list.rs  # 泛型 ScrollableList<T>
-   │   ├── scrollable_panel.rs # 簡單捲動輔助
-   │   ├── focusable_list.rs   # FocusableItemList 渲染器
-   │   ├── follow_scroll.rs    # FollowScrollState
-   │   └── scrollbar.rs        # ArrowScrollbar 組件
-   ├── tree/
-   │   ├── mod.rs              # 重匯出
-   │   ├── tree_lines.rs       # 樹行建構
-   │   └── collapsible_tree/   # CollapsibleTree + 節點操作 + 渲染
-   └── preview/
-       └── mod.rs              # MarkdownPreview 統一組件
-```
+| 功能                | 依賴                               | 描述                               |
+|---------------------|------------------------------------|-----------------------------------|
+| `markdown`          | —                                  | Markdown 解析器和渲染器             |
+| `image`             | —                                  | 透過 `ImageResolver` 解析圖片       |
+| `scroll`            | —                                  | HybridScrollView、可捲動列表、捲軸  |
+| `tree`              | `scroll`, `serde_json`, `toml`     | 可折疊 JSON/TOML 樹                 |
+| `preview`           | `markdown`, `scroll`, `tree`       | MarkdownPreview 統一組件            |
+| `mermaid`           | `markdown`                         | Mermaid 圖表渲染                    |
+| `viewer`            | `markdown`, `scroll`               | MarkdownViewer 組件                 |
+| `highlight`         | —                                  | 基於 tree-sitter 的語法高亮          |
+| `highlight-lang-*`  | `highlight`                        | 單語言語法                          |
+| `highlight-lang-all`| `highlight`                        | 所有內建語言語法                     |
 
 ## 文件
 

@@ -14,19 +14,16 @@ use ratatui::{
     Terminal,
 };
 use ratatui_image::{
-    Image,
-    Resize,
     picker::{Picker, ProtocolType},
     protocol::Protocol,
+    Image, Resize,
 };
-use ratatui_markdown::{
-    markdown::{ImageResolver, MarkdownRenderer},
-};
+use ratatui_markdown::markdown::{ImageResolver, MarkdownRenderer};
 
 #[path = "utils/mod.rs"]
 mod common;
 
-use common::{Theme, lorem};
+use common::{lorem, Theme};
 
 fn fix_protocol_override(picker: &mut Picker) {
     use ratatui_image::picker::Capability;
@@ -269,10 +266,12 @@ impl AppState {
             .resolved_paths
             .iter()
             .zip(self.scaled_images.iter())
-            .map(|(path, si)| ratatui_markdown::markdown::image::ResolvedImage {
-                path: path.clone(),
-                image: si.scaled.clone(),
-            })
+            .map(
+                |(path, si)| ratatui_markdown::markdown::image::ResolvedImage {
+                    path: path.clone(),
+                    image: si.scaled.clone(),
+                },
+            )
             .collect();
         self.renderer.render_full(
             &self.blocks,
@@ -310,10 +309,8 @@ fn main() -> anyhow::Result<()> {
     let (font_w, font_h) = safe_font_size(&picker);
     let proto = picker.protocol_type();
 
-    let mut resolver = FsImageResolver::new(
-        concat!(env!("CARGO_MANIFEST_DIR"), "/examples"),
-        &picker,
-    );
+    let mut resolver =
+        FsImageResolver::new(concat!(env!("CARGO_MANIFEST_DIR"), "/examples"), &picker);
 
     let md = MARKDOWN_TEMPLATE
         .replace("LOREM_3", &lorem(150))

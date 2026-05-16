@@ -7,7 +7,9 @@ use ratatui::{
     layout::Rect,
     style::{Color, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Padding, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    widgets::{
+        Block, Borders, Padding, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
+    },
     Frame, Terminal,
 };
 use ratatui_markdown::theme::{Generation, RichTextTheme};
@@ -133,12 +135,7 @@ pub fn draw_frame(
     key_hints: &str,
 ) {
     let area = f.area();
-    let block_area = Rect::new(
-        area.x,
-        area.y,
-        area.width,
-        area.height.saturating_sub(1),
-    );
+    let block_area = Rect::new(area.x, area.y, area.width, area.height.saturating_sub(1));
 
     let block = Block::default()
         .borders(Borders::ALL)
@@ -204,10 +201,7 @@ pub fn draw_frame(
     if state.doc_h > content_h && content_h > 0 {
         let sb_col = block_area.x + block_area.width.saturating_sub(1);
         let sb_area = Rect::new(sb_col, inner.y, 1, content_h);
-        let ratatui_content_len = state
-            .doc_h
-            .saturating_sub(content_h)
-            .saturating_add(1);
+        let ratatui_content_len = state.doc_h.saturating_sub(content_h).saturating_add(1);
         let sb = Scrollbar::default()
             .orientation(ScrollbarOrientation::VerticalRight)
             .thumb_symbol("█")

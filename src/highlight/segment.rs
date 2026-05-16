@@ -30,7 +30,14 @@ pub fn segments_to_lines(
             .filter(|s| s.start < s.end)
             .collect();
 
-        let mut wrapped = wrap_line(raw_line, &line_segs, prefix, prefix_width, border_style, max_width);
+        let mut wrapped = wrap_line(
+            raw_line,
+            &line_segs,
+            prefix,
+            prefix_width,
+            border_style,
+            max_width,
+        );
         lines.append(&mut wrapped);
 
         line_start = line_end + 1;

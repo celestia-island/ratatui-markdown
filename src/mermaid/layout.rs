@@ -55,10 +55,7 @@ pub fn compute_layout(
     let mut layout_nodes = Vec::new();
     let mut node_positions: HashMap<String, (usize, usize)> = HashMap::new();
 
-    let is_vertical = matches!(
-        diagram.direction,
-        Direction::TopDown | Direction::BottomUp
-    );
+    let is_vertical = matches!(diagram.direction, Direction::TopDown | Direction::BottomUp);
 
     let mut y_offset = 0usize;
     for layer in &layers {
@@ -67,7 +64,10 @@ pub fn compute_layout(
         let mut node_widths: Vec<usize> = layer
             .iter()
             .map(|id| {
-                let node = diagram.nodes.iter().find(|n| &n.id == id)
+                let node = diagram
+                    .nodes
+                    .iter()
+                    .find(|n| &n.id == id)
                     .expect("layer node must exist in diagram nodes");
                 let text_w = unicode_width::UnicodeWidthStr::width(node.label.as_str());
                 (text_w + NODE_H_PADDING * 2).max(MIN_NODE_WIDTH)
@@ -99,7 +99,8 @@ pub fn compute_layout(
             }
         }
 
-        let actual_total_w: usize = node_widths.iter().sum::<usize>() + h_spacing * (node_count.saturating_sub(1));
+        let actual_total_w: usize =
+            node_widths.iter().sum::<usize>() + h_spacing * (node_count.saturating_sub(1));
 
         let x_start = if is_vertical {
             if actual_total_w < max_width {
@@ -113,7 +114,10 @@ pub fn compute_layout(
 
         let mut x = x_start;
         for (i, id) in layer.iter().enumerate() {
-            let node = diagram.nodes.iter().find(|n| &n.id == id)
+            let node = diagram
+                .nodes
+                .iter()
+                .find(|n| &n.id == id)
                 .expect("layer node must exist in diagram nodes");
             let w = node_widths[i];
 
@@ -155,7 +159,11 @@ pub fn compute_layout(
         });
     }
 
-    let grid_w = layout_nodes.iter().map(|n| n.x + n.width).max().unwrap_or(0);
+    let grid_w = layout_nodes
+        .iter()
+        .map(|n| n.x + n.width)
+        .max()
+        .unwrap_or(0);
     let grid_h = layout_nodes
         .iter()
         .map(|n| n.y + n.height)

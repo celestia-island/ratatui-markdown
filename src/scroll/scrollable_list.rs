@@ -285,11 +285,8 @@ impl<T: ListItemRenderer> ScrollableList<T> {
         }
     }
 
-    pub fn render_with<'a, 'f, F, R>(
-        &mut self,
-        params: RenderParams<'a, 'f, R>,
-        renderer: F,
-    ) where
+    pub fn render_with<'a, 'f, F, R>(&mut self, params: RenderParams<'a, 'f, R>, renderer: F)
+    where
         R: RichTextTheme,
         F: Fn(&T, &R, bool) -> Line<'a>,
     {

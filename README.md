@@ -4,7 +4,7 @@
 
 <div align="center"><h1>ratatui-markdown</h1></div>
 <div align="center">
-  <strong>Markdown rendering, collapsible JSON/TOML trees, and rich scroll widgets for ratatui</strong>
+  <strong>Markdown rendering, Mermaid diagrams, syntax highlighting, collapsible trees, and rich scroll widgets for ratatui</strong>
 </div>
 
 <br />
@@ -47,16 +47,18 @@
 
 <br/>
 
-> A Rust library providing markdown rendering, collapsible JSON/TOML tree views, and a rich hybrid scroll system — all built on top of [ratatui](https://github.com/ratatui/ratatui).
+> A Rust library providing markdown rendering, Mermaid diagrams, syntax highlighting, collapsible JSON/TOML tree views, and a rich hybrid scroll system — all built on top of [ratatui](https://github.com/ratatui/ratatui).
 
 ## Features
 
 - **Markdown rendering** — parse and render markdown to styled `ratatui::text::Line`s, with support for headings, lists, code blocks, blockquotes, tables, images, and inline formatting (bold, italic, inline code)
+- **Mermaid diagrams** — render sequence, pie, gantt, and state diagrams from ` ```mermaid ` code blocks (feature-gated: `mermaid`)
+- **Syntax highlighting** — tree-sitter based code block highlighting with per-language feature flags (feature-gated: `highlight-lang-*`)
 - **Image support** — resolve `![alt](path)` images via the `ImageResolver` trait (feature-gated: `image`)
 - **Custom rendering hooks** — override rendering of any block type (headings, code blocks, lists, tables, etc.) via the `RenderHooks` trait
 - **Collapsible trees** — parse JSON or TOML into interactive collapsible trees with expand/collapse, styled keys, and keyboard navigation
 - **Hybrid scroll system** — dual-mode scrolling: free-scroll for exploring content, engaged mode for navigating focusable items
-- **MarkdownPreview widget** — unified widget that combines markdown rendering, tree views, and action items into a single scrollable view
+- **MarkdownPreview / MarkdownViewer** — unified widgets combining markdown, tree views, and scroll into a single view
 - **RichTheme** — fully themeable via the `RichTextTheme` trait: 15+ color slots for text, borders, JSON values, popups, and more
 - **CJK-aware text wrapping** — correct width calculation for CJK characters via `unicode-width`
 - **TOML frontmatter support** — optionally strip `+++`-delimited TOML frontmatter from rendered content
@@ -84,59 +86,36 @@ ratatui-markdown = { version = "0.2", features = ["preview"] }
 
 Individual features can be enabled selectively:
 
-| Feature    | Description                            |
-|------------|----------------------------------------|
-| `markdown` | Markdown parsing and rendering         |
-| `image`    | Image resolution via `ImageResolver` trait (adds `image` crate) |
-| `scroll`   | Hybrid scroll and scrollable widgets   |
-| `tree`     | JSON/TOML collapsible tree (requires `scroll`) |
-| `preview`  | `MarkdownPreview` unified widget (requires all) |
+| Feature              | Description                                          |
+|----------------------|------------------------------------------------------|
+| `markdown`           | Markdown parsing and rendering                       |
+| `image`              | Image resolution via `ImageResolver` trait           |
+| `scroll`             | Hybrid scroll and scrollable widgets                 |
+| `tree`               | JSON/TOML collapsible tree (requires `scroll`)       |
+| `preview`            | `MarkdownPreview` unified widget (requires `markdown`, `scroll`, `tree`) |
+| `mermaid`            | Mermaid diagram rendering (requires `markdown`)      |
+| `viewer`             | `MarkdownViewer` widget (requires `markdown`, `scroll`) |
+| `highlight`          | Syntax highlighting via tree-sitter                  |
+| `highlight-lang-*`   | Individual language grammars (requires `highlight`)  |
+| `highlight-lang-all` | All bundled language grammars                        |
 
-### Example
+### Examples
 
-```rust
-use ratatui_markdown::{
-    markdown::MarkdownRenderer,
-    preview::MarkdownPreview,
-    theme::RichTextTheme,
-};
+| Example              | Description                          | Features required             |
+|----------------------|--------------------------------------|-------------------------------|
+| `basic`              | Minimal markdown rendering           | —                             |
+| `code`               | Syntax-highlighted code blocks       | `highlight-lang-all`          |
+| `custom_code_block`  | Custom code block rendering hooks    | —                             |
+| `image`              | Image embedding and zoom             | `image`                       |
+| `mermaid`            | Mermaid diagram rendering            | `mermaid`                     |
+| `tree_list`          | Collapsible JSON/TOML tree view      | —                             |
 
-struct App {
-    preview: MarkdownPreview,
-}
-
-impl App {
-    fn render(&mut self, f: &mut ratatui::Frame, theme: &impl RichTextTheme) {
-        self.preview.set_content("# Hello\n\nThis is **markdown**!");
-        self.preview.render(f, f.area(), f.area(), theme);
-    }
-
-    fn handle_input(&mut self, key: ratatui::crossterm::event::KeyCode) {
-        match key {
-            KeyCode::Up | KeyCode::Char('k') => self.preview.scroll_up(),
-            KeyCode::Down | KeyCode::Char('j') => self.preview.scroll_down(),
-            KeyCode::Enter => { self.preview.toggle_tree_node(); }
-            _ => {}
-        }
-    }
-}
-```
-
-```rust
-// Parse and render markdown to ratatui Lines
-use ratatui_markdown::markdown::MarkdownRenderer;
-
-let md = MarkdownRenderer::new(80);
-let blocks = md.parse("# Title\n\nParagraph text\n\n```rust\nlet x = 1;\n```");
-let lines = md.render(&blocks, &my_theme);
-
-// Render a collapsible JSON tree
-use ratatui_markdown::tree::CollapsibleTree;
-
-let mut tree = CollapsibleTree::from_json_str(r#"{"key": "value", "nested": {"a": 1}}"#).unwrap();
-let lines = tree.render_lines(80, &my_theme);
-let focusable = tree.build_focusable_items();
-tree.toggle("nested"); // collapse/expand
+```bash
+cargo run --example basic
+cargo run --example code --features highlight-lang-all
+cargo run --example image --features image
+cargo run --example mermaid --features mermaid
+cargo run --example tree_list
 ```
 
 ## Documentation

@@ -1,7 +1,7 @@
 mod hooks;
-mod inline;
 #[cfg(feature = "image")]
 pub mod image;
+mod inline;
 mod parser;
 mod render;
 #[cfg(test)]
@@ -27,7 +27,10 @@ pub struct MarkdownRenderer {
 
 impl MarkdownRenderer {
     pub fn new(max_width: usize) -> Self {
-        Self { max_width, hooks: None }
+        Self {
+            max_width,
+            hooks: None,
+        }
     }
 
     pub fn with_render_hooks(mut self, hooks: Box<dyn RenderHooks>) -> Self {

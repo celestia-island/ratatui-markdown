@@ -54,7 +54,10 @@ fn parse_slice(line: &str) -> Option<(String, f64)> {
         (label, value_str.to_string())
     } else {
         let colon_pos = line.rfind(':')?;
-        (line[..colon_pos].trim().to_string(), line[colon_pos + 1..].trim().to_string())
+        (
+            line[..colon_pos].trim().to_string(),
+            line[colon_pos + 1..].trim().to_string(),
+        )
     };
 
     let value: f64 = value_part.parse().ok()?;
@@ -92,11 +95,18 @@ pub fn render_pie(
     let inner_w = max_width.saturating_sub(4);
     let label_col = 14usize;
     let pct_col = 6usize;
-    let bar_max = inner_w.saturating_sub(label_col).saturating_sub(pct_col).min(30);
+    let bar_max = inner_w
+        .saturating_sub(label_col)
+        .saturating_sub(pct_col)
+        .min(30);
     let bar_max = bar_max.max(10);
 
     let total: f64 = diagram.slices.iter().map(|(_, v)| v).sum();
-    let max_val = diagram.slices.iter().map(|(_, v)| *v).fold(f64::NEG_INFINITY, f64::max);
+    let max_val = diagram
+        .slices
+        .iter()
+        .map(|(_, v)| *v)
+        .fold(f64::NEG_INFINITY, f64::max);
 
     let mut lines: Vec<Line<'static>> = Vec::new();
 
