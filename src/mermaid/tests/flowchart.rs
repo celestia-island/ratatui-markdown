@@ -4,7 +4,7 @@ static SIMPLE_TD: &str = "graph TD\n    A[Start] --> B[End]";
 static SIMPLE_TD_EXPECTED: &str = "                                   ┌───────┐\n                                   │ Start │\n                                   └───────┘\n                                       │\n                                       │\n                                       ▼\n                                    ┌─────┐\n                                    │ End │\n                                    └─────┘";
 
 static FORK_TD: &str = "graph TD\n    A[Start] --> B[Left]\n    A --> C[Right]";
-static FORK_TD_EXPECTED: &str = "                                   ┌───────┐\n                                   │ Start │\n                                   └───────┘\n                                       │\n                                 ┌─────┬─────┐\n                                 ▼           ▼\n                             ┌──────┐    ┌───────┐\n                             │ Left │    │ Right │\n                             └──────┘    └───────┘";
+static FORK_TD_EXPECTED: &str = "                                   ┌───────┐\n                                   │ Start │\n                                   └───────┘\n                                       │\n                                 ┌─────┴─────┐\n                                 ▼           ▼\n                             ┌──────┐    ┌───────┐\n                             │ Left │    │ Right │\n                             └──────┘    └───────┘";
 
 static LR: &str = "graph LR\n    A --> B";
 static LR_EXPECTED: &str = "┌────┐    ┌────┐\n│    │    │    │\n│ A  │───►│ B  │\n│    │    │    │\n└────┘    └────┘";

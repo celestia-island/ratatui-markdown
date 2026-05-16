@@ -1723,12 +1723,12 @@ mod mermaid_render_tests {
         let text = lines_to_text(&lines);
 
         assert!(
-            text.contains('┬'),
-            "fork junction should use ┬ (tee-down), got:\n{text}"
+            text.contains('┴'),
+            "fork junction should use ┴ (tee-up, connects up+left+right), got:\n{text}"
         );
         assert!(
-            !text.contains('┴'),
-            "fork junction should NOT use ┴ (tee-up), got:\n{text}"
+            !text.contains('┬'),
+            "fork junction should NOT use ┬ (tee-down), got:\n{text}"
         );
         assert!(
             text.contains("Decision"),
@@ -1749,11 +1749,11 @@ mod mermaid_render_tests {
 
         assert!(
             text.contains('┬'),
-            "merge junction should use ┬ (tee-down), got:\n{text}"
+            "merge junction should use ┬ (connects down+left+right), got:\n{text}"
         );
         assert!(
             !text.contains('┴'),
-            "merge junction should NOT use ┴ (tee-up), got:\n{text}"
+            "merge junction should NOT use ┴ (connects up+left+right), got:\n{text}"
         );
         assert!(
             text.contains("Action A") && text.contains("Action B") && text.contains("End"),

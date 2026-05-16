@@ -124,10 +124,10 @@ fn build_class_label(class: &ClassDefinition, max_width: usize) -> String {
         .collect();
 
     let max_content = title_w
-        .max(attr_texts.iter().map(|t| unicode_width(t) + 2).max().unwrap_or(0))
-        .max(method_texts.iter().map(|t| unicode_width(t) + 2).max().unwrap_or(0));
+        .max(attr_texts.iter().map(|t| unicode_width(t) + 1).max().unwrap_or(0))
+        .max(method_texts.iter().map(|t| unicode_width(t) + 1).max().unwrap_or(0));
 
-    let available = max_content.max(max_width.saturating_sub(4)).min(60).max(4);
+    let available = max_content.max(max_width.saturating_sub(4)).clamp(4, 60);
     let sep = "\u{2500}".repeat(available);
 
     let mut lines: Vec<String> = Vec::new();
@@ -147,7 +147,7 @@ fn build_class_label(class: &ClassDefinition, max_width: usize) -> String {
 
     for text in &attr_texts {
         let tw = unicode_width(text);
-        let pad = available.saturating_sub(tw + 2);
+        let pad = available.saturating_sub(tw + 1);
         lines.push(format!("\u{2502} {}{}\u{2502}", text, " ".repeat(pad)));
     }
 
@@ -157,7 +157,7 @@ fn build_class_label(class: &ClassDefinition, max_width: usize) -> String {
 
     for text in &method_texts {
         let tw = unicode_width(text);
-        let pad = available.saturating_sub(tw + 2);
+        let pad = available.saturating_sub(tw + 1);
         lines.push(format!("\u{2502} {}{}\u{2502}", text, " ".repeat(pad)));
     }
 

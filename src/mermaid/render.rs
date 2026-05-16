@@ -421,8 +421,8 @@ fn rasterize_segment(cells: &mut HashSet<(usize, usize)>, x1: usize, y1: usize, 
 
 // ── Box-drawing named constants (T/C junctions) ───────────────────
 #[allow(dead_code)]
-const TEE_UP: char = '┴';    // U+2534  tee pointing up (reserved for BottomUp)
-const TEE_DOWN: char = '┬';   // U+252C  tee pointing down (up+left+right)
+const TEE_UP: char = '┴';    // U+2534  connects up+left+right (no down stem)
+const TEE_DOWN: char = '┬';   // U+252C  connects down+left+right (no up stem)
 #[allow(dead_code)]
 const TEE_LEFT: char = '┤';  // U+2524  tee pointing left (reserved for RightLeft)
 const TEE_RIGHT: char = '├'; // U+251C  tee pointing right (up+down+left)
@@ -447,7 +447,7 @@ fn resolve_edge_char(up: bool, down: bool, left: bool, right: bool) -> char {
         // flow toward their target, not away from it.
         (true,  true,  true,  false) => TEE_RIGHT,
         (true,  true,  false, true ) => TEE_RIGHT,
-        (true,  false, true,  true ) => TEE_DOWN,
+        (true,  false, true,  true ) => TEE_UP,
         (false, true,  true,  true ) => TEE_DOWN,
 
         // ── 2-way straight (mid-segment) ──────────────────────
