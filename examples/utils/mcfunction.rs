@@ -3,9 +3,20 @@ use pest_derive::Parser;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui_markdown::highlight::{pest_pairs_to_segments, CodeHighlighter, StyleSegment};
 
-// pest_derive requires grammar files under src/ and only accepts string literals
-// for grammar_inline, so the grammar is duplicated inline here.
-// See examples/utils/mcfunction.pest for the same grammar in a standalone file.
+// pest_derive has two grammar modes:
+//
+// 1) #[grammar = "path/file.pest"] — references a .pest file, but it MUST live
+//    under src/ (e.g. src/highlight/mcfunction.pest). Path traversal (../) is
+//    NOT supported. If your grammar belongs to the library, put it there:
+//        #[derive(Parser)]
+//        #[grammar = "highlight/mcfunction.pest"]
+//        struct McfunctionParser;
+//
+// 2) #[grammar_inline = r##"..."##] — embeds the grammar as a string literal.
+//    Works anywhere (examples, tests, etc.) since no external file is needed.
+//    This is the only option when the grammar lives outside src/.
+//
+// See examples/utils/mcfunction.pest for the same grammar in standalone form.
 #[derive(Parser)]
 #[grammar_inline = r##"
 WHITESPACE = _{ " " | "\t" }
