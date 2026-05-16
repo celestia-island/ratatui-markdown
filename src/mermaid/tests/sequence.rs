@@ -1,6 +1,8 @@
 use super::common::*;
 
-static SIMPLE_SEQ: &str = "sequenceDiagram\n    Alice->>Bob: Hello\n    Bob-->>Alice: Hi";
+static SIMPLE_SEQ: &str = "sequenceDiagram
+    Alice->>Bob: Hello
+    Bob-->>Alice: Hi";
 
 static SIMPLE_SEQ_EXPECTED: &str = "
        Alice                 Bob

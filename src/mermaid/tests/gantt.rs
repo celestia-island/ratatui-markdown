@@ -1,7 +1,10 @@
 use super::common::*;
 
-static SIMPLE_GANTT: &str =
-    "gantt\ntitle Project\nsection Phase 1\nTask 1 :a1, 7d\nTask 2 :a2, after a1, 5d";
+static SIMPLE_GANTT: &str = "gantt
+title Project
+section Phase 1
+Task 1 :a1, 7d
+Task 2 :a2, after a1, 5d";
 
 static SIMPLE_GANTT_EXPECTED: &str = "
                                   Project

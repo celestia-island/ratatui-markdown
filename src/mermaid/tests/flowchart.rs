@@ -1,6 +1,7 @@
 use super::common::*;
 
-static SIMPLE_TD: &str = "graph TD\n    A[Start] --> B[End]";
+static SIMPLE_TD: &str = "graph TD
+    A[Start] --> B[End]";
 
 static SIMPLE_TD_EXPECTED: &str = "
                                    ┌───────┐
@@ -13,7 +14,9 @@ static SIMPLE_TD_EXPECTED: &str = "
                                     │ End │
                                     └─────┘";
 
-static FORK_TD: &str = "graph TD\n    A[Start] --> B[Left]\n    A --> C[Right]";
+static FORK_TD: &str = "graph TD
+    A[Start] --> B[Left]
+    A --> C[Right]";
 
 static FORK_TD_EXPECTED: &str = "
                                    ┌───────┐
@@ -26,7 +29,8 @@ static FORK_TD_EXPECTED: &str = "
                              │ Left │    │ Right │
                              └──────┘    └───────┘";
 
-static LR: &str = "graph LR\n    A --> B";
+static LR: &str = "graph LR
+    A --> B";
 
 static LR_EXPECTED: &str = "
 ┌────┐    ┌────┐

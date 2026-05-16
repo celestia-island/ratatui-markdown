@@ -1,7 +1,9 @@
 use super::common::*;
 
-static SIMPLE_STATE: &str =
-    "stateDiagram-v2\n    [*] --> Idle\n    Idle --> Running\n    Running --> Idle";
+static SIMPLE_STATE: &str = "stateDiagram-v2
+    [*] --> Idle
+    Idle --> Running
+    Running --> Idle";
 
 static SIMPLE_STATE_EXPECTED: &str = "
                              ╭────▲────╮    ╭────╮

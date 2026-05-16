@@ -1,6 +1,10 @@
 use super::common::*;
 
-static SIMPLE_QUADRANT: &str = "quadrantChart\n    x-axis Low --> High\n    y-axis Low --> High\n    A: [0.3, 0.6]\n    B: [0.45, 0.23]";
+static SIMPLE_QUADRANT: &str = "quadrantChart
+    x-axis Low --> High
+    y-axis Low --> High
+    A: [0.3, 0.6]
+    B: [0.45, 0.23]";
 
 static SIMPLE_QUADRANT_EXPECTED: &str = "
                │                         │

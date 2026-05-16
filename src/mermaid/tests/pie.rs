@@ -1,6 +1,8 @@
 use super::common::*;
 
-static SIMPLE_PIE: &str = "pie title Pets\n    \"Dogs\" : 386\n    \"Cats\" : 85";
+static SIMPLE_PIE: &str = "pie title Pets
+    \"Dogs\" : 386
+    \"Cats\" : 85";
 
 static SIMPLE_PIE_EXPECTED: &str = "
                                     Pets

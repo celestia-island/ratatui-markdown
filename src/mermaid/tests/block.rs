@@ -1,6 +1,8 @@
 use super::common::*;
 
-static SIMPLE_BLOCK: &str = "block-beta\n    A B C\n    D E F";
+static SIMPLE_BLOCK: &str = "block-beta
+    A B C
+    D E F";
 
 static SIMPLE_BLOCK_EXPECTED: &str = "
                   ╭────╮
