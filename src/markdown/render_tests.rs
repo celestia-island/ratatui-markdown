@@ -2000,3 +2000,307 @@ fn task_list_uppercase_x_checked() -> anyhow::Result<()> {
     }
     Ok(())
 }
+
+#[cfg(all(feature = "mermaid", feature = "image"))]
+mod mermaid_image_render_tests {
+    use super::*;
+
+    fn setup_fontdb() -> fontdb::Database {
+        let mut db = fontdb::Database::new();
+        let detected = detect_system_font();
+        if let Some(ref fam) = detected {
+            if !try_load_by_name(&mut db, fam) {
+                db.load_system_fonts();
+            }
+        } else {
+            db.load_system_fonts();
+        }
+        for p in &[
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/TTF/DejaVuSans.ttf",
+        ] {
+            if std::path::Path::new(p).exists() {
+                let _ = db.load_font_file(p);
+            }
+        }
+        let fallback = detected.as_deref().unwrap_or("DejaVu Sans");
+        db.set_sans_serif_family(fallback);
+        db.set_serif_family(fallback);
+        db.set_monospace_family(fallback);
+        db
+    }
+
+    fn detect_system_font() -> Option<String> {
+        let source = font_kit::source::SystemSource::new();
+        let handle = source
+            .select_best_match(
+                &[font_kit::family_name::FamilyName::SansSerif],
+                &font_kit::properties::Properties::new(),
+            )
+            .ok()?;
+        let font = handle.load().ok()?;
+        Some(font.full_name())
+    }
+
+    fn try_load_by_name(db: &mut fontdb::Database, name: &str) -> bool {
+        let source = font_kit::source::SystemSource::new();
+        let handle = match source.select_best_match(
+            &[font_kit::family_name::FamilyName::Title(name.to_string())],
+            &font_kit::properties::Properties::new(),
+        ) {
+            Ok(h) => h,
+            Err(_) => return false,
+        };
+        let font = match handle.load() {
+            Ok(f) => f,
+            Err(_) => return false,
+        };
+        if let Some(bytes) = font.copy_font_data() {
+            db.load_font_data((*bytes).clone());
+            true
+        } else {
+            false
+        }
+    }
+
+    fn render_svg_to_image(source: &str, bg: image::Rgba<u8>) -> Option<image::DynamicImage> {
+        let svg = mermaid_rs_renderer::render(source).ok()?;
+        let db = setup_fontdb();
+        let opts = usvg::Options {
+            fontdb: std::sync::Arc::new(db),
+            ..usvg::Options::default()
+        };
+        let tree = usvg::Tree::from_str(&svg, &opts).ok()?;
+        let sz = tree.size();
+        let w = (sz.width() as f64).round() as u32;
+        let h = (sz.height() as f64).round() as u32;
+        if w == 0 || h == 0 { return None; }
+        let mut pm = tiny_skia::Pixmap::new(w, h)?;
+        pm.fill(tiny_skia::Color::from_rgba8(bg.0[0], bg.0[1], bg.0[2], bg.0[3]));
+        resvg::render(&tree, tiny_skia::Transform::identity(), &mut pm.as_mut());
+        let rgba = pm.data().to_vec();
+        image::RgbaImage::from_raw(w, h, rgba).map(image::DynamicImage::ImageRgba8)
+    }
+
+    fn is_bg(px: image::Rgba<u8>, bg: image::Rgba<u8>) -> bool {
+        px.0 == bg.0
+    }
+
+    #[test]
+    fn mermaid_image_no_black_edges_simple() {
+        let bg = image::Rgba([0, 0, 0, 255]);
+        let img = render_svg_to_image("graph TD\n    A-->B", bg)
+            .expect("render should succeed");
+        let (w, h) = (img.width(), img.height());
+        assert!(w > 0 && h > 0, "image should have nonzero dimensions");
+
+        let rgba = img.to_rgba8();
+        for x in 0..w {
+            let top = rgba.get_pixel(x, 0);
+            assert!(!is_bg(*top, bg), "top edge px({},0) should not be bg fill", x);
+            let bot = rgba.get_pixel(x, h - 1);
+            assert!(!is_bg(*bot, bg), "bottom edge px({},{}) should not be bg fill", x, h - 1);
+        }
+        for y in 0..h {
+            let left = rgba.get_pixel(0, y);
+            assert!(!is_bg(*left, bg), "left edge px(0,{}) should not be bg fill", y);
+            let right = rgba.get_pixel(w - 1, y);
+            assert!(!is_bg(*right, bg), "right edge px({},{}) should not be bg fill", w - 1, y);
+        }
+    }
+
+    #[test]
+    fn mermaid_image_no_black_edges_complex() {
+        let bg = image::Rgba([0, 0, 0, 255]);
+        let source = "graph TD\n    A{Cache Hit?} -->|No| B[Compute Result]\n    B --> C[Update Cache]\n    A -->|Yes| D[Return Cached]\n    C --> D\n    D --> E[Response]";
+        let img = render_svg_to_image(source, bg)
+            .expect("render should succeed");
+        let (w, h) = (img.width(), img.height());
+        let rgba = img.to_rgba8();
+
+        let top_bg: u32 = (0..w).filter(|&x| is_bg(*rgba.get_pixel(x, 0), bg)).count() as u32;
+        let bot_bg: u32 = (0..w).filter(|&x| is_bg(*rgba.get_pixel(x, h - 1), bg)).count() as u32;
+        let left_bg: u32 = (0..h).filter(|&y| is_bg(*rgba.get_pixel(0, y), bg)).count() as u32;
+        let right_bg: u32 = (0..h).filter(|&y| is_bg(*rgba.get_pixel(w - 1, y), bg)).count() as u32;
+
+        assert_eq!(top_bg, 0, "top edge should have 0 bg pixels, got {}", top_bg);
+        assert_eq!(bot_bg, 0, "bottom edge should have 0 bg pixels, got {}", bot_bg);
+        assert_eq!(left_bg, 0, "left edge should have 0 bg pixels, got {}", left_bg);
+        assert_eq!(right_bg, 0, "right edge should have 0 bg pixels, got {}", right_bg);
+    }
+
+    #[test]
+    fn mermaid_image_padding_canvas_covers_all_cells() {
+        let bg = image::Rgba([30, 30, 46, 255]);
+        let font_w: u32 = 9;
+        let font_h: u32 = 18;
+
+        let img = render_svg_to_image("graph LR\n    Input-->Output", bg)
+            .expect("render should succeed");
+        let img_w = img.width();
+        let img_h = img.height();
+
+        let cell_w = (img_w as f64 / font_w as f64).ceil() as u32;
+        let cell_h = (img_h as f64 / font_h as f64).ceil() as u32;
+        let target_px_w = cell_w * font_w;
+        let target_px_h = cell_h * font_h;
+
+        assert!(
+            target_px_w >= img_w && target_px_h >= img_h,
+            "cell-aligned canvas ({},{}) should >= image ({},{})",
+            target_px_w, target_px_h, img_w, img_h,
+        );
+
+        let extra_x = target_px_w - img_w;
+        let extra_y = target_px_h - img_h;
+        assert!(
+            extra_x < font_w && extra_y < font_h,
+            "padding should be < 1 cell: extra_x={} < font_w={}, extra_y={} < font_h={}",
+            extra_x, font_w, extra_y, font_h,
+        );
+
+        let mut canvas = image::RgbaImage::from_pixel(target_px_w, target_px_h, bg);
+        let ox = (target_px_w.saturating_sub(img_w)) / 2;
+        let oy = (target_px_h.saturating_sub(img_h)) / 2;
+        image::imageops::overlay(&mut canvas, &img.to_rgba8(), ox as i64, oy as i64);
+
+        let center_x = ox + img_w / 2;
+        let center_y = oy + img_h / 2;
+        let center_px = canvas.get_pixel(center_x, center_y);
+        assert!(!is_bg(*center_px, bg),
+            "center pixel ({},{}) should be SVG content, not bg", center_x, center_y);
+
+        let top_left_bg = is_bg(*canvas.get_pixel(0, 0), bg);
+        let bot_right_bg = is_bg(*canvas.get_pixel(target_px_w - 1, target_px_h - 1), bg);
+        assert!(top_left_bg || bot_right_bg,
+            "with round()-based SVG size, padding area at corners should be bg-colored (this is expected — the real fix is to match bg color to terminal)");
+    }
+
+    #[test]
+    fn mermaid_image_render_to_cell_aligned_dimensions() {
+        let bg = image::Rgba([30, 30, 46, 255]);
+        let font_w: u32 = 9;
+        let font_h: u32 = 18;
+
+        let source = "graph LR\n    Input-->Output";
+        let svg = mermaid_rs_renderer::render(source).expect("mermaid render");
+        let db = setup_fontdb();
+        let opts = usvg::Options {
+            fontdb: std::sync::Arc::new(db),
+            ..usvg::Options::default()
+        };
+        let tree = usvg::Tree::from_str(&svg, &opts).unwrap();
+        let sz = tree.size();
+
+        let raw_w = (sz.width() as f64).round() as u32;
+        let raw_h = (sz.height() as f64).round() as u32;
+        let cell_w = (raw_w as f64 / font_w as f64).ceil() as u32;
+        let cell_h = (raw_h as f64 / font_h as f64).ceil() as u32;
+        let aligned_w = cell_w * font_w;
+        let aligned_h = cell_h * font_h;
+
+        let mut pm = tiny_skia::Pixmap::new(aligned_w, aligned_h).unwrap();
+        pm.fill(tiny_skia::Color::from_rgba8(bg.0[0], bg.0[1], bg.0[2], bg.0[3]));
+
+        let scale_x = aligned_w as f32 / sz.width();
+        let scale_y = aligned_h as f32 / sz.height();
+        let ts = tiny_skia::Transform::from_scale(scale_x, scale_y);
+        resvg::render(&tree, ts, &mut pm.as_mut());
+
+        let rgba = pm.data();
+        let img = image::RgbaImage::from_raw(aligned_w, aligned_h, rgba.to_vec()).unwrap();
+
+        for x in 0..aligned_w {
+            let top = img.get_pixel(x, 0);
+            assert!(!is_bg(*top, bg), "scaled top px({},0) should not be bg", x);
+            let bot = img.get_pixel(x, aligned_h - 1);
+            assert!(!is_bg(*bot, bg), "scaled bottom px({},{}) should not be bg", x, aligned_h - 1);
+        }
+        for y in 0..aligned_h {
+            let left = img.get_pixel(0, y);
+            assert!(!is_bg(*left, bg), "scaled left px(0,{}) should not be bg", y);
+            let right = img.get_pixel(aligned_w - 1, y);
+            assert!(!is_bg(*right, bg), "scaled right px({},{}) should not be bg", aligned_w - 1, y);
+        }
+    }
+
+    #[test]
+    fn mermaid_image_cell_dimensions_match_placeholder_count() {
+        let theme = test_theme();
+        let hooks = MermaidImageHookImpl {
+            bg: image::Rgba([0, 0, 0, 255]),
+        };
+        let renderer = MarkdownRenderer::new(80).with_render_hooks(Box::new(hooks));
+        let md = "```mermaid\ngraph TD\n    A-->B\n```\n";
+        let blocks = renderer.parse(md);
+        let mut resolver = crate::markdown::image::NoopImageResolver;
+        let output = renderer.render_full(
+            &blocks,
+            &theme,
+            &[],
+            &mut resolver,
+            80,
+            999,
+        );
+
+        assert!(!output.images.is_empty(), "should have at least one image placement");
+
+        for placement in &output.images {
+            let expected_rows = placement.height_cells as usize;
+            let mut count = 0;
+            let start = placement.row;
+            for line in &output.lines[start..start + expected_rows] {
+                let has_prefix = line.spans.first().map_or(false, |s| s.content.starts_with("│") || s.content.starts_with("|"));
+                if has_prefix { count += 1; }
+            }
+            assert_eq!(count, expected_rows,
+                "placeholder rows with │ prefix ({}) should match height_cells ({})",
+                count, expected_rows);
+        }
+
+        let header = output.lines.iter().find(|l| {
+            l.spans.iter().any(|s| s.content.contains("mermaid"))
+        });
+        assert!(header.is_some(), "should have ╭─ mermaid header line");
+
+        let footer = output.lines.iter().find(|l| {
+            l.spans.iter().any(|s| s.content.starts_with("╰"))
+        });
+        assert!(footer.is_some(), "should have ╰─ footer line");
+    }
+
+    #[test]
+    fn mermaid_image_placement_col_accounts_for_prefix() {
+        let theme = test_theme();
+        let hooks = MermaidImageHookImpl {
+            bg: image::Rgba([0, 0, 0, 255]),
+        };
+        let renderer = MarkdownRenderer::new(80).with_render_hooks(Box::new(hooks));
+        let md = "```mermaid\ngraph TD\n    A-->B\n```\n";
+        let blocks = renderer.parse(md);
+        let mut resolver = crate::markdown::image::NoopImageResolver;
+        let output = renderer.render_full(
+            &blocks,
+            &theme,
+            &[],
+            &mut resolver,
+            80,
+            999,
+        );
+
+        for placement in &output.images {
+            assert_eq!(placement.col, 2,
+                "image col should be 2 (│ + space prefix), got {}", placement.col);
+        }
+    }
+
+    struct MermaidImageHookImpl {
+        bg: image::Rgba<u8>,
+    }
+
+    impl RenderHooks for MermaidImageHookImpl {
+        fn render_mermaid_image(&self, source: &str) -> Option<image::DynamicImage> {
+            render_svg_to_image(source, self.bg)
+        }
+    }
+}
