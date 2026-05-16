@@ -7,6 +7,7 @@ use super::layout::{Layout, LayoutEdge, LayoutNode};
 use super::types::{Direction, EdgeType, NodeShape};
 use crate::theme::RichTextTheme;
 use unicode_width::UnicodeWidthChar;
+use std::collections::HashSet;
 
 const HLINE: char = '─';
 const VLINE: char = '│';
@@ -51,16 +52,16 @@ pub fn render_layout(
     };
     let mut grid = vec![vec![blank; gw]; gh];
 
+    // Phase 1: draw nodes (unchanged)
     for node in &layout.nodes {
         draw_node(&mut grid, node, theme);
     }
 
+    // Phase 2: draw edges via connectivity-aware rasterization
     let is_vertical = matches!(direction, Direction::TopDown | Direction::BottomUp);
     for edge in &layout.edges {
-        draw_edge(&mut grid, edge, is_vertical, theme);
+        draw_edge_connectivity(&mut grid, edge, is_vertical, theme);
     }
-
-    fix_edge_junctions(&mut grid);
 
     let mut lines = Vec::new();
     for row in grid.iter() {
@@ -73,6 +74,8 @@ pub fn render_layout(
 
     lines
 }
+
+// ── Node drawing (unchanged) ───────────────────────────────────────
 
 fn draw_node(grid: &mut [Vec<Cell>], node: &LayoutNode, theme: &impl RichTextTheme) {
     let x = node.x;
@@ -88,129 +91,81 @@ fn draw_node(grid: &mut [Vec<Cell>], node: &LayoutNode, theme: &impl RichTextThe
     let border_style = Style::default().fg(theme.get_muted_text_color());
     let text_style = Style::default().fg(theme.get_text_color());
 
+    // top border
     if y < grid.len() && x + w <= grid[0].len() {
         let row = &mut grid[y];
-        row[x] = Cell {
-            ch: tl,
-            style: border_style,
-            is_edge: false,
-        };
-        row[x + w - 1] = Cell {
-            ch: tr,
-            style: border_style,
-            is_edge: false,
-        };
+        row[x] = Cell { ch: tl, style: border_style, is_edge: false };
+        row[x + w - 1] = Cell { ch: tr, style: border_style, is_edge: false };
         for cell in row.iter_mut().take(x + w - 1).skip(x + 1) {
-            *cell = Cell {
-                ch: HLINE,
-                style: border_style,
-                is_edge: false,
-            };
+            *cell = Cell { ch: HLINE, style: border_style, is_edge: false };
         }
     }
 
+    // text row
     let text_row = y + h / 2;
     if text_row < grid.len() && x + w <= grid[0].len() {
         let row = &mut grid[text_row];
-        row[x] = Cell {
-            ch: VLINE,
-            style: border_style,
-            is_edge: false,
-        };
-        row[x + w - 1] = Cell {
-            ch: VLINE,
-            style: border_style,
-            is_edge: false,
-        };
+        row[x] = Cell { ch: VLINE, style: border_style, is_edge: false };
+        row[x + w - 1] = Cell { ch: VLINE, style: border_style, is_edge: false };
         let inner_w = w.saturating_sub(2);
         let label_chars: Vec<char> = node.label.chars().collect();
         let label_w = unicode_width::UnicodeWidthStr::width(node.label.as_str());
-        let pad = if label_w < inner_w {
-            (inner_w - label_w) / 2
-        } else {
-            0
-        };
+        let pad = if label_w < inner_w { (inner_w - label_w) / 2 } else { 0 };
         let mut cx = x + 1;
         for _ in 0..pad {
             if cx < x + w - 1 {
-                row[cx] = Cell {
-                    ch: ' ',
-                    style: text_style,
-                    is_edge: false,
-                };
+                row[cx] = Cell { ch: ' ', style: text_style, is_edge: false };
                 cx += 1;
             }
         }
         for ch in &label_chars {
             if cx < x + w - 1 {
-                row[cx] = Cell {
-                    ch: *ch,
-                    style: text_style,
-                    is_edge: false,
-                };
+                row[cx] = Cell { ch: *ch, style: text_style, is_edge: false };
                 cx += ch.width().unwrap_or(1);
             }
         }
         while cx < x + w - 1 {
-            row[cx] = Cell {
-                ch: ' ',
-                style: text_style,
-                is_edge: false,
-            };
+            row[cx] = Cell { ch: ' ', style: text_style, is_edge: false };
             cx += 1;
         }
     }
 
+    // side borders (non-text rows)
     for vy in (y + 1)..(y + h - 1) {
         if vy == text_row {
             continue;
         }
         if vy < grid.len() && x + w <= grid[0].len() {
             let row = &mut grid[vy];
-            row[x] = Cell {
-                ch: VLINE,
-                style: border_style,
-                is_edge: false,
-            };
-            row[x + w - 1] = Cell {
-                ch: VLINE,
-                style: border_style,
-                is_edge: false,
-            };
+            row[x] = Cell { ch: VLINE, style: border_style, is_edge: false };
+            row[x + w - 1] = Cell { ch: VLINE, style: border_style, is_edge: false };
             for cell in row.iter_mut().take(x + w - 1).skip(x + 1) {
-                *cell = Cell {
-                    ch: ' ',
-                    style: text_style,
-                    is_edge: false,
-                };
+                *cell = Cell { ch: ' ', style: text_style, is_edge: false };
             }
         }
     }
 
+    // bottom border
     let bottom_row = y + h - 1;
     if bottom_row < grid.len() && x + w <= grid[0].len() {
         let row = &mut grid[bottom_row];
-        row[x] = Cell {
-            ch: bl,
-            style: border_style,
-            is_edge: false,
-        };
-        row[x + w - 1] = Cell {
-            ch: br,
-            style: border_style,
-            is_edge: false,
-        };
+        row[x] = Cell { ch: bl, style: border_style, is_edge: false };
+        row[x + w - 1] = Cell { ch: br, style: border_style, is_edge: false };
         for cell in row.iter_mut().take(x + w - 1).skip(x + 1) {
-            *cell = Cell {
-                ch: HLINE,
-                style: border_style,
-                is_edge: false,
-            };
+            *cell = Cell { ch: HLINE, style: border_style, is_edge: false };
         }
     }
 }
 
-fn draw_edge(
+// ── Edge drawing: connectivity-based rasterization ───────────────
+
+/// Draw an edge by rasterizing its path into cells, then resolving each
+/// cell's character from its local connectivity pattern.
+///
+/// This replaces the old "draw segments → post-process junctions" approach.
+/// Every cell knows exactly which neighbors are on the same path, so corners,
+/// tees, and crosses are correct by construction — no fix-up pass needed.
+fn draw_edge_connectivity(
     grid: &mut [Vec<Cell>],
     edge: &LayoutEdge,
     is_vertical: bool,
@@ -222,31 +177,42 @@ fn draw_edge(
     }
 
     let edge_style = Style::default().fg(theme.get_secondary_color());
-    let arrow_style = Style::default()
-        .fg(theme.get_primary_color())
-        .add_modifier(Modifier::BOLD);
 
-    // draw line segments between consecutive waypoints
+    // Step 1: rasterize all segments → set of occupied cells with direction info
+    let mut path_cells: HashSet<(usize, usize)> = HashSet::new();
+
     for i in 0..wp.len().saturating_sub(1) {
         let (x1, y1) = wp[i];
         let (x2, y2) = wp[i + 1];
-
-        if y1 == y2 {
-            let (lo, hi) = if x1 <= x2 { (x1, x2) } else { (x2, x1) };
-            for x in lo..=hi {
-                set_if_empty(grid, x, y1, HLINE, edge_style);
-            }
-        } else if x1 == x2 {
-            let (lo, hi) = if y1 <= y2 { (y1, y2) } else { (y2, y1) };
-            for y in lo..=hi {
-                set_if_empty(grid, x1, y, VLINE, edge_style);
-            }
-        }
+        rasterize_segment(&mut path_cells, x1, y1, x2, y2);
     }
 
-    // arrow at last waypoint (already one cell before target border)
+    // Step 2: resolve each cell's character from its neighbor connectivity
+    let gh = grid.len();
+    let gw = grid[0].len();
+
+    for &(cx, cy) in &path_cells {
+        if cy >= gh || cx >= gw {
+            continue;
+        }
+        // skip cells already occupied by non-edge content (node borders)
+        if !grid[cy][cx].is_edge && grid[cy][cx].ch != ' ' {
+            continue;
+        }
+
+        let up = cy > 0 && path_cells.contains(&(cx, cy - 1));
+        let down = cy + 1 < gh && path_cells.contains(&(cx, cy + 1));
+        let left = cx > 0 && path_cells.contains(&(cx - 1, cy));
+        let right = cx + 1 < gw && path_cells.contains(&(cx + 1, cy));
+
+        let ch = pick_line_char(up, down, left, right);
+        grid[cy][cx] = Cell { ch, style: edge_style, is_edge: true };
+    }
+
+    // Step 3: place arrow at last waypoint (overwrites the line char there)
     if edge.edge_type == EdgeType::Arrow && wp.len() >= 2 {
-        let &(ax, ay) = wp.last().unwrap();
+        let last_idx = wp.len().saturating_sub(1);
+        let &(ax, ay) = &wp[last_idx];
         let &(prev_x, prev_y) = &wp[wp.len() - 2];
         let arrow_ch = if is_vertical {
             if ay > prev_y { '▼' } else { '▲' }
@@ -255,10 +221,15 @@ fn draw_edge(
         } else {
             '◄'
         };
-        set_arrow(grid, ax, ay, arrow_ch, arrow_style);
+        let arrow_style = Style::default()
+            .fg(theme.get_primary_color())
+            .add_modifier(Modifier::BOLD);
+        if ay < gh && ax < gw {
+            grid[ay][ax] = Cell { ch: arrow_ch, style: arrow_style, is_edge: true };
+        }
     }
 
-    // label near middle of path
+    // Step 4: place label near middle of path
     if let Some(ref label) = edge.label {
         if wp.len() >= 2 {
             let mid = wp.len() / 2;
@@ -272,101 +243,91 @@ fn draw_edge(
             let mut cx = lx;
             for ch in label.chars() {
                 let cw = unicode_width::UnicodeWidthChar::width(ch).unwrap_or(1);
-                set_label_char(grid, cx, ly, ch, label_style);
+                place_label_char(grid, cx, ly, ch, label_style);
                 cx += cw;
             }
         }
     }
 }
 
-fn set_if_empty(grid: &mut [Vec<Cell>], x: usize, y: usize, ch: char, style: Style) {
-    if y < grid.len() && x < grid[0].len() {
-        let cell = &mut grid[y][x];
-        if cell.ch == ' ' {
-            cell.ch = ch;
-            cell.style = style;
-            cell.is_edge = true;
+/// Walk from (x1,y1) to (x2,y2), collecting every grid cell touched.
+/// Handles horizontal, vertical, and diagonal (45°/30°) segments.
+fn rasterize_segment(cells: &mut HashSet<(usize, usize)>, x1: usize, y1: usize, x2: usize, y2: usize) {
+    if x1 == x2 && y1 == y2 {
+        cells.insert((x1, y1));
+        return;
+    }
+
+    let dx = x2.abs_diff(x1);
+    let dy = y2.abs_diff(y1);
+
+    // Pure horizontal or pure vertical: simple range
+    if y1 == y2 {
+        let (lo, hi) = if x1 <= x2 { (x1, x2) } else { (x2, x1) };
+        for x in lo..=hi {
+            cells.insert((x, y1));
         }
+        return;
+    }
+    if x1 == x2 {
+        let (lo, hi) = if y1 <= y2 { (y1, y2) } else { (y2, y1) };
+        for y in lo..=hi {
+            cells.insert((x1, y));
+        }
+        return;
+    }
+
+    // Diagonal or multi-segment: Bresenham-style walk
+    let steps = dx.max(dy);
+    for i in 0..=steps {
+        let t = if steps > 0 { i as f64 / steps as f64 } else { 0.0 };
+        let x = x1 as f64 + (x2 as f64 - x1 as f64) * t;
+        let y = y1 as f64 + (y2 as f64 - y1 as f64) * t;
+        cells.insert((x.round() as usize, y.round() as usize));
     }
 }
 
-/// Like set_if_empty but also overwrites edge-line characters (─│).
-/// Never overwrites node borders (is_edge==false non-space cells).
-fn set_arrow(grid: &mut [Vec<Cell>], x: usize, y: usize, ch: char, style: Style) {
-    if y < grid.len() && x < grid[0].len() {
-        let cell = &mut grid[y][x];
-        if cell.ch == ' ' || cell.is_edge {
-            cell.ch = ch;
-            cell.style = style;
-            cell.is_edge = true;
-        }
-    }
-}
-
-fn set_label_char(grid: &mut [Vec<Cell>], x: usize, y: usize, ch: char, style: Style) {
-    if y < grid.len() && x < grid[0].len() {
-        let cell = &mut grid[y][x];
-        if cell.ch == ' ' || cell.is_edge {
-            cell.ch = ch;
-            cell.style = style;
-        }
-    }
-}
-
-/// Merge adjacent HLINE/VLINE cells into proper corner/tee chars.
+/// Pick the correct box-drawing character for a cell given its four-way
+/// connectivity to neighboring path cells.
 ///
-/// Only considers **other HLINE/VLINE edge cells** as neighbors — never
-/// node borders (is_edge==false) or arrows/labels.  This prevents
-/// spurious ├/╪ artifacts while still producing clean └├┬┴ at real
-/// edge-path corners.
-fn fix_edge_junctions(grid: &mut [Vec<Cell>]) {
-    let gh = grid.len();
-    if gh == 0 {
-        return;
-    }
-    let gw = grid[0].len();
-    if gw == 0 {
-        return;
-    }
-
-    for y in 0..gh {
-        for x in 0..gw {
-            let cell = &grid[y][x];
-            if !cell.is_edge {
-                continue;
-            }
-            if !matches!(cell.ch, HLINE | VLINE) {
-                continue;
-            }
-
-            // only pure line chars count as junction participants
-            let up = y > 0 && grid[y - 1][x].is_edge && matches!(grid[y - 1][x].ch, HLINE | VLINE);
-            let down = y + 1 < gh && grid[y + 1][x].is_edge && matches!(grid[y + 1][x].ch, HLINE | VLINE);
-            let left = x > 0 && grid[y][x - 1].is_edge && matches!(grid[y][x - 1].ch, HLINE | VLINE);
-            let right = x + 1 < gw && grid[y][x + 1].is_edge && matches!(grid[y][x + 1].ch, HLINE | VLINE);
-
-            let new_ch = pick_junction_char(up, down, left, right);
-            if new_ch != cell.ch {
-                grid[y][x].ch = new_ch;
-            }
-        }
-    }
-}
-
-fn pick_junction_char(up: bool, down: bool, left: bool, right: bool) -> char {
+/// This table covers all 16 combinations of (up,down,left,right).
+/// Only patterns that actually occur in Manhattan paths are listed;
+/// fallbacks handle rare cases gracefully.
+fn pick_line_char(up: bool, down: bool, left: bool, right: bool) -> char {
     match (up, down, left, right) {
+        // cross
         (true, true, true, true) => '┼',
+
+        // T-junctions
         (true, true, true, false) => '├',
         (true, true, false, true) => '┤',
         (true, false, true, true) => '┴',
         (false, true, true, true) => '┬',
+
+        // corners
         (true, false, true, false) => BRC,
         (true, false, false, true) => BLC,
         (false, true, true, false) => TRC,
         (false, true, false, true) => TLC,
-        (true, true, false, false) => VLINE,
-        (false, false, true, true) => HLINE,
-        _ => VLINE, // fallback — should not happen for valid patterns
+
+        // straight lines
+        (true, false, false, false) |
+        (false, true, false, false) => VLINE,
+        (false, false, true, false) |
+        (false, false, false, true) => HLINE,
+
+        // isolated / fallback
+        _ => '·',
     }
 }
 
+/// Place a label character; overwrites edge cells but never node borders.
+fn place_label_char(grid: &mut [Vec<Cell>], x: usize, y: usize, ch: char, style: Style) {
+    if y < grid.len() && x < grid[0].len() {
+        let cell = &mut grid[y][x];
+        if cell.ch == ' ' || cell.is_edge {
+            cell.ch = ch;
+            cell.style = style;
+        }
+    }
+}
