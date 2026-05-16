@@ -15,7 +15,7 @@ categories = ["command-line-interface", "text-processing"]
 doctest = false
 
 [features]
-default = ["markdown", "scroll", "tree", "preview"]
+default = ["markdown", "scroll", "tree", "preview", "mermaid", "image", "viewer"]
 markdown = []
 image = ["dep:image"]
 scroll = []
