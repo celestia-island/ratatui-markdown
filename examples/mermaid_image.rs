@@ -166,6 +166,107 @@ fn to_renderer_theme(src: &ratatui_markdown::mermaid::theme::MermaidTheme) -> me
     }
 }
 
+fn fix_pie_title_overlap(source: &str, svg: &str) -> String {
+    let first_line = source.lines().next().unwrap_or("").trim();
+    if !first_line.starts_with("pie") {
+        return svg.to_string();
+    }
+
+    let result = svg.to_string();
+
+    let vb_match = extract_viewbox(&result);
+    let (vx, vy, vw, vh) = match vb_match {
+        Some(v) => v,
+        None => return result,
+    };
+
+    let circle_attrs = find_first_circle_cxcyr(&result);
+    let (cx, cy, radius) = match circle_attrs {
+        Some(v) => v,
+        None => return result,
+    };
+
+    let title_y = find_first_text_y_in_top_quarter(&result, vh);
+    let ty = match title_y {
+        Some(v) => v,
+        None => return result,
+    };
+
+    let title_font_size: f32 = 25.0;
+    let new_title_y = cy - radius - title_font_size - 8.0;
+    let shift_up = ty - new_title_y;
+
+    if shift_up <= 1.0 {
+        return result;
+    }
+
+    let mut patched = result.replace(
+        &format!("y=\"{:.2}\"", ty),
+        &format!("y=\"{:.2}\"", new_title_y),
+    );
+    patched = patched.replace(
+        &format!("viewBox=\"{:.2} {:.2} {:.2} {:.2}\"", vx, vy, vw, vh),
+        &format!(
+            "viewBox=\"{:.2} {:.2} {:.2} {:.2}\"",
+            vx,
+            vy - shift_up.ceil(),
+            vw,
+            vh + shift_up.ceil()
+        ),
+    );
+    patched
+}
+
+fn extract_viewbox(s: &str) -> Option<(f32, f32, f32, f32)> {
+    let start = s.find("viewBox=\"")? + 9;
+    let end = s[start..].find('"')?;
+    let parts: Vec<&str> = s[start..start + end].split_whitespace().collect();
+    if parts.len() != 4 { return None; }
+    Some((
+        parts[0].parse().ok()?,
+        parts[1].parse().ok()?,
+        parts[2].parse().ok()?,
+        parts[3].parse().ok()?,
+    ))
+}
+
+fn find_first_circle_cxcyr(s: &str) -> Option<(f32, f32, f32)> {
+    let pos = s.find("<circle")?;
+    let chunk = &s[pos..];
+    let cx = extract_quoted_f32(chunk, "cx=")?;
+    let cy = extract_quoted_f32(chunk, "cy=")?;
+    let r = extract_quoted_f32(chunk, "r=")?;
+    Some((cx, cy, r))
+}
+
+fn find_first_text_y_in_top_quarter(s: &str, vh: f32) -> Option<f32> {
+    let mut pos = 0;
+    loop {
+        let text_start = s[pos..].find("<text")?;
+        let abs_pos = pos + text_start;
+        let chunk = &s[abs_pos..];
+        if let Some(y) = extract_quoted_f32(chunk, "y=") {
+            if y < vh * 0.25 {
+                if let Some(text_end) = chunk.find("</text>") {
+                    let inner = &chunk[5..text_end];
+                    if !inner.trim().is_empty() {
+                        return Some(y);
+                    }
+                }
+            }
+        }
+        pos = abs_pos + 5;
+    }
+}
+
+fn extract_quoted_f32(s: &str, attr: &str) -> Option<f32> {
+    let start = s.find(attr)? + attr.len();
+    if !s[start..].starts_with('"') { return None; }
+    let val_start = start + 1;
+    let end = s[val_start..].find('"')?;
+    s[val_start..val_start + end].parse::<f32>().ok()
+}
+
 fn render_mermaid_to_image(
     source: &str,
     mermaid_theme: &ratatui_markdown::mermaid::theme::MermaidTheme,
@@ -179,6 +280,7 @@ fn render_mermaid_to_image(
         layout: mermaid_rs_renderer::LayoutConfig::default(),
     };
     let svg = mermaid_rs_renderer::render_with_options(source, opts).ok()?;
+    let svg = fix_pie_title_overlap(source, &svg);
 
     let mut font_db = fontdb::Database::new();
 
