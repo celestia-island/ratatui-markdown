@@ -1,6 +1,9 @@
 mod segment;
 
 #[cfg(feature = "highlight")]
+mod config;
+
+#[cfg(feature = "highlight")]
 mod treesitter;
 
 #[cfg(feature = "highlight")]
@@ -10,6 +13,9 @@ mod hooks;
 mod pest_bridge;
 
 pub use segment::segments_to_lines;
+
+#[cfg(feature = "highlight")]
+pub use config::{HIGHLIGHT_NAMES, highlight_to_style};
 
 #[cfg(feature = "highlight")]
 pub use treesitter::TreeSitterHighlighter;
