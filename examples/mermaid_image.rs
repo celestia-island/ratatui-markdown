@@ -17,8 +17,9 @@ use ratatui_image::{
     protocol::Protocol,
     Image, Resize,
 };
-use ratatui_markdown::markdown::{
-    ImageResolver, MarkdownRenderer, RenderHooks,
+use ratatui_markdown::{
+    markdown::{ImageResolver, MarkdownRenderer, RenderHooks},
+    theme::RichTextTheme,
 };
 
 #[path = "utils/mod.rs"]
@@ -109,7 +110,15 @@ sequenceDiagram
 LOREM_3
 "#;
 
-fn render_mermaid_to_image(source: &str) -> Option<image::DynamicImage> {
+fn color_to_rgba(c: ratatui::style::Color) -> image::Rgba<u8> {
+    match c {
+        ratatui::style::Color::Rgb(r, g, b) => image::Rgba([r, g, b, 255]),
+        ratatui::style::Color::Black => image::Rgba([0, 0, 0, 255]),
+        _ => image::Rgba([0, 0, 0, 255]),
+    }
+}
+
+fn render_mermaid_to_image(source: &str, bg_color: image::Rgba<u8>) -> Option<image::DynamicImage> {
     let svg = mermaid_rs_renderer::render(source).ok()?;
 
     let mut font_db = fontdb::Database::new();
@@ -147,6 +156,8 @@ fn render_mermaid_to_image(source: &str) -> Option<image::DynamicImage> {
     let w = (size.width() as f64).ceil() as u32;
     let h = (size.height() as f64).ceil() as u32;
     let mut pixmap = tiny_skia::Pixmap::new(w, h)?;
+    let bg = tiny_skia::Color::from_rgba8(bg_color.0[0], bg_color.0[1], bg_color.0[2], bg_color.0[3]);
+    pixmap.fill(bg);
     resvg::render(&tree, tiny_skia::Transform::identity(), &mut pixmap.as_mut());
     let rgba = pixmap.data().to_vec();
     image::RgbaImage::from_raw(w, h, rgba).map(image::DynamicImage::ImageRgba8)
@@ -201,11 +212,13 @@ impl MermaidImage {
     }
 }
 
-struct MermaidImageHooks;
+struct MermaidImageHooks {
+    bg_color: image::Rgba<u8>,
+}
 
 impl RenderHooks for MermaidImageHooks {
     fn render_mermaid_image(&self, source: &str) -> Option<image::DynamicImage> {
-        render_mermaid_to_image(source)
+        render_mermaid_to_image(source, self.bg_color)
     }
 }
 
@@ -255,6 +268,7 @@ struct AppState {
     font_w: u16,
     font_h: u16,
     max_w: u16,
+    bg_color: image::Rgba<u8>,
 }
 
 impl AppState {
@@ -292,7 +306,8 @@ fn main() -> anyhow::Result<()> {
     let max_w = area.width.saturating_sub(4);
     let content_width = max_w as usize;
 
-    let hooks = MermaidImageHooks;
+    let bg_rgba = color_to_rgba(theme.get_background_color());
+    let hooks = MermaidImageHooks { bg_color: bg_rgba };
     let renderer = MarkdownRenderer::new(content_width).with_render_hooks(Box::new(hooks));
 
     let md = MARKDOWN_TEMPLATE
@@ -313,6 +328,7 @@ fn main() -> anyhow::Result<()> {
         font_w,
         font_h,
         max_w,
+        bg_color: bg_rgba,
     };
 
     let output = state.rebuild_output();
@@ -447,13 +463,15 @@ fn main() -> anyhow::Result<()> {
                         let mut canvas = image::RgbaImage::from_pixel(
                             target_px_w,
                             target_px_h,
-                            image::Rgba([0, 0, 0, 0]),
+                            state.bg_color,
                         );
+                        let ox = (target_px_w.saturating_sub(img_for_proto.width())) / 2;
+                        let oy = (target_px_h.saturating_sub(img_for_proto.height())) / 2;
                         image::imageops::overlay(
                             &mut canvas,
                             &img_for_proto.to_rgba8(),
-                            0,
-                            0,
+                            ox as i64,
+                            oy as i64,
                         );
                         image::DynamicImage::ImageRgba8(canvas)
                     } else {
