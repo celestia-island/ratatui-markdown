@@ -166,6 +166,28 @@ fn to_renderer_theme(src: &ratatui_markdown::mermaid::theme::MermaidTheme) -> me
     }
 }
 
+fn fix_pie_title_position(layout: &mut mermaid_rs_renderer::layout::Layout) {
+    use mermaid_rs_renderer::layout::DiagramData;
+    if let DiagramData::Pie(ref mut pie) = layout.diagram {
+        if let Some(ref mut title) = pie.title {
+            let title_font_size: f32 = 25.0;
+            let padding: f32 = 8.0;
+            let title_block_height = title_font_size + padding;
+            let title_y = padding + title_font_size * 0.5;
+            let (cx, cy) = pie.center;
+            let shift = title_y + padding - (cy - pie.radius);
+            if shift > 0.0 {
+                pie.center = (cx, cy + shift);
+                for item in &mut pie.legend {
+                    item.y += shift;
+                }
+                layout.height += shift;
+            }
+            title.y = title_y;
+        }
+    }
+}
+
 fn render_mermaid_to_image(
     source: &str,
     mermaid_theme: &ratatui_markdown::mermaid::theme::MermaidTheme,
@@ -174,11 +196,13 @@ fn render_mermaid_to_image(
     font_h: u32,
 ) -> Option<image::DynamicImage> {
     let renderer_theme = to_renderer_theme(mermaid_theme);
-    let opts = mermaid_rs_renderer::RenderOptions {
-        theme: renderer_theme,
-        layout: mermaid_rs_renderer::LayoutConfig::default(),
-    };
-    let svg = mermaid_rs_renderer::render_with_options(source, opts).ok()?;
+    let config = mermaid_rs_renderer::LayoutConfig::default();
+
+    let parsed = mermaid_rs_renderer::parse_mermaid(source).ok()?;
+    let mut layout =
+        mermaid_rs_renderer::compute_layout(&parsed.graph, &renderer_theme, &config);
+    fix_pie_title_position(&mut layout);
+    let svg = mermaid_rs_renderer::render_svg(&layout, &renderer_theme, &config);
 
     let mut font_db = fontdb::Database::new();
 
