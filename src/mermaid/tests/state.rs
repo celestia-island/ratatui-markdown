@@ -1,7 +1,17 @@
 use super::common::*;
 
 static SIMPLE_STATE: &str = "stateDiagram-v2\n    [*] --> Idle\n    Idle --> Running\n    Running --> Idle";
-static SIMPLE_STATE_EXPECTED: &str = "                             ╭────▲────╮    ╭────╮\n                             │ Running │    │ ●  │\n                             ╰─────────╯    ╰────╯\n                                  │            │\n                                  ├─────┬──────┘\n                                  │     ▼\n                                  │ ╭──────╮\n                                  │ │ Idle │\n                                  │ ╰──────╯";
+
+static SIMPLE_STATE_EXPECTED: &str = "
+                             ╭────▲────╮    ╭────╮
+                             │ Running │    │ ●  │
+                             ╰─────────╯    ╰────╯
+                                  │            │
+                                  ├─────┬──────┘
+                                  │     ▼
+                                  │ ╭──────╮
+                                  │ │ Idle │
+                                  │ ╰──────╯";
 
 #[test]
 fn simple_state() {

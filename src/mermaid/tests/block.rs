@@ -1,7 +1,41 @@
 use super::common::*;
 
 static SIMPLE_BLOCK: &str = "block-beta\n    A B C\n    D E F";
-static SIMPLE_BLOCK_EXPECTED: &str = "                  ╭────╮\n                  │ A  │\n                  ╰────╯\n                     │\n                     │\n                     │\n                  ╭────╮\n                  │ B  │\n                  ╰────╯\n                     │\n                     │\n                     │\n                  ╭────╮\n                  │ C  │\n                  ╰────╯\n                     │\n                     │\n                     │\n                  ╭────╮\n                  │ D  │\n                  ╰────╯\n                     │\n                     │\n                     │\n                  ╭────╮\n                  │ E  │\n                  ╰────╯\n                     │\n                     │\n                     │\n                  ╭────╮\n                  │ F  │\n                  ╰────╯";
+
+static SIMPLE_BLOCK_EXPECTED: &str = "
+                  ╭────╮
+                  │ A  │
+                  ╰────╯
+                     │
+                     │
+                     │
+                  ╭────╮
+                  │ B  │
+                  ╰────╯
+                     │
+                     │
+                     │
+                  ╭────╮
+                  │ C  │
+                  ╰────╯
+                     │
+                     │
+                     │
+                  ╭────╮
+                  │ D  │
+                  ╰────╯
+                     │
+                     │
+                     │
+                  ╭────╮
+                  │ E  │
+                  ╰────╯
+                     │
+                     │
+                     │
+                  ╭────╮
+                  │ F  │
+                  ╰────╯";
 
 #[test]
 fn simple_block() {

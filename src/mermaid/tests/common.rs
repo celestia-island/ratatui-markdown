@@ -54,6 +54,8 @@ pub fn buffer_to_string(buf: &Buffer) -> String {
 
 pub fn assert_buffer_eq(buf: &Buffer, expected: &str) {
     let actual = buffer_to_string(buf);
+    let expected = expected.strip_prefix('\n').unwrap_or(expected);
+    let expected = expected.strip_suffix('\n').unwrap_or(expected);
     if actual != expected {
         let actual_lines: Vec<&str> = actual.split('\n').collect();
         let expected_lines: Vec<&str> = expected.split('\n').collect();
