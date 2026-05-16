@@ -179,5 +179,8 @@ name = "mermaid_image"
 required-features = ["mermaid", "image"]
 
 [[example]]
+name = "selector"
+
+[[example]]
 name = "code"
 required-features = ["highlight-lang-rust", "highlight-pest"]
