@@ -5,7 +5,7 @@ mod mcfunction;
 
 use std::sync::Arc;
 
-use common::{AppState, Theme, draw_frame, poll_and_handle, setup_terminal, restore_terminal};
+use common::{draw_frame, poll_and_handle, restore_terminal, setup_terminal, AppState, Theme};
 use mcfunction::McfunctionHighlighter;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui_markdown::highlight::{
@@ -170,8 +170,8 @@ fn main() -> anyhow::Result<()> {
     let mut terminal = setup_terminal()?;
 
     let theme = Theme;
-    let renderer = MarkdownRenderer::new(76)
-        .with_render_hooks(Box::new(CodeHooks { inner: hooks }));
+    let renderer =
+        MarkdownRenderer::new(76).with_render_hooks(Box::new(CodeHooks { inner: hooks }));
     let blocks = renderer.parse(MARKDOWN_TEMPLATE);
     let lines = renderer.render(&blocks, &theme);
     let mut state = AppState::new(lines.len());

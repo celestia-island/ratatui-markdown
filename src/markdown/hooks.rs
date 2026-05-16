@@ -19,11 +19,7 @@ pub trait RenderHooks: Send + Sync {
         None
     }
 
-    fn render_code_block(
-        &self,
-        _lang: &str,
-        _content: &str,
-    ) -> Option<Vec<Line<'static>>> {
+    fn render_code_block(&self, _lang: &str, _content: &str) -> Option<Vec<Line<'static>>> {
         None
     }
 
@@ -35,12 +31,7 @@ pub trait RenderHooks: Send + Sync {
         None
     }
 
-    fn code_block_line(
-        &self,
-        _line: &str,
-        _idx: usize,
-        _total: usize,
-    ) -> Option<Line<'static>> {
+    fn code_block_line(&self, _line: &str, _idx: usize, _total: usize) -> Option<Line<'static>> {
         None
     }
 
@@ -92,11 +83,7 @@ pub trait RenderHooks: Send + Sync {
         None
     }
 
-    fn blockquote(
-        &self,
-        _level: u8,
-        _children: &[MarkdownBlock],
-    ) -> Option<Vec<Line<'static>>> {
+    fn blockquote(&self, _level: u8, _children: &[MarkdownBlock]) -> Option<Vec<Line<'static>>> {
         None
     }
 
@@ -108,11 +95,7 @@ pub trait RenderHooks: Send + Sync {
         None
     }
 
-    fn table(
-        &self,
-        _headers: &[String],
-        _rows: &[Vec<String>],
-    ) -> Option<Vec<Line<'static>>> {
+    fn table(&self, _headers: &[String], _rows: &[Vec<String>]) -> Option<Vec<Line<'static>>> {
         None
     }
 

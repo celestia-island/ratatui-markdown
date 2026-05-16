@@ -80,9 +80,7 @@ fn draw_node(grid: &mut [Vec<Cell>], node: &LayoutNode, theme: &impl RichTextThe
     let h = node.height;
 
     let (tl, tr, bl, br) = match node.shape {
-        NodeShape::Rounded | NodeShape::Circle | NodeShape::Diamond => {
-            (RTLC, RTRC, RBLC, RBRC)
-        }
+        NodeShape::Rounded | NodeShape::Circle | NodeShape::Diamond => (RTLC, RTRC, RBLC, RBRC),
         NodeShape::Rect => (TLC, TRC, BLC, BRC),
     };
 
@@ -315,9 +313,25 @@ fn set_label_char(grid: &mut [Vec<Cell>], x: usize, y: usize, ch: char, style: S
 fn is_neighbor_connector(ch: char) -> bool {
     matches!(
         ch,
-        HLINE | VLINE | '┼' | TLC | TRC | BLC | BRC | '├' | '┤' | '┬' | '┴'
-            | RTLC | RTRC | RBLC | RBRC
-            | '▼' | '▲' | '►' | '◄'
+        HLINE
+            | VLINE
+            | '┼'
+            | TLC
+            | TRC
+            | BLC
+            | BRC
+            | '├'
+            | '┤'
+            | '┬'
+            | '┴'
+            | RTLC
+            | RTRC
+            | RBLC
+            | RBRC
+            | '▼'
+            | '▲'
+            | '►'
+            | '◄'
             | '╌'
     )
 }

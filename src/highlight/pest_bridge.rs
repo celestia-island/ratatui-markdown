@@ -4,10 +4,7 @@ use ratatui::style::Style;
 
 use super::StyleSegment;
 
-pub fn pest_pairs_to_segments<R, F>(
-    pairs: Pairs<R>,
-    style_for: F,
-) -> Vec<StyleSegment>
+pub fn pest_pairs_to_segments<R, F>(pairs: Pairs<R>, style_for: F) -> Vec<StyleSegment>
 where
     R: RuleType,
     F: Fn(R) -> Option<Style>,
@@ -17,11 +14,8 @@ where
     segments
 }
 
-fn collect<R, F>(
-    pairs: Pairs<R>,
-    style_for: &F,
-    segments: &mut Vec<StyleSegment>,
-) where
+fn collect<R, F>(pairs: Pairs<R>, style_for: &F, segments: &mut Vec<StyleSegment>)
+where
     R: RuleType,
     F: Fn(R) -> Option<Style>,
 {

@@ -62,9 +62,11 @@ impl MarkdownBlock {
             MarkdownBlock::Paragraph(lines) => lines.len().max(1),
             MarkdownBlock::CodeBlock { code, .. } => code.lines().count().max(1) + 2,
             MarkdownBlock::ListItem(_, _) => 1,
-            MarkdownBlock::Blockquote { children, .. } => {
-                children.iter().map(|c| c.line_count()).sum::<usize>().max(1)
-            }
+            MarkdownBlock::Blockquote { children, .. } => children
+                .iter()
+                .map(|c| c.line_count())
+                .sum::<usize>()
+                .max(1),
             MarkdownBlock::Table { rows, .. } => {
                 let header_lines = 2;
                 let row_lines = rows.len() * 2 + 1;

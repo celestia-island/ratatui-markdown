@@ -74,11 +74,10 @@ impl RichTextTheme for TestTheme {
 fn render_to_buffer(lines: Vec<Line<'static>>, width: u16, height: u16) -> anyhow::Result<Buffer> {
     let backend = TestBackend::new(width, height);
     let mut terminal = Terminal::new(backend)?;
-    terminal
-        .draw(|f| {
-            let paragraph = Paragraph::new(lines);
-            f.render_widget(paragraph, Rect::new(0, 0, width, height));
-        })?;
+    terminal.draw(|f| {
+        let paragraph = Paragraph::new(lines);
+        f.render_widget(paragraph, Rect::new(0, 0, width, height));
+    })?;
     Ok(terminal.backend().buffer().clone())
 }
 
@@ -123,7 +122,8 @@ fn paragraph_renders_text() -> anyhow::Result<()> {
     assert_eq!(lines.len(), 1);
     let buf = render_to_buffer(lines, 80, 5)?;
     let text: String = (0..13)
-        .map(|x| buf.cell((x, 0)).map(|c| c.symbol()).unwrap_or_default()).collect::<String>();
+        .map(|x| buf.cell((x, 0)).map(|c| c.symbol()).unwrap_or_default())
+        .collect::<String>();
     assert_eq!(text, "Hello, world!");
     Ok(())
 }
@@ -411,19 +411,25 @@ mod example_tree_list_tests {
                     break;
                 }
                 if is_last_ancestor {
-                    for _ in 0..3 { prefix.push(' '); }
+                    for _ in 0..3 {
+                        prefix.push(' ');
+                    }
                 } else {
                     prefix.push_str("│  ");
                 }
             }
             if indent as usize > ancestors_are_last.len() {
                 let extra = indent as usize - ancestors_are_last.len();
-                for _ in 0..3 * extra { prefix.push(' '); }
+                for _ in 0..3 * extra {
+                    prefix.push(' ');
+                }
             }
             Some(format!("{}{}", prefix, marker))
         }
 
-        fn tree_indent_unit(&self) -> Option<usize> { Some(3) }
+        fn tree_indent_unit(&self) -> Option<usize> {
+            Some(3)
+        }
 
         fn tree_continuation_prefix(
             &self,
@@ -433,56 +439,67 @@ mod example_tree_list_tests {
             let unit = 3;
             let mut p = String::new();
             for (i, &last) in ancestors_are_last.iter().enumerate() {
-                if i >= indent as usize { break; }
-                if last { for _ in 0..unit { p.push(' '); } }
-                else { p.push_str("│  "); }
+                if i >= indent as usize {
+                    break;
+                }
+                if last {
+                    for _ in 0..unit {
+                        p.push(' ');
+                    }
+                } else {
+                    p.push_str("│  ");
+                }
             }
-            for _ in 0..unit { p.push(' '); }
+            for _ in 0..unit {
+                p.push(' ');
+            }
             Some(p)
         }
     }
 
     #[test]
     fn tree_hook_root_items_have_tree_markers() {
-        let renderer = MarkdownRenderer::new(76)
-            .with_render_hooks(Box::new(TreeListHooks));
+        let renderer = MarkdownRenderer::new(76).with_render_hooks(Box::new(TreeListHooks));
         let blocks = renderer.parse("- A\n  - B\n  - C\n- D");
         let lines = renderer.render(&blocks, &TestTheme);
         let has_tree_marker = lines.iter().any(|l| {
-            l.spans.iter().any(|s| s.content.contains("┌─") || s.content.contains("├─") || s.content.contains("└─"))
+            l.spans.iter().any(|s| {
+                s.content.contains("┌─") || s.content.contains("├─") || s.content.contains("└─")
+            })
         });
         assert!(has_tree_marker, "tree markers should appear in output");
     }
 
     #[test]
     fn tree_hook_nested_items_have_pipe_prefix() {
-        let renderer = MarkdownRenderer::new(76)
-            .with_render_hooks(Box::new(TreeListHooks));
+        let renderer = MarkdownRenderer::new(76).with_render_hooks(Box::new(TreeListHooks));
         let blocks = renderer.parse("- A\n  - B\n- C");
         let lines = renderer.render(&blocks, &TestTheme);
-        let all_text: String = lines.iter()
+        let all_text: String = lines
+            .iter()
             .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
             .collect::<Vec<&str>>()
             .join("");
-        assert!(all_text.contains("│"), "nested items should have │ pipe prefix");
+        assert!(
+            all_text.contains("│"),
+            "nested items should have │ pipe prefix"
+        );
     }
 
     #[test]
     fn tree_hook_last_item_uses_corner_marker() {
-        let renderer = MarkdownRenderer::new(76)
-            .with_render_hooks(Box::new(TreeListHooks));
+        let renderer = MarkdownRenderer::new(76).with_render_hooks(Box::new(TreeListHooks));
         let blocks = renderer.parse("- A\n- B");
         let lines = renderer.render(&blocks, &TestTheme);
-        let has_corner = lines.iter().any(|l| {
-            l.spans.iter().any(|s| s.content.contains("└─"))
-        });
+        let has_corner = lines
+            .iter()
+            .any(|l| l.spans.iter().any(|s| s.content.contains("└─")));
         assert!(has_corner, "last items should use └─ corner marker");
     }
 
     #[test]
     fn tree_hook_render_to_buffer_no_panic() -> anyhow::Result<()> {
-        let renderer = MarkdownRenderer::new(76)
-            .with_render_hooks(Box::new(TreeListHooks));
+        let renderer = MarkdownRenderer::new(76).with_render_hooks(Box::new(TreeListHooks));
         let blocks = renderer.parse("- A\n  - B\n- C");
         let lines = renderer.render(&blocks, &TestTheme);
         let buffer = render_to_buffer(lines, 80, 40)?;
@@ -492,8 +509,7 @@ mod example_tree_list_tests {
 
     #[test]
     fn tree_hook_two_sections_separated_by_paragraph() {
-        let renderer = MarkdownRenderer::new(40)
-            .with_render_hooks(Box::new(TreeListHooks));
+        let renderer = MarkdownRenderer::new(40).with_render_hooks(Box::new(TreeListHooks));
         let md = "- Alpha\n  - Beta\n  - Gamma\n\nSome paragraph text between.\n\n- Delta\n  - Epsilon\n  - Zeta";
         let blocks = renderer.parse(md);
         let lines = renderer.render(&blocks, &TestTheme);
@@ -503,16 +519,30 @@ mod example_tree_list_tests {
             .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect())
             .collect();
 
-        assert!(texts[0].starts_with("└─"), "first tree has one root (Alpha) so it should use └─, got: {}", texts[0]);
-        assert!(texts[1].starts_with("   "), "Alpha is last root, children should have spaces prefix, got: {}", texts[1]);
+        assert!(
+            texts[0].starts_with("└─"),
+            "first tree has one root (Alpha) so it should use └─, got: {}",
+            texts[0]
+        );
+        assert!(
+            texts[1].starts_with("   "),
+            "Alpha is last root, children should have spaces prefix, got: {}",
+            texts[1]
+        );
 
-        let delta_line = texts.iter().position(|t| t.contains("Delta")).expect("Delta should exist");
+        let delta_line = texts
+            .iter()
+            .position(|t| t.contains("Delta"))
+            .expect("Delta should exist");
         assert!(
             texts[delta_line].starts_with("└─"),
             "second tree has one root (Delta) so it should use └─, got: {}",
             texts[delta_line],
         );
-        let epsilon_line = texts.iter().position(|t| t.contains("Epsilon")).expect("Epsilon should exist");
+        let epsilon_line = texts
+            .iter()
+            .position(|t| t.contains("Epsilon"))
+            .expect("Epsilon should exist");
         assert!(
             texts[epsilon_line].starts_with("   "),
             "Delta is last root in its group, children should have spaces prefix, got: {}",
@@ -522,8 +552,7 @@ mod example_tree_list_tests {
 
     #[test]
     fn tree_hook_multi_root_groups_isolated() {
-        let renderer = MarkdownRenderer::new(40)
-            .with_render_hooks(Box::new(TreeListHooks));
+        let renderer = MarkdownRenderer::new(40).with_render_hooks(Box::new(TreeListHooks));
         let md = "- A1\n  - B1\n  - B2\n- A2\n  - B3\n\nParagraph.\n\n- C1\n  - D1\n- C2\n  - D2";
         let blocks = renderer.parse(md);
         let lines = renderer.render(&blocks, &TestTheme);
@@ -597,11 +626,13 @@ mod example_scrollable_tests {
         }
 
         fn max_v_offset(&self, area_height: u16) -> usize {
-            self.total_lines.saturating_sub(self.viewport_height(area_height))
+            self.total_lines
+                .saturating_sub(self.viewport_height(area_height))
         }
 
         fn max_h_offset(&self, area_width: u16) -> usize {
-            self.max_line_width.saturating_sub(self.viewport_width(area_width))
+            self.max_line_width
+                .saturating_sub(self.viewport_width(area_width))
         }
 
         fn clamp(&mut self, area: Rect) {
@@ -638,7 +669,9 @@ mod example_scrollable_tests {
         }
     }
 
-    fn area(w: u16, h: u16) -> Rect { Rect::new(0, 0, w, h) }
+    fn area(w: u16, h: u16) -> Rect {
+        Rect::new(0, 0, w, h)
+    }
 
     #[test]
     fn scroll_state_initial_offsets_zero() {
@@ -756,9 +789,16 @@ mod example_scrollable_tests {
         let renderer = MarkdownRenderer::new(120);
         let blocks = renderer.parse(md);
         let lines = renderer.render(&blocks, &TestTheme);
-        let max_w = lines.iter().map(|l| {
-            l.spans.iter().map(|s| unicode_width::UnicodeWidthStr::width(s.content.as_ref())).sum::<usize>()
-        }).max().unwrap_or(0);
+        let max_w = lines
+            .iter()
+            .map(|l| {
+                l.spans
+                    .iter()
+                    .map(|s| unicode_width::UnicodeWidthStr::width(s.content.as_ref()))
+                    .sum::<usize>()
+            })
+            .max()
+            .unwrap_or(0);
         let mut scroll = ScrollState::new(lines.len(), max_w);
         assert!(scroll.total_lines > 0);
         assert!(scroll.max_line_width > 0);
@@ -772,14 +812,24 @@ mod example_image_tests {
     use super::*;
     use crate::markdown::image::{ImageResolver, ResolvedImage};
 
-    struct SimpleResolver { font_w: u16, font_h: u16 }
+    struct SimpleResolver {
+        font_w: u16,
+        font_h: u16,
+    }
 
     impl SimpleResolver {
-        fn new(fw: u16, fh: u16) -> Self { Self { font_w: fw, font_h: fh } }
+        fn new(fw: u16, fh: u16) -> Self {
+            Self {
+                font_w: fw,
+                font_h: fh,
+            }
+        }
     }
 
     impl ImageResolver for SimpleResolver {
-        fn resolve(&mut self, _path: &str) -> Option<image::DynamicImage> { None }
+        fn resolve(&mut self, _path: &str) -> Option<image::DynamicImage> {
+            None
+        }
 
         fn cell_dimensions(
             &mut self,
@@ -811,16 +861,24 @@ mod example_image_tests {
     }
 
     fn scale_to_fit_rows(_pw: u32, ph: u32, target_rows: u16, font_h: u16) -> f64 {
-        if ph == 0 { return 1.0; }
+        if ph == 0 {
+            return 1.0;
+        }
         let natural_h = (ph as f64 / font_h as f64).ceil();
-        if natural_h <= target_rows as f64 { return 1.0; }
+        if natural_h <= target_rows as f64 {
+            return 1.0;
+        }
         target_rows as f64 * font_h as f64 / ph as f64
     }
 
     #[test]
     fn scale_to_fit_rows_small_image_no_scale() {
         let s = scale_to_fit_rows(100, 18, 2, 18);
-        assert!((s - 1.0).abs() < 0.01, "image already fits, scale should be 1.0, got {}", s);
+        assert!(
+            (s - 1.0).abs() < 0.01,
+            "image already fits, scale should be 1.0, got {}",
+            s
+        );
     }
 
     #[test]
@@ -828,7 +886,12 @@ mod example_image_tests {
         let s = scale_to_fit_rows(100, 180, 2, 18);
         let scaled_h = (180.0 * s) as u32;
         let scaled_rows = (scaled_h as f64 / 18.0).ceil() as u16;
-        assert!(scaled_rows <= 2, "scaled to {} rows (scale={})", scaled_rows, s);
+        assert!(
+            scaled_rows <= 2,
+            "scaled to {} rows (scale={})",
+            scaled_rows,
+            s
+        );
     }
 
     #[test]
@@ -849,7 +912,11 @@ mod example_image_tests {
         let sh = (300.0 * scale).ceil() as u32;
         let scaled = original.resize_exact(sw, sh, image::imageops::FilterType::Triangle);
         let (_, h) = r.cell_dimensions(&scaled, 70, 20);
-        assert!(h <= 2, "pre-scaled image should fit in 2 rows, got {} rows", h);
+        assert!(
+            h <= 2,
+            "pre-scaled image should fit in 2 rows, got {} rows",
+            h
+        );
     }
 
     #[test]
@@ -861,16 +928,26 @@ mod example_image_tests {
         let sh = (400.0 * scale).ceil() as u32;
         let scaled = original.resize_exact(sw, sh, image::imageops::FilterType::Triangle);
         let (_, h) = r.cell_dimensions(&scaled, 70, 20);
-        assert!(h <= 3, "pre-scaled image should fit in 3 rows, got {} rows", h);
+        assert!(
+            h <= 3,
+            "pre-scaled image should fit in 3 rows, got {} rows",
+            h
+        );
     }
 
     #[test]
     fn image_example_render_full_with_pre_scaled_images() {
         let renderer = MarkdownRenderer::new(76);
         let blocks = vec![
-            MarkdownBlock::Image { alt: "logo".into(), path: "logo.webp".into() },
+            MarkdownBlock::Image {
+                alt: "logo".into(),
+                path: "logo.webp".into(),
+            },
             MarkdownBlock::Paragraph(vec!["between".into()]),
-            MarkdownBlock::Image { alt: "demo".into(), path: "demo.webp".into() },
+            MarkdownBlock::Image {
+                alt: "demo".into(),
+                path: "demo.webp".into(),
+            },
         ];
 
         let logo_orig = make_img(300, 300);
@@ -886,74 +963,97 @@ mod example_image_tests {
         let demo_scaled = demo_orig.resize_exact(dsw, dsh, image::imageops::FilterType::Triangle);
 
         let resolved = vec![
-            ResolvedImage { path: "logo.webp".into(), image: logo_scaled },
-            ResolvedImage { path: "demo.webp".into(), image: demo_scaled },
+            ResolvedImage {
+                path: "logo.webp".into(),
+                image: logo_scaled,
+            },
+            ResolvedImage {
+                path: "demo.webp".into(),
+                image: demo_scaled,
+            },
         ];
         let mut r = SimpleResolver::new(9, 18);
         let output = renderer.render_full(&blocks, &TestTheme, &resolved, &mut r, 70, 20);
         assert_eq!(output.images.len(), 2);
-        assert!(output.images[0].height_cells <= 2, "logo should fit in 2 rows, got {}", output.images[0].height_cells);
-        assert!(output.images[1].height_cells <= 3, "demo should fit in 3 rows, got {}", output.images[1].height_cells);
+        assert!(
+            output.images[0].height_cells <= 2,
+            "logo should fit in 2 rows, got {}",
+            output.images[0].height_cells
+        );
+        assert!(
+            output.images[1].height_cells <= 3,
+            "demo should fit in 3 rows, got {}",
+            output.images[1].height_cells
+        );
     }
 
     #[test]
     fn image_example_zoom_changes_placement_dimensions() {
         let renderer = MarkdownRenderer::new(76);
-        let blocks = vec![
-            MarkdownBlock::Image { alt: "test".into(), path: "t.webp".into() },
-        ];
+        let blocks = vec![MarkdownBlock::Image {
+            alt: "test".into(),
+            path: "t.webp".into(),
+        }];
 
         let img = make_img(100, 100);
-        let resolved_base = vec![
-            ResolvedImage { path: "t.webp".into(), image: img.clone() },
-        ];
+        let resolved_base = vec![ResolvedImage {
+            path: "t.webp".into(),
+            image: img.clone(),
+        }];
         let mut r1 = SimpleResolver::new(9, 18);
         let output1 = renderer.render_full(&blocks, &TestTheme, &resolved_base, &mut r1, 70, 20);
 
         let zoomed = img.resize_exact(200, 200, image::imageops::FilterType::Triangle);
-        let resolved_zoomed = vec![
-            ResolvedImage { path: "t.webp".into(), image: zoomed },
-        ];
+        let resolved_zoomed = vec![ResolvedImage {
+            path: "t.webp".into(),
+            image: zoomed,
+        }];
         let mut r2 = SimpleResolver::new(9, 18);
         let output2 = renderer.render_full(&blocks, &TestTheme, &resolved_zoomed, &mut r2, 70, 20);
 
         assert!(
             output2.images[0].height_cells >= output1.images[0].height_cells,
             "zoomed image should have >= height: {} vs {}",
-            output2.images[0].height_cells, output1.images[0].height_cells,
+            output2.images[0].height_cells,
+            output1.images[0].height_cells,
         );
         assert!(
             output2.images[0].width_cells >= output1.images[0].width_cells,
             "zoomed image should have >= width: {} vs {}",
-            output2.images[0].width_cells, output1.images[0].width_cells,
+            output2.images[0].width_cells,
+            output1.images[0].width_cells,
         );
     }
 
     #[test]
     fn image_example_zoom_out_shrinks_placement() {
         let renderer = MarkdownRenderer::new(76);
-        let blocks = vec![
-            MarkdownBlock::Image { alt: "test".into(), path: "t.webp".into() },
-        ];
+        let blocks = vec![MarkdownBlock::Image {
+            alt: "test".into(),
+            path: "t.webp".into(),
+        }];
 
         let img = make_img(200, 200);
-        let resolved_base = vec![
-            ResolvedImage { path: "t.webp".into(), image: img.clone() },
-        ];
+        let resolved_base = vec![ResolvedImage {
+            path: "t.webp".into(),
+            image: img.clone(),
+        }];
         let mut r1 = SimpleResolver::new(9, 18);
         let output1 = renderer.render_full(&blocks, &TestTheme, &resolved_base, &mut r1, 70, 20);
 
         let shrunk = img.resize_exact(50, 50, image::imageops::FilterType::Triangle);
-        let resolved_shrunk = vec![
-            ResolvedImage { path: "t.webp".into(), image: shrunk },
-        ];
+        let resolved_shrunk = vec![ResolvedImage {
+            path: "t.webp".into(),
+            image: shrunk,
+        }];
         let mut r2 = SimpleResolver::new(9, 18);
         let output2 = renderer.render_full(&blocks, &TestTheme, &resolved_shrunk, &mut r2, 70, 20);
 
         assert!(
             output2.images[0].height_cells <= output1.images[0].height_cells,
             "shrunk image should have <= height: {} vs {}",
-            output2.images[0].height_cells, output1.images[0].height_cells,
+            output2.images[0].height_cells,
+            output1.images[0].height_cells,
         );
     }
 
@@ -962,12 +1062,16 @@ mod example_image_tests {
         let renderer = MarkdownRenderer::new(76);
         let blocks = vec![
             MarkdownBlock::Paragraph(vec!["before".into()]),
-            MarkdownBlock::Image { alt: "logo".into(), path: "logo.webp".into() },
+            MarkdownBlock::Image {
+                alt: "logo".into(),
+                path: "logo.webp".into(),
+            },
             MarkdownBlock::Paragraph(vec!["after".into()]),
         ];
-        let resolved = vec![
-            ResolvedImage { path: "logo.webp".into(), image: make_img(90, 36) },
-        ];
+        let resolved = vec![ResolvedImage {
+            path: "logo.webp".into(),
+            image: make_img(90, 36),
+        }];
         let mut r = SimpleResolver::new(9, 18);
         let output = renderer.render_full(&blocks, &TestTheme, &resolved, &mut r, 70, 20);
 
@@ -975,17 +1079,25 @@ mod example_image_tests {
         let row = img.row;
         let height = img.height_cells as usize;
         assert!(height > 0, "should have at least 1 row");
-        let blank_count = output.lines[row..row + height].iter()
+        let blank_count = output.lines[row..row + height]
+            .iter()
             .filter(|l| l.spans.is_empty() || l.spans.iter().all(|s| s.content.is_empty()))
             .count();
-        assert_eq!(blank_count, height, "should have {} blank lines for image, got {}", height, blank_count);
+        assert_eq!(
+            blank_count, height,
+            "should have {} blank lines for image, got {}",
+            height, blank_count
+        );
     }
 
     #[test]
     fn image_example_zoom_then_rerender_changes_layout() {
         let renderer = MarkdownRenderer::new(76);
         let blocks = vec![
-            MarkdownBlock::Image { alt: "a".into(), path: "a.webp".into() },
+            MarkdownBlock::Image {
+                alt: "a".into(),
+                path: "a.webp".into(),
+            },
             MarkdownBlock::Paragraph(vec!["text below".into()]),
         ];
 
@@ -995,28 +1107,36 @@ mod example_image_tests {
         let sh = (180.0 * scale_base).ceil() as u32;
         let base_img = original.resize_exact(sw, sh, image::imageops::FilterType::Triangle);
 
-        let resolved_base = vec![ResolvedImage { path: "a.webp".into(), image: base_img }];
+        let resolved_base = vec![ResolvedImage {
+            path: "a.webp".into(),
+            image: base_img,
+        }];
         let mut r1 = SimpleResolver::new(9, 18);
         let out1 = renderer.render_full(&blocks, &TestTheme, &resolved_base, &mut r1, 70, 20);
 
         let zoom_sw = (sw as f64 * 2.0).ceil() as u32;
         let zoom_sh = (sh as f64 * 2.0).ceil() as u32;
         let zoomed = original.resize_exact(zoom_sw, zoom_sh, image::imageops::FilterType::Triangle);
-        let resolved_zoom = vec![ResolvedImage { path: "a.webp".into(), image: zoomed }];
+        let resolved_zoom = vec![ResolvedImage {
+            path: "a.webp".into(),
+            image: zoomed,
+        }];
         let mut r2 = SimpleResolver::new(9, 18);
         let out2 = renderer.render_full(&blocks, &TestTheme, &resolved_zoom, &mut r2, 70, 20);
 
         assert!(
             out2.images[0].height_cells > out1.images[0].height_cells,
             "2x zoom should increase height: {} -> {}",
-            out1.images[0].height_cells, out2.images[0].height_cells,
+            out1.images[0].height_cells,
+            out2.images[0].height_cells,
         );
         let text_row_1 = out1.images[0].row + out1.images[0].height_cells as usize;
         let text_row_2 = out2.images[0].row + out2.images[0].height_cells as usize;
         assert!(
             text_row_2 > text_row_1,
             "text after zoomed image should be pushed down: {} -> {}",
-            text_row_1, text_row_2,
+            text_row_1,
+            text_row_2,
         );
     }
 
@@ -1039,13 +1159,28 @@ mod example_image_tests {
         let py_y = 0u32;
         let px_w = vp_w as u32 * fw as u32;
         let py_h = vp_h as u32 * fh as u32;
-        let cropped = scaled.crop_imm(px_x, py_y, px_w.min(scaled.width()), py_h.min(scaled.height()));
+        let cropped = scaled.crop_imm(
+            px_x,
+            py_y,
+            px_w.min(scaled.width()),
+            py_h.min(scaled.height()),
+        );
         let (crop_cw, crop_ch) = (
             (cropped.width().div_ceil(fw as u32)) as u16,
             (cropped.height().div_ceil(fh as u32)) as u16,
         );
-        assert!(crop_cw <= vp_w, "cropped width {} <= vp_w {}", crop_cw, vp_w);
-        assert!(crop_ch <= vp_h, "cropped height {} <= vp_h {}", crop_ch, vp_h);
+        assert!(
+            crop_cw <= vp_w,
+            "cropped width {} <= vp_w {}",
+            crop_cw,
+            vp_w
+        );
+        assert!(
+            crop_ch <= vp_h,
+            "cropped height {} <= vp_h {}",
+            crop_ch,
+            vp_h
+        );
     }
 
     #[test]
@@ -1071,45 +1206,74 @@ mod example_image_tests {
         let y1 = (y0 + py_h).min(scaled.height());
         let cropped = scaled.crop_imm(x0, y0, x1 - x0, y1 - y0);
 
-        assert!(x0 > 0, "crop starts at pixel x={}, scroll was {}", x0, scroll_x);
-        assert!(y0 > 0, "crop starts at pixel y={}, scroll was {}", y0, scroll_y);
-        assert_eq!(cropped.width(), px_w, "cropped width matches viewport pixels");
-        assert_eq!(cropped.height(), py_h, "cropped height matches viewport pixels");
+        assert!(
+            x0 > 0,
+            "crop starts at pixel x={}, scroll was {}",
+            x0,
+            scroll_x
+        );
+        assert!(
+            y0 > 0,
+            "crop starts at pixel y={}, scroll was {}",
+            y0,
+            scroll_y
+        );
+        assert_eq!(
+            cropped.width(),
+            px_w,
+            "cropped width matches viewport pixels"
+        );
+        assert_eq!(
+            cropped.height(),
+            py_h,
+            "cropped height matches viewport pixels"
+        );
     }
 
     #[test]
     fn image_placement_has_crop_field_none_by_default() {
         let renderer = MarkdownRenderer::new(76);
-        let blocks = vec![
-            MarkdownBlock::Image { alt: "t".into(), path: "t.webp".into() },
-        ];
-        let resolved = vec![
-            ResolvedImage { path: "t.webp".into(), image: make_img(90, 36) },
-        ];
+        let blocks = vec![MarkdownBlock::Image {
+            alt: "t".into(),
+            path: "t.webp".into(),
+        }];
+        let resolved = vec![ResolvedImage {
+            path: "t.webp".into(),
+            image: make_img(90, 36),
+        }];
         let mut r = SimpleResolver::new(9, 18);
         let output = renderer.render_full(&blocks, &TestTheme, &resolved, &mut r, 70, 20);
         assert_eq!(output.images.len(), 1);
-        assert!(output.images[0].crop.is_none(), "crop should be None by default from render_full");
+        assert!(
+            output.images[0].crop.is_none(),
+            "crop should be None by default from render_full"
+        );
     }
 
     #[test]
     fn grow_by_one_row_each_press() {
         let mut rows = 2u16;
-        for _ in 0..10 { rows = rows.saturating_add(1); }
+        for _ in 0..10 {
+            rows = rows.saturating_add(1);
+        }
         assert_eq!(rows, 12, "10 grows from 2 = 12 rows");
     }
 
     #[test]
     fn shrink_by_one_row_each_press() {
         let mut rows = 12u16;
-        for _ in 0..10 { rows = rows.saturating_sub(1).max(1); }
+        for _ in 0..10 {
+            rows = rows.saturating_sub(1).max(1);
+        }
         assert_eq!(rows, 2, "10 shrinks from 12 = 2 rows");
     }
 
     #[test]
     fn shrink_clamps_at_one_row() {
         let mut rows = 2u16;
-        for _ in 0..10 { rows = rows.saturating_sub(1).max(1); }
+        for _ in 0..10 {
+            rows = rows.saturating_sub(1).max(1);
+        }
         assert_eq!(rows, 1, "cannot go below 1 row");
     }
 
@@ -1156,7 +1320,11 @@ fn blockquote_parsed_with_level_and_children() -> anyhow::Result<()> {
 fn blockquote_multiline_grouped() -> anyhow::Result<()> {
     let renderer = MarkdownRenderer::new(80);
     let blocks = renderer.parse("> line 1\n> line 2\n> line 3");
-    assert_eq!(blocks.len(), 1, "consecutive > lines should be grouped into one blockquote");
+    assert_eq!(
+        blocks.len(),
+        1,
+        "consecutive > lines should be grouped into one blockquote"
+    );
     match &blocks[0] {
         MarkdownBlock::Blockquote { level, children } => {
             assert_eq!(*level, 1);
@@ -1175,8 +1343,13 @@ fn nested_blockquote_parsed() -> anyhow::Result<()> {
     match &blocks[0] {
         MarkdownBlock::Blockquote { level, children } => {
             assert_eq!(*level, 1);
-            let has_nested = children.iter().any(|c| matches!(c, MarkdownBlock::Blockquote { .. }));
-            assert!(has_nested, "level 1 should contain a nested level 2 blockquote");
+            let has_nested = children
+                .iter()
+                .any(|c| matches!(c, MarkdownBlock::Blockquote { .. }));
+            assert!(
+                has_nested,
+                "level 1 should contain a nested level 2 blockquote"
+            );
         }
         other => panic!("expected Blockquote, got {:?}", other),
     }
@@ -1188,19 +1361,31 @@ fn blockquote_renders_with_pipe_prefix() -> anyhow::Result<()> {
     let lines = render_markdown("> hello", 80);
     assert_eq!(lines.len(), 1);
     let text: String = lines[0].spans.iter().map(|s| s.content.as_ref()).collect();
-    assert!(text.starts_with("│"), "blockquote should start with │: got '{}'", text);
-    assert!(text.contains("hello"), "blockquote should contain text: got '{}'", text);
+    assert!(
+        text.starts_with("│"),
+        "blockquote should start with │: got '{}'",
+        text
+    );
+    assert!(
+        text.contains("hello"),
+        "blockquote should contain text: got '{}'",
+        text
+    );
     Ok(())
 }
 
 #[test]
 fn nested_blockquote_renders_with_double_pipe() -> anyhow::Result<()> {
     let lines = render_markdown("> outer\n> > inner", 80);
-    let all_text: String = lines.iter()
+    let all_text: String = lines
+        .iter()
         .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
         .collect::<Vec<&str>>()
         .join("");
-    assert!(all_text.contains("│ │"), "nested blockquote should have double pipe prefix");
+    assert!(
+        all_text.contains("│ │"),
+        "nested blockquote should have double pipe prefix"
+    );
     Ok(())
 }
 
@@ -1209,10 +1394,14 @@ fn blockquote_with_code_inside() -> anyhow::Result<()> {
     let md = "> text before\n> ```rust\n> fn main() {}\n> ```\n> text after";
     let renderer = MarkdownRenderer::new(80);
     let blocks = renderer.parse(md);
-    let bq = blocks.iter().find(|b| matches!(b, MarkdownBlock::Blockquote { .. }));
+    let bq = blocks
+        .iter()
+        .find(|b| matches!(b, MarkdownBlock::Blockquote { .. }));
     assert!(bq.is_some(), "should parse blockquote");
     if let Some(MarkdownBlock::Blockquote { children, .. }) = bq {
-        let has_code = children.iter().any(|c| matches!(c, MarkdownBlock::CodeBlock { .. }));
+        let has_code = children
+            .iter()
+            .any(|c| matches!(c, MarkdownBlock::CodeBlock { .. }));
         assert!(has_code, "blockquote children should contain a code block");
     }
     Ok(())
@@ -1286,7 +1475,13 @@ fn code_block_override_prefix() -> anyhow::Result<()> {
 fn code_block_constructor_helper() -> anyhow::Result<()> {
     let block = MarkdownBlock::code_block("python", "print(1)");
     match block {
-        MarkdownBlock::CodeBlock { lang, code, header_override, footer_override, prefix_override } => {
+        MarkdownBlock::CodeBlock {
+            lang,
+            code,
+            header_override,
+            footer_override,
+            prefix_override,
+        } => {
             assert_eq!(lang, "python");
             assert_eq!(code, "print(1)");
             assert!(header_override.is_none());
@@ -1309,12 +1504,21 @@ mod mermaid_render_tests {
         let md = "```mermaid\ngraph TD\nA[Start] --> B[End]\n```";
         let lines = render_markdown(md, 80);
         assert!(!lines.is_empty(), "mermaid flowchart should render output");
-        let all_text: String = lines.iter()
+        let all_text: String = lines
+            .iter()
             .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
             .collect::<Vec<&str>>()
             .join("");
-        assert!(all_text.contains("Start"), "rendered output should contain node label 'Start': got '{}'", all_text);
-        assert!(all_text.contains("End"), "rendered output should contain node label 'End': got '{}'", all_text);
+        assert!(
+            all_text.contains("Start"),
+            "rendered output should contain node label 'Start': got '{}'",
+            all_text
+        );
+        assert!(
+            all_text.contains("End"),
+            "rendered output should contain node label 'End': got '{}'",
+            all_text
+        );
     }
 
     #[test]
@@ -1329,7 +1533,8 @@ mod mermaid_render_tests {
         let md = "```mermaid\ngraph TD\nA[First] --> B[Second] --> C[Third]\n```";
         let lines = render_markdown(md, 80);
         assert!(!lines.is_empty());
-        let all_text: String = lines.iter()
+        let all_text: String = lines
+            .iter()
             .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
             .collect::<Vec<&str>>()
             .join("");
@@ -1343,7 +1548,8 @@ mod mermaid_render_tests {
         let md = "```mermaid\ngraph TD\nA{Decision} --> B[Result]\n```";
         let lines = render_markdown(md, 80);
         assert!(!lines.is_empty());
-        let all_text: String = lines.iter()
+        let all_text: String = lines
+            .iter()
             .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
             .collect::<Vec<&str>>()
             .join("");
@@ -1355,11 +1561,16 @@ mod mermaid_render_tests {
         let md = "```mermaid\ngraph TD\nA -->|yes| B\n```";
         let lines = render_markdown(md, 80);
         assert!(!lines.is_empty());
-        let all_text: String = lines.iter()
+        let all_text: String = lines
+            .iter()
             .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
             .collect::<Vec<&str>>()
             .join("");
-        assert!(all_text.contains("yes"), "edge label should appear: got '{}'", all_text);
+        assert!(
+            all_text.contains("yes"),
+            "edge label should appear: got '{}'",
+            all_text
+        );
     }
 
     #[test]
@@ -1375,7 +1586,10 @@ mod mermaid_render_tests {
     fn mermaid_invalid_syntax_skipped() {
         let md = "```mermaid\nnot a valid mermaid diagram\n```";
         let lines = render_markdown(md, 80);
-        assert!(lines.is_empty(), "invalid mermaid should be skipped gracefully");
+        assert!(
+            lines.is_empty(),
+            "invalid mermaid should be skipped gracefully"
+        );
     }
 
     #[test]
@@ -1385,7 +1599,7 @@ mod mermaid_render_tests {
         assert!(!lines.is_empty(), "unnamed nodes should still render");
         let buf = render_to_buffer(lines, 80, 20)?;
         assert!(buf.area.width > 0);
-    Ok(())
+        Ok(())
     }
 
     #[test]
@@ -1402,13 +1616,14 @@ mod mermaid_render_tests {
         assert!(result.is_some());
         let lines = result.context("parse result")?;
         assert!(!lines.is_empty());
-        let all_text: String = lines.iter()
+        let all_text: String = lines
+            .iter()
             .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
             .collect::<Vec<&str>>()
             .join("");
         assert!(all_text.contains("Hello"));
         assert!(all_text.contains("World"));
-    Ok(())
+        Ok(())
     }
 
     #[test]
@@ -1417,8 +1632,12 @@ mod mermaid_render_tests {
         let result = crate::mermaid::render_mermaid(source, 80, Some(10), &TestTheme);
         assert!(result.is_some());
         let lines = result.context("parse result")?;
-        assert!(lines.len() <= 25, "should try to respect max_height, got {} lines", lines.len());
-    Ok(())
+        assert!(
+            lines.len() <= 25,
+            "should try to respect max_height, got {} lines",
+            lines.len()
+        );
+        Ok(())
     }
 
     #[test]
@@ -1426,11 +1645,15 @@ mod mermaid_render_tests {
         let md = "```mermaid\nsequenceDiagram\n    Alice->>Bob: Hello\n    Bob-->>Alice: Hi\n```";
         let lines = render_markdown(md, 80);
         assert!(!lines.is_empty(), "sequence diagram should render");
-        let all_text: String = lines.iter()
+        let all_text: String = lines
+            .iter()
             .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
             .collect::<Vec<&str>>()
             .join("");
-        assert!(all_text.contains("Alice"), "should contain participant Alice");
+        assert!(
+            all_text.contains("Alice"),
+            "should contain participant Alice"
+        );
         assert!(all_text.contains("Bob"), "should contain participant Bob");
         assert!(all_text.contains("Hello"), "should contain message text");
     }
@@ -1440,7 +1663,8 @@ mod mermaid_render_tests {
         let md = "```mermaid\npie title Pets\n    \"Dogs\" : 386\n    \"Cats\" : 85\n```";
         let lines = render_markdown(md, 80);
         assert!(!lines.is_empty(), "pie chart should render");
-        let all_text: String = lines.iter()
+        let all_text: String = lines
+            .iter()
             .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
             .collect::<Vec<&str>>()
             .join("");
@@ -1454,7 +1678,8 @@ mod mermaid_render_tests {
         let md = "```mermaid\ngantt\ntitle Project\nsection Phase 1\nTask A :a1, 7d\nTask B :a2, 5d\n```";
         let lines = render_markdown(md, 80);
         assert!(!lines.is_empty(), "gantt chart should render");
-        let all_text: String = lines.iter()
+        let all_text: String = lines
+            .iter()
             .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
             .collect::<Vec<&str>>()
             .join("");
@@ -1467,7 +1692,8 @@ mod mermaid_render_tests {
         let md = "```mermaid\nstateDiagram-v2\n    [*] --> Idle\n    Idle --> Running\n    Running --> Idle\n```";
         let lines = render_markdown(md, 80);
         assert!(!lines.is_empty(), "state diagram should render");
-        let all_text: String = lines.iter()
+        let all_text: String = lines
+            .iter()
             .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
             .collect::<Vec<&str>>()
             .join("");
@@ -1481,12 +1707,19 @@ mod mermaid_render_tests {
         let result = crate::mermaid::render_mermaid(source, 80, None, &TestTheme);
         assert!(result.is_some());
         let lines = result.context("parse result")?;
-        let all_text: String = lines.iter()
+        let all_text: String = lines
+            .iter()
             .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
             .collect::<Vec<&str>>()
             .join("");
-        assert!(!all_text.contains('/'), "diamond should use rounded corners, not slashes");
-        assert!(all_text.contains("Decision"), "should contain diamond label");
+        assert!(
+            !all_text.contains('/'),
+            "diamond should use rounded corners, not slashes"
+        );
+        assert!(
+            all_text.contains("Decision"),
+            "should contain diamond label"
+        );
         Ok(())
     }
 
@@ -1496,11 +1729,15 @@ mod mermaid_render_tests {
         let result = crate::mermaid::render_mermaid(source, 80, None, &TestTheme);
         assert!(result.is_some());
         let lines = result.context("parse result")?;
-        let all_text: String = lines.iter()
+        let all_text: String = lines
+            .iter()
             .flat_map(|l| l.spans.iter().map(|s| s.content.as_ref()))
             .collect::<Vec<&str>>()
             .join("");
-        assert!(!all_text.contains('┼'), "should not have dangling cross characters");
+        assert!(
+            !all_text.contains('┼'),
+            "should not have dangling cross characters"
+        );
         Ok(())
     }
 }

@@ -3,11 +3,41 @@ use pest_derive::Parser;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui_markdown::highlight::{pest_pairs_to_segments, CodeHighlighter, StyleSegment};
 
-// Option A: reference an external .pest file (must reside under src/)
+// Option A: inline the grammar directly (no external file needed)
 #[derive(Parser)]
-#[grammar = "highlight/mcfunction.pest"]
-// Option B: inline the grammar directly (no external file needed)
-// #[grammar_inline = r##" ... "##]
+#[grammar_inline = r##"
+WHITESPACE = _{ " " | "\t" }
+
+file = { SOI ~ (line ~ NEWLINE?)* ~ EOI }
+
+line = { comment | command }
+
+comment = { "#" ~ (!NEWLINE ~ ANY)* }
+
+command = { cmd_name ~ token* }
+
+token = _{ selector | coord | nbt | str | number | word }
+
+cmd_name = { ASCII_ALPHA+ }
+
+selector = { "@" ~ ASCII_ALPHA* ~ ("[" ~ (!"]" ~ ANY)* ~ "]")? }
+
+coord = { ("~" | "^") ~ "-"? ~ ASCII_DIGIT* ~ ("." ~ ASCII_DIGIT+)? }
+
+nbt = { "{" ~ nbt_inner* ~ "}" }
+nbt_inner = _{ nbt | str | number | (!("}" | "\"" | "'" | "{") ~ ANY) }
+
+str = @{
+    "\"" ~ (!("\"") ~ ANY)* ~ "\""
+  | "'" ~ (!("'") ~ ANY)* ~ "'"
+}
+
+number = { "-"? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? }
+
+word = { (ASCII_ALPHANUMERIC | "_" | ":" | "-" | "=" | "." | "/" | "<" | ">" | ",")+ }
+"##]
+// Option B: reference an external .pest file (must reside under src/)
+// #[grammar = "highlight/mcfunction.pest"]
 struct McfunctionParser;
 
 pub struct McfunctionHighlighter;

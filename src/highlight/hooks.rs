@@ -32,11 +32,7 @@ impl HighlightHooks {
 
 #[cfg(feature = "markdown")]
 impl crate::markdown::RenderHooks for HighlightHooks {
-    fn render_code_block(
-        &self,
-        lang: &str,
-        content: &str,
-    ) -> Option<Vec<Line<'static>>> {
+    fn render_code_block(&self, lang: &str, content: &str) -> Option<Vec<Line<'static>>> {
         let segments = self.highlighter.highlight(lang, content);
         if segments.is_empty() {
             return None;

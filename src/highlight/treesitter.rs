@@ -58,6 +58,13 @@ macro_rules! lang_entry {
     }};
 }
 
+#[cfg(any(
+    feature = "highlight-lang-javascript",
+    feature = "highlight-lang-c",
+    feature = "highlight-lang-cpp",
+    feature = "highlight-lang-bash",
+    feature = "highlight-lang-solidity",
+))]
 macro_rules! lang_entry_sq {
     ($lang_crate:ident) => {{
         LangEntry {
@@ -211,6 +218,7 @@ fn get_lang(lang: &str) -> Option<LangEntry> {
     }
 }
 
+#[cfg(feature = "highlight-lang-kotlin")]
 const KOTLIN_HIGHLIGHTS: &str = r#"
 (line_comment) @comment
 (multiline_comment) @comment
@@ -286,6 +294,7 @@ const KOTLIN_HIGHLIGHTS: &str = r#"
 ["." "," ";" ":" "::"] @punctuation.delimiter
 "#;
 
+#[cfg(feature = "highlight-lang-cmake")]
 const CMAKE_HIGHLIGHTS: &str = r#"
 [
   (line_comment)
@@ -316,6 +325,7 @@ const CMAKE_HIGHLIGHTS: &str = r#"
 ["(" ")"] @punctuation.bracket
 "#;
 
+#[cfg(feature = "highlight-lang-proto")]
 const PROTO_HIGHLIGHTS: &str = r#"
 [
   "syntax" "package" "option" "import" "service" "rpc"
@@ -388,11 +398,7 @@ impl CodeHighlighter for TreeSitterHighlighter {
                         .map(|&idx| highlight_to_style(idx))
                         .unwrap_or_default();
                     if start != end {
-                        segments.push(StyleSegment {
-                            start,
-                            end,
-                            style,
-                        });
+                        segments.push(StyleSegment { start, end, style });
                     }
                 }
                 Ok(tree_sitter_highlight::HighlightEvent::HighlightStart(
@@ -420,14 +426,11 @@ fn highlight_to_style(idx: usize) -> Style {
         "constant" | "constant.builtin" | "boolean" => Style::default().fg(Color::Yellow),
         "string" | "string.special" => Style::default().fg(Color::Green),
         "string.escape" | "string.regex" => Style::default().fg(Color::LightGreen),
-        "keyword"
-        | "keyword.function"
-        | "conditional"
-        | "repeat"
-        | "exception"
-        | "include" => Style::default()
-            .fg(Color::Magenta)
-            .add_modifier(Modifier::BOLD),
+        "keyword" | "keyword.function" | "conditional" | "repeat" | "exception" | "include" => {
+            Style::default()
+                .fg(Color::Magenta)
+                .add_modifier(Modifier::BOLD)
+        }
         "number" => Style::default().fg(Color::Yellow),
         "function" | "function.builtin" => Style::default().fg(Color::Cyan),
         "type" | "type.builtin" | "namespace" => Style::default().fg(Color::LightCyan),

@@ -1,7 +1,9 @@
 #[path = "utils/mod.rs"]
 mod common;
 
-use common::{AppState, Theme, draw_frame, poll_and_handle, setup_terminal, restore_terminal, lorem};
+use common::{
+    draw_frame, lorem, poll_and_handle, restore_terminal, setup_terminal, AppState, Theme,
+};
 use ratatui_markdown::markdown::MarkdownRenderer;
 
 const MARKDOWN_TEMPLATE: &str = r#"

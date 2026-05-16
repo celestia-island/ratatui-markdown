@@ -1,7 +1,9 @@
 #[path = "utils/mod.rs"]
 mod common;
 
-use common::{AppState, Theme, draw_frame, poll_and_handle, setup_terminal, restore_terminal, lorem};
+use common::{
+    draw_frame, lorem, poll_and_handle, restore_terminal, setup_terminal, AppState, Theme,
+};
 use ratatui::{
     style::{Color, Modifier, Style},
     text::{Line, Span},
@@ -20,7 +22,9 @@ impl RenderHooks for TimelineCodeHooks {
             ),
             Span::styled(
                 lang.to_string(),
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
             ),
         ]))
     }
@@ -103,8 +107,7 @@ fn main() -> anyhow::Result<()> {
         .replace("LOREM_3", &lorem(150));
 
     let theme = Theme;
-    let renderer = MarkdownRenderer::new(76)
-        .with_render_hooks(Box::new(TimelineCodeHooks));
+    let renderer = MarkdownRenderer::new(76).with_render_hooks(Box::new(TimelineCodeHooks));
     let blocks = renderer.parse(&md);
     let lines = renderer.render(&blocks, &theme);
     let mut state = AppState::new(lines.len());

@@ -137,9 +137,11 @@ impl MarkdownRenderer {
                     && ctx.resolved_images[*ctx.next_image_idx].path == *path
                 {
                     let ref_img = &ctx.resolved_images[*ctx.next_image_idx].image;
-                    let (w_cells, h_cells) =
-                        ctx.resolver
-                            .cell_dimensions(ref_img, ctx.max_image_width, ctx.max_image_height);
+                    let (w_cells, h_cells) = ctx.resolver.cell_dimensions(
+                        ref_img,
+                        ctx.max_image_width,
+                        ctx.max_image_height,
+                    );
                     if w_cells > 0 && h_cells > 0 {
                         let row = ctx.lines.len();
                         for _ in 0..h_cells {
@@ -165,8 +167,7 @@ impl MarkdownRenderer {
                             return;
                         }
                     }
-                    ctx.lines
-                        .push(Line::from(ctx.resolver.fallback(path, alt)));
+                    ctx.lines.push(Line::from(ctx.resolver.fallback(path, alt)));
                 }
             }
             _ => self.render_block(block, _block_idx, theme, _blocks, ctx.lines),
@@ -287,15 +288,10 @@ impl MarkdownRenderer {
                     #[cfg(feature = "mermaid")]
                     {
                         let mermaid_width = self.max_width.saturating_sub(2);
-                        let rendered = crate::mermaid::render_mermaid(
-                            &code,
-                            mermaid_width,
-                            None,
-                            theme,
-                        );
+                        let rendered =
+                            crate::mermaid::render_mermaid(&code, mermaid_width, None, theme);
                         if let Some(mermaid_lines) = rendered {
-                            let border_style =
-                                Style::default().fg(theme.get_muted_text_color());
+                            let border_style = Style::default().fg(theme.get_muted_text_color());
 
                             lines.push(Line::from(Span::styled(
                                 format!("{ROUNDED_TL}{HLINE} mermaid"),
@@ -304,10 +300,8 @@ impl MarkdownRenderer {
 
                             let prefix = format!("{VLINE} ");
                             for ml in mermaid_lines {
-                                let mut spans: Vec<Span<'static>> = vec![Span::styled(
-                                    prefix.clone(),
-                                    border_style,
-                                )];
+                                let mut spans: Vec<Span<'static>> =
+                                    vec![Span::styled(prefix.clone(), border_style)];
                                 spans.extend(ml.spans);
                                 lines.push(Line::from(spans));
                             }
@@ -343,20 +337,25 @@ impl MarkdownRenderer {
                 let prefix = if let Some(ref pfx) = prefix_override {
                     pfx.clone()
                 } else if let Some(h) = hooks {
-                    h.code_block_line_prefix(lang).unwrap_or_else(|| format!("{VLINE} "))
+                    h.code_block_line_prefix(lang)
+                        .unwrap_or_else(|| format!("{VLINE} "))
                 } else {
                     format!("{VLINE} ")
                 };
 
                 for (idx, code_line) in content_lines.iter().enumerate() {
                     if let Some(h) = hooks {
-                        if let Some(custom) = h.code_block_line(code_line, idx, content_line_count) {
+                        if let Some(custom) = h.code_block_line(code_line, idx, content_line_count)
+                        {
                             lines.push(custom);
                             continue;
                         }
                     }
                     lines.push(Line::from(vec![
-                        Span::styled(prefix.clone(), Style::default().fg(theme.get_muted_text_color())),
+                        Span::styled(
+                            prefix.clone(),
+                            Style::default().fg(theme.get_muted_text_color()),
+                        ),
                         Span::styled(
                             code_line.to_string(),
                             Style::default().fg(theme.get_accent_yellow()),
@@ -396,7 +395,8 @@ impl MarkdownRenderer {
                     Self::find_list_context(block_idx, blocks);
 
                 if let Some(h) = hooks {
-                    let marker = h.list_item_marker(*indent, is_last, &ancestors_are_last, index_in_group);
+                    let marker =
+                        h.list_item_marker(*indent, is_last, &ancestors_are_last, index_in_group);
                     if marker.is_some() || h.list_item_content(text, *indent).is_some() {
                         let marker_str = marker.unwrap_or_else(|| "\u{2022} ".to_string());
                         if let Some(custom_content) = h.list_item_content(text, *indent) {
@@ -416,7 +416,8 @@ impl MarkdownRenderer {
                                 let mut text_lines = Vec::new();
                                 for text_line in text.split('\n') {
                                     let spans = parse_inline_formatting(text_line, theme);
-                                    let wrapped_spans = Self::wrap_styled_spans_to_width(spans, content_width);
+                                    let wrapped_spans =
+                                        Self::wrap_styled_spans_to_width(spans, content_width);
                                     text_lines.extend(wrapped_spans);
                                 }
                                 text_lines
@@ -458,17 +459,12 @@ impl MarkdownRenderer {
 
                 let mut inner_lines = Vec::new();
                 for (child_idx, child) in children.iter().enumerate() {
-                    self.render_block(
-                        child,
-                        child_idx,
-                        theme,
-                        children,
-                        &mut inner_lines,
-                    );
+                    self.render_block(child, child_idx, theme, children, &mut inner_lines);
                 }
 
                 for mut line in inner_lines {
-                    line.spans.insert(0, Span::styled(prefix_str.clone(), prefix_style));
+                    line.spans
+                        .insert(0, Span::styled(prefix_str.clone(), prefix_style));
                     for span in line.spans.iter_mut().skip(1) {
                         let new_style = span
                             .style
@@ -522,16 +518,15 @@ impl MarkdownRenderer {
         }
     }
 
-    fn find_list_context(
-        block_idx: usize,
-        blocks: &[MarkdownBlock],
-    ) -> (bool, Vec<bool>, usize) {
-        let group_start = (0..=block_idx).rev().find(|&i| {
-            !matches!(blocks.get(i), Some(MarkdownBlock::ListItem(_, _)))
-        }).map(|i| i + 1).unwrap_or(0);
-        let group_end = (block_idx..blocks.len()).find(|&i| {
-            !matches!(blocks.get(i), Some(MarkdownBlock::ListItem(_, _)))
-        }).unwrap_or(blocks.len());
+    fn find_list_context(block_idx: usize, blocks: &[MarkdownBlock]) -> (bool, Vec<bool>, usize) {
+        let group_start = (0..=block_idx)
+            .rev()
+            .find(|&i| !matches!(blocks.get(i), Some(MarkdownBlock::ListItem(_, _))))
+            .map(|i| i + 1)
+            .unwrap_or(0);
+        let group_end = (block_idx..blocks.len())
+            .find(|&i| !matches!(blocks.get(i), Some(MarkdownBlock::ListItem(_, _))))
+            .unwrap_or(blocks.len());
 
         let items: Vec<(usize, u8)> = blocks[group_start..group_end]
             .iter()
