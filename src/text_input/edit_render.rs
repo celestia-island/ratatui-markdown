@@ -7,38 +7,80 @@ use crate::theme::RichTextTheme;
 
 pub fn render_edit_mode(
     text: &str,
-    _cursor_char_idx: usize,
+    cursor_char_idx: usize,
     horizontal_scroll: usize,
     max_width: usize,
     password: bool,
     placeholder: Option<&str>,
     theme: &impl RichTextTheme,
 ) -> Vec<Line<'static>> {
-    let display_text = if text.is_empty() {
-        placeholder.unwrap_or("")
-    } else if password {
-        &"*".repeat(text.chars().count())
-    } else {
-        text
-    };
-
-    let spans = if text.is_empty() {
-        vec![Span::styled(
-            display_text.to_string(),
+    if text.is_empty() {
+        let display = placeholder.unwrap_or("");
+        return vec![Line::from(vec![Span::styled(
+            display.to_string(),
             Style::default().fg(theme.get_muted_text_color()),
-        )]
-    } else if password {
-        vec![Span::styled(
-            display_text.to_string(),
-            Style::default().fg(theme.get_text_color()),
-        )]
-    } else {
-        style_source_spans(display_text, theme)
-    };
+        )])];
+    }
 
-    let line = Line::from(spans);
-    let visible = apply_horizontal_scroll(&line, horizontal_scroll, max_width);
-    vec![visible]
+    if password {
+        let masked = "*".repeat(text.chars().count());
+        return vec![Line::from(Span::styled(
+            masked,
+            Style::default().fg(theme.get_text_color()),
+        ))];
+    }
+
+    let cursor_line_idx = char_offset_to_line(text, cursor_char_idx);
+    let mut lines: Vec<Line<'static>> = Vec::new();
+
+    for (line_idx, raw_line) in text.split('\n').enumerate() {
+        let spans = style_source_spans(raw_line, theme);
+        let line = Line::from(spans);
+        if line_idx == cursor_line_idx {
+            lines.push(apply_horizontal_scroll(&line, horizontal_scroll, max_width));
+        } else {
+            lines.push(line);
+        }
+    }
+
+    lines
+}
+
+pub(in crate::text_input) fn char_offset_to_line(text: &str, char_idx: usize) -> usize {
+    let mut offset = 0usize;
+    for (i, line) in text.split('\n').enumerate() {
+        let line_len = line.chars().count();
+        if offset + line_len >= char_idx {
+            return i;
+        }
+        offset += line_len + 1;
+    }
+    text.split('\n').count().saturating_sub(1)
+}
+
+pub(in crate::text_input) fn char_offset_to_line_col(text: &str, char_idx: usize) -> (usize, usize) {
+    let mut offset = 0usize;
+    for (i, line) in text.split('\n').enumerate() {
+        let line_len = line.chars().count();
+        if offset + line_len >= char_idx {
+            return (i, char_idx - offset);
+        }
+        offset += line_len + 1;
+    }
+    let last_line_len = text.split('\n').next_back().map(|l| l.chars().count()).unwrap_or(0);
+    let num_lines = text.split('\n').count().saturating_sub(1);
+    (num_lines, last_line_len)
+}
+
+pub(in crate::text_input) fn line_col_to_char_offset(text: &str, line_idx: usize, col: usize) -> usize {
+    let mut offset = 0usize;
+    for (i, line) in text.split('\n').enumerate() {
+        if i == line_idx {
+            return offset + col.min(line.chars().count());
+        }
+        offset += line.chars().count() + 1;
+    }
+    text.chars().count()
 }
 
 fn style_source_spans(text: &str, theme: &impl RichTextTheme) -> Vec<Span<'static>> {
@@ -325,6 +367,10 @@ fn style_source_spans(text: &str, theme: &impl RichTextTheme) -> Vec<Span<'stati
             ));
             i += 1;
             if i < len && chars[i] == ' ' {
+                spans.push(Span::styled(
+                    " ",
+                    Style::default().fg(theme.get_info_color()),
+                ));
                 i += 1;
             }
             let rest: String = chars[i..]
@@ -346,8 +392,10 @@ fn style_source_spans(text: &str, theme: &impl RichTextTheme) -> Vec<Span<'stati
         {
             flush_current!();
             let marker = chars[i].to_string();
+            let space = " ".to_string();
             spans.push(Span::styled(marker, Style::default().fg(muted_color)));
-            i += 1;
+            spans.push(Span::styled(space, Style::default().fg(muted_color)));
+            i += 2;
             continue;
         }
 
@@ -471,6 +519,12 @@ mod tests {
     fn plain_text_renders() {
         let lines = render_edit_mode("hello world", 0, 0, 80, false, None, &theme());
         assert_eq!(lines.len(), 1);
+    }
+
+    #[test]
+    fn multiline_text_renders_multiple_lines() {
+        let lines = render_edit_mode("hello\nworld", 5, 0, 80, false, None, &theme());
+        assert_eq!(lines.len(), 2);
     }
 
     #[test]

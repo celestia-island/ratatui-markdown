@@ -1,76 +1,34 @@
 #[path = "utils/mod.rs"]
 mod common;
 
+use std::cell::Cell;
 use std::rc::Rc;
 
 use common::{restore_terminal, setup_terminal, Theme};
 use ratatui::{
     crossterm::event::{self, Event, KeyCode, KeyEventKind},
-    layout::{Constraint, Layout, Rect},
-    style::{Color, Modifier, Style},
+    layout::{Constraint, Layout},
+    style::{Color, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Padding, Paragraph},
     Frame, Terminal,
 };
-use ratatui_markdown::{
-    scroll::{CursorLineMode, SpanTree, SpanTreeEntry},
-    text_input::{
-        CursorBlinkController, CursorPosition, CursorShape, CursorStyle, InputMode, Selection,
-        TextInput,
-    },
+use ratatui_markdown::text_input::{
+    CursorBlinkController, CursorPosition, CursorShape, CursorStyle, InputMode, TextInput,
 };
 
-const SAMPLE_TEXT: &str = r#"# Hello World
+const INITIAL_TEXT: &str = "\
+# Hello World
 
 This is a **markdown** document with *italic*, `inline code`, and [links](https://example.com).
 
 ## Features
 
-- Dual-mode rendering
 - **Bold** and *italic* text
 - ~~Strikethrough~~ support
 - `Code spans` highlighted
 
-### Code Block
-
-```rust
-fn main() {
-    println!("Hello, ratatui-markdown!");
-}
-```
-
-> A blockquote with *formatting*
-
-| Col A | Col B |
-|-------|-------|
-| 1     | 2     |
-"#;
-
-struct SimpleBlink {
-    visible: bool,
-}
-
-impl CursorBlinkController for SimpleBlink {
-    fn is_visible(&self) -> bool {
-        self.visible
-    }
-}
-
-struct App {
-    input: TextInput,
-    blink: Rc<SimpleBlink>,
-    blink_tick: u8,
-    panel: Panel,
-    cursor_shape_idx: usize,
-    read_scroll: usize,
-    tree: SpanTree,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Panel {
-    Input,
-    SpanTree,
-}
+> A blockquote with *formatting*";
 
 const CURSOR_SHAPES: [CursorShape; 4] = [
     CursorShape::Block,
@@ -79,154 +37,140 @@ const CURSOR_SHAPES: [CursorShape; 4] = [
     CursorShape::HollowBlock,
 ];
 
+struct SimpleBlink {
+    visible: Cell<bool>,
+}
+
+impl CursorBlinkController for SimpleBlink {
+    fn is_visible(&self) -> bool {
+        self.visible.get()
+    }
+}
+
+struct App {
+    input: TextInput,
+    blink: Rc<SimpleBlink>,
+    blink_tick: u8,
+    cursor_shape_idx: usize,
+}
+
 impl App {
     fn new() -> Self {
-        let blink = Rc::new(SimpleBlink { visible: true });
-        let input = TextInput::new()
+        let blink = Rc::new(SimpleBlink {
+            visible: Cell::new(true),
+        });
+        let mut input = TextInput::new()
             .with_mode(InputMode::Edit)
+            .with_cursor_style(
+                CursorStyle::new()
+                    .with_shape(CursorShape::Block)
+                    .with_position(CursorPosition::OnChar),
+            )
             .with_blink_controller(blink.clone())
             .with_placeholder("Type markdown here...");
-
-        let mut tree = SpanTree::new().with_cursor_line_mode(CursorLineMode::AllLines);
-        let entries = vec![
-            make_entry("agent-1", "Alpha", vec!["Task: Write docs", "Status: In progress", "Priority: High"]),
-            make_entry("agent-2", "Beta", vec!["Task: Fix bugs", "Status: Done"]),
-            make_entry("agent-3", "Gamma", vec!["Task: Add tests", "Status: Pending", "Priority: Medium", "ETA: 2 days"]),
-            make_entry("agent-4", "Delta", vec!["Task: Review PR"]),
-        ];
-        tree.set_entries(entries);
-        tree.set_selected_index(0);
+        input.set_text(INITIAL_TEXT);
 
         Self {
             input,
             blink,
             blink_tick: 0,
-            panel: Panel::Input,
             cursor_shape_idx: 0,
-            read_scroll: 0,
-            tree,
         }
     }
 
-    fn current_shape(&self) -> CursorShape {
-        CURSOR_SHAPES[self.cursor_shape_idx]
+    fn cycle_cursor_shape(&mut self) {
+        self.cursor_shape_idx = (self.cursor_shape_idx + 1) % CURSOR_SHAPES.len();
+        self.input = {
+            let mut new_input = TextInput::new()
+                .with_mode(self.input.mode())
+                .with_cursor_style(
+                    CursorStyle::new()
+                        .with_shape(CURSOR_SHAPES[self.cursor_shape_idx])
+                        .with_position(CursorPosition::OnChar),
+                )
+                .with_blink_controller(self.blink.clone())
+                .with_placeholder("Type markdown here...");
+            let text = self.input.text().to_string();
+            let cursor = self.input.cursor_char_idx();
+            new_input.set_text(text);
+            new_input.set_cursor_char_idx(cursor);
+            new_input
+        };
     }
 
     fn shape_name(&self) -> &'static str {
-        match self.current_shape() {
+        match CURSOR_SHAPES[self.cursor_shape_idx] {
             CursorShape::Block => "Block",
             CursorShape::Bar => "Bar",
-            CursorShape::Underline => "Underline",
-            CursorShape::HollowBlock => "HollowBlock",
+            CursorShape::Underline => "ULine",
+            CursorShape::HollowBlock => "Hollow",
         }
     }
 }
 
-fn make_entry(id: &str, name: &str, details: Vec<&str>) -> SpanTreeEntry {
-    let mut lines = Vec::new();
-    lines.push(vec![
-        Span::styled("  ", Style::default()),
-        Span::styled(name.to_string(), Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-    ]);
-    for d in &details {
-        lines.push(vec![
-            Span::styled("    ", Style::default()),
-            Span::styled(d.to_string(), Style::default().fg(Color::White)),
-        ]);
-    }
-    SpanTreeEntry::new(id, lines)
-}
-
-fn run(terminal: &mut Terminal<ratatui::backend::CrosstermBackend<std::io::Stdout>>) -> anyhow::Result<()> {
+fn run(
+    terminal: &mut Terminal<ratatui::backend::CrosstermBackend<std::io::Stdout>>,
+) -> anyhow::Result<()> {
     let mut app = App::new();
 
     loop {
         terminal.draw(|f| draw(f, &mut app))?;
 
-        if event::poll(std::time::Duration::from_millis(100))? {
-            if handle_event(&mut app)? {
-                return Ok(());
-            }
+        if event::poll(std::time::Duration::from_millis(100))? && handle_event(&mut app)? {
+            return Ok(());
         }
 
         app.blink_tick = (app.blink_tick + 1) % 8;
-        Rc::get_mut(&mut app.blink).unwrap().visible = app.blink_tick < 5;
+        app.blink.visible.set(app.blink_tick < 5);
     }
 }
 
 fn handle_event(app: &mut App) -> anyhow::Result<bool> {
-    let Event::Key(key) = event::read()? else {
-        return Ok(false);
-    };
+    let Event::Key(key) = event::read()? else { return Ok(false) };
     if key.kind != KeyEventKind::Press {
         return Ok(false);
     }
 
     match key.code {
-        KeyCode::Char('q') => return Ok(true),
-        KeyCode::Tab => {
-            app.panel = match app.panel {
-                Panel::Input => Panel::SpanTree,
-                Panel::SpanTree => Panel::Input,
-            };
-        }
-        KeyCode::Char('m') if app.panel == Panel::Input => {
+        KeyCode::Esc => return Ok(true),
+
+        KeyCode::F(2) => {
             match app.input.mode() {
-                InputMode::Edit => {
-                    app.input.set_mode(InputMode::Read);
-                    app.read_scroll = 0;
-                }
-                InputMode::Read => {
-                    app.input.set_mode(InputMode::Edit);
-                }
+                InputMode::Edit => app.input.set_mode(InputMode::Read),
+                InputMode::Read => app.input.set_mode(InputMode::Edit),
             }
         }
-        KeyCode::Char('s') if app.panel == Panel::Input => {
-            app.cursor_shape_idx = (app.cursor_shape_idx + 1) % CURSOR_SHAPES.len();
-            app.input = TextInput::new()
-                .with_mode(app.input.mode())
-                .with_cursor_style(
-                    CursorStyle::new()
-                        .with_shape(app.current_shape())
-                        .with_position(CursorPosition::OnChar),
-                )
-                .with_blink_controller(app.blink.clone())
-                .with_placeholder("Type markdown here...");
-            app.input.set_text(SAMPLE_TEXT);
-            app.input.set_cursor_char_idx(SAMPLE_TEXT.len());
+
+        KeyCode::F(3) => {
+            app.cycle_cursor_shape();
         }
-        KeyCode::Char('l') if app.panel == Panel::Input => {
-            let pos = match app.input.cursor_char_idx() {
-                idx if idx < SAMPLE_TEXT.len() => idx + 1,
-                _ => app.input.cursor_char_idx(),
-            };
-            app.input.set_cursor_char_idx(pos);
-        }
-        KeyCode::Char('h') if app.panel == Panel::Input => {
-            if app.input.cursor_char_idx() > 0 {
-                app.input.set_cursor_char_idx(app.input.cursor_char_idx() - 1);
+
+        KeyCode::Left => app.input.move_cursor_left(),
+        KeyCode::Right => app.input.move_cursor_right(),
+        KeyCode::Up => match app.input.mode() {
+            InputMode::Edit => app.input.move_cursor_up(),
+            InputMode::Read => {
+                let off = app.input.scroll_offset().saturating_sub(1);
+                app.input.set_scroll_offset(off);
             }
-        }
-        KeyCode::Char('p') if app.panel == Panel::Input => {
-            let idx = app.input.cursor_char_idx();
-            if idx > 5 && idx < SAMPLE_TEXT.len() {
-                app.input.set_selection(Some(Selection::new(idx - 5, idx)));
+        },
+        KeyCode::Down => match app.input.mode() {
+            InputMode::Edit => app.input.move_cursor_down(),
+            InputMode::Read => {
+                let off = app.input.scroll_offset() + 1;
+                app.input.set_scroll_offset(off);
             }
-        }
-        KeyCode::Up if app.panel == Panel::SpanTree => {
-            app.tree.navigate_up();
-        }
-        KeyCode::Down if app.panel == Panel::SpanTree => {
-            app.tree.navigate_down();
-        }
-        KeyCode::Up if app.panel == Panel::Input && app.input.mode() == InputMode::Read => {
-            app.read_scroll = app.read_scroll.saturating_sub(1);
-            app.input.set_scroll_offset(app.read_scroll);
-        }
-        KeyCode::Down if app.panel == Panel::Input && app.input.mode() == InputMode::Read => {
-            app.read_scroll += 1;
-            app.input.set_scroll_offset(app.read_scroll);
-        }
+        },
+        KeyCode::Home => app.input.move_cursor_to_start(),
+        KeyCode::End => app.input.move_cursor_to_end(),
+
+        KeyCode::Backspace => app.input.delete_char_backward(),
+        KeyCode::Delete => app.input.delete_char_forward(),
+
+        KeyCode::Enter if app.input.mode() == InputMode::Edit => app.input.insert_char('\n'),
+
+        KeyCode::Char(ch) if app.input.mode() == InputMode::Edit => app.input.insert_char(ch),
+
         _ => {}
     }
 
@@ -235,78 +179,44 @@ fn handle_event(app: &mut App) -> anyhow::Result<bool> {
 
 fn draw(f: &mut Frame, app: &mut App) {
     let area = f.area();
-    let outer = Layout::vertical([
-        Constraint::Min(3),
-        Constraint::Length(1),
-    ])
-    .split(area);
+    let chunks = Layout::vertical([Constraint::Min(3), Constraint::Length(1)]).split(area);
 
-    let main = Layout::horizontal([
-        Constraint::Percentage(60),
-        Constraint::Percentage(40),
-    ])
-    .split(outer[0]);
-
-    draw_input_panel(f, app, main[0]);
-    draw_spantree_panel(f, app, main[1]);
-    draw_status_bar(f, app, outer[1]);
-}
-
-fn draw_input_panel(f: &mut Frame, app: &mut App, area: Rect) {
-    let focused = app.panel == Panel::Input;
-    let border_color = if focused { Color::Cyan } else { Color::DarkGray };
     let mode_label = match app.input.mode() {
         InputMode::Edit => "EDIT",
         InputMode::Read => "READ",
     };
+    let shape = app.shape_name();
+    let title = format!(" TextInput [{mode_label}] cursor:{shape} ");
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(format!(" TextInput [{mode_label}] "))
-        .border_style(Style::default().fg(border_color))
+        .title(title)
+        .border_style(Style::default().fg(Color::Cyan))
         .padding(Padding::new(1, 1, 0, 0));
-    let inner = block.inner(area);
-    f.render_widget(block, area);
-
-    if app.input.text().is_empty() {
-        app.input.set_text(SAMPLE_TEXT);
-        app.input.set_cursor_char_idx(0);
-    }
+    let inner = block.inner(chunks[0]);
+    f.render_widget(block, chunks[0]);
 
     app.input.render(f, inner, &Theme);
-}
 
-fn draw_spantree_panel(f: &mut Frame, app: &mut App, area: Rect) {
-    let focused = app.panel == Panel::SpanTree;
-    let border_color = if focused { Color::Cyan } else { Color::DarkGray };
-
-    let outer_block = Block::default()
-        .borders(Borders::ALL)
-        .title(" SpanTree [AllLines] ")
-        .border_style(Style::default().fg(border_color));
-    let inner = outer_block.inner(area);
-    f.render_widget(outer_block, area);
-
-    app.tree.render(f, inner, area, &Theme);
-}
-
-fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
-    let panel_name = match app.panel {
-        Panel::Input => "Input",
-        Panel::SpanTree => "SpanTree",
+    let (mode_hint, quit_hint) = match app.input.mode() {
+        InputMode::Edit => (
+            "type to insert \u{00b7} Enter:newline \u{00b7} \u{2190}\u{2191}\u{2192}\u{2193}/Home/End \u{00b7} Bksp/Del",
+            "Esc",
+        ),
+        InputMode::Read => (
+            "\u{2191}\u{2193} scroll",
+            "Esc",
+        ),
     };
-    let shape = app.shape_name();
-    let mode = match app.input.mode() {
-        InputMode::Edit => "Edit",
-        InputMode::Read => "Read",
-    };
-
-    let hints = format!(
-        " Tab:switch \u{00b7} m:mode({mode}) \u{00b7} s:cursor({shape}) \u{00b7} \u{2191}\u{2193}:nav \u{00b7} h/l:move cursor \u{00b7} p:select \u{00b7} panel:{panel_name} \u{00b7} q:quit "
+    let status = format!(
+        " {mode_hint} \u{00b7} F2:toggle mode \u{00b7} F3:cycle cursor \u{00b7} {quit_hint}:quit "
     );
     f.render_widget(
-        Paragraph::new(Line::from(Span::styled(hints, Style::default().fg(Color::DarkGray)))),
-        area,
+        Paragraph::new(Line::from(Span::styled(
+            status,
+            Style::default().fg(Color::DarkGray),
+        ))),
+        chunks[1],
     );
 }
 

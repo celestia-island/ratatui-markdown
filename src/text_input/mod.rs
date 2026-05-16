@@ -195,6 +195,31 @@ impl TextInput {
         self.cursor_char_idx = self.text.chars().count();
     }
 
+    pub fn move_cursor_up(&mut self) {
+        let (line_idx, col) = edit_render::char_offset_to_line_col(&self.text, self.cursor_char_idx);
+        if line_idx == 0 {
+            return;
+        }
+        self.cursor_char_idx = edit_render::line_col_to_char_offset(&self.text, line_idx - 1, col);
+    }
+
+    pub fn move_cursor_down(&mut self) {
+        let (line_idx, col) = edit_render::char_offset_to_line_col(&self.text, self.cursor_char_idx);
+        let num_lines = self.text.split('\n').count();
+        if line_idx + 1 >= num_lines {
+            return;
+        }
+        self.cursor_char_idx = edit_render::line_col_to_char_offset(&self.text, line_idx + 1, col);
+    }
+
+    pub fn line_count(&self) -> usize {
+        if self.text.is_empty() {
+            1
+        } else {
+            self.text.split('\n').count()
+        }
+    }
+
     pub fn render(&mut self, f: &mut Frame, area: Rect, theme: &impl RichTextTheme) {
         let effective_width = if self.max_width < area.width as usize {
             self.max_width
@@ -204,7 +229,7 @@ impl TextInput {
 
         match self.mode {
             InputMode::Edit => {
-                let mut lines = edit_render::render_edit_mode(
+                let mut all_lines = edit_render::render_edit_mode(
                     &self.text,
                     self.cursor_char_idx,
                     self.horizontal_scroll,
@@ -214,15 +239,23 @@ impl TextInput {
                     theme,
                 );
 
+                let cursor_line_idx = if self.text.is_empty() {
+                    0
+                } else {
+                    edit_render::char_offset_to_line(&self.text, self.cursor_char_idx)
+                };
+
+                let (_, cursor_col) = edit_render::char_offset_to_line_col(&self.text, self.cursor_char_idx);
+
                 let blink_visible = self
                     .blink_controller
                     .as_ref()
                     .map_or(true, |ctrl| ctrl.is_visible());
 
-                if let Some(line) = lines.first_mut() {
+                if let Some(line) = all_lines.get_mut(cursor_line_idx) {
                     cursor::apply_cursor_and_selection(
                         line,
-                        self.cursor_char_idx,
+                        cursor_col,
                         self.horizontal_scroll,
                         &self.cursor_style,
                         self.selection.as_ref(),
@@ -232,8 +265,18 @@ impl TextInput {
                     );
                 }
 
-                let paragraph = ratatui::widgets::Paragraph::new(lines);
-                f.render_widget(paragraph, area);
+                let total = all_lines.len();
+                let visible_h = area.height as usize;
+                if total > visible_h {
+                    let scroll = self.scroll_offset.min(total.saturating_sub(visible_h));
+                    self.scroll_offset = scroll;
+                    let visible: Vec<_> = all_lines.into_iter().skip(scroll).take(visible_h).collect();
+                    let paragraph = ratatui::widgets::Paragraph::new(visible);
+                    f.render_widget(paragraph, area);
+                } else {
+                    let paragraph = ratatui::widgets::Paragraph::new(all_lines);
+                    f.render_widget(paragraph, area);
+                }
             }
             InputMode::Read => {
                 #[cfg(feature = "markdown")]
@@ -420,5 +463,54 @@ mod tests {
         assert_eq!(char_idx_to_byte(s, 0), 0);
         assert_eq!(char_idx_to_byte(s, 1), 1);
         assert_eq!(char_idx_to_byte(s, 2), 3);
+    }
+
+    #[test]
+    fn multiline_insert_newline() {
+        let mut input = TextInput::new();
+        input.set_text("hello world");
+        input.set_cursor_char_idx(5);
+        input.insert_char('\n');
+        assert_eq!(input.text(), "hello\n world");
+    }
+
+    #[test]
+    fn multiline_move_up_down() {
+        let mut input = TextInput::new();
+        input.set_text("line1\nline2\nline3");
+        input.set_cursor_char_idx(12);
+        assert_eq!(input.cursor_char_idx(), 12);
+        input.move_cursor_up();
+        assert_eq!(input.cursor_char_idx(), 6);
+        input.move_cursor_up();
+        assert_eq!(input.cursor_char_idx(), 0);
+        input.move_cursor_down();
+        assert_eq!(input.cursor_char_idx(), 6);
+    }
+
+    #[test]
+    fn multiline_up_at_first_line_stays() {
+        let mut input = TextInput::new();
+        input.set_text("abc\ndef");
+        input.set_cursor_char_idx(2);
+        input.move_cursor_up();
+        assert_eq!(input.cursor_char_idx(), 2);
+    }
+
+    #[test]
+    fn multiline_down_at_last_line_stays() {
+        let mut input = TextInput::new();
+        input.set_text("abc\ndef");
+        input.set_cursor_char_idx(5);
+        input.move_cursor_down();
+        assert_eq!(input.cursor_char_idx(), 5);
+    }
+
+    #[test]
+    fn line_count_works() {
+        let mut input = TextInput::new();
+        assert_eq!(input.line_count(), 1);
+        input.set_text("one\ntwo\nthree");
+        assert_eq!(input.line_count(), 3);
     }
 }
