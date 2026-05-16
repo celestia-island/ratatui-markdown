@@ -39,6 +39,51 @@ static LR_EXPECTED: &str = "
 │    │    │    │
 └────┘    └────┘";
 
+static CHAIN: &str = "graph TD
+    A --> B --> C";
+
+static CHAIN_EXPECTED: &str = "
+                                     ┌────┐
+                                     │ A  │
+                                     └────┘
+                                        │
+                                        │
+                                        ▼
+                                     ┌────┐
+                                     │ B  │
+                                     └────┘
+                                        │
+                                        │
+                                        ▼
+                                     ┌────┐
+                                     │ C  │
+                                     └────┘";
+
+static DIAMOND: &str = "graph TD
+    A{Start} -->|yes| B[Yes]
+    A -->|no| C[No]";
+
+static DIAMOND_EXPECTED: &str = "
+                                   ╭───────╮
+                                   │ Start │
+                                   ╰───────╯
+                                 yes   │    no
+                                  ┌────┴─────┐
+                                  ▼          ▼
+                               ┌─────┐    ┌────┐
+                               │ Yes │    │ No │
+                               └─────┘    └────┘";
+
+static LABELED_LR: &str = "graph LR
+    A -->|hello| B -->|world| C";
+
+static LABELED_LR_EXPECTED: &str = "
+┌────┐    ┌────┐    ┌────┐
+│    │ello│    │orld│    │
+│ A  │───►│ B  │───►│ C  │
+│    │    │    │    │    │
+└────┘    └────┘    └────┘";
+
 #[test]
 fn simple_td() {
     let buf = render_to_buffer(SIMPLE_TD, 80, 10);
@@ -55,4 +100,22 @@ fn fork_td() {
 fn lr() {
     let buf = render_to_buffer(LR, 20, 5);
     assert_buffer_eq(&buf, LR_EXPECTED);
+}
+
+#[test]
+fn chain() {
+    let buf = render_to_buffer(CHAIN, 80, 15);
+    assert_buffer_eq(&buf, CHAIN_EXPECTED);
+}
+
+#[test]
+fn diamond() {
+    let buf = render_to_buffer(DIAMOND, 80, 12);
+    assert_buffer_eq(&buf, DIAMOND_EXPECTED);
+}
+
+#[test]
+fn labeled_lr() {
+    let buf = render_to_buffer(LABELED_LR, 40, 5);
+    assert_buffer_eq(&buf, LABELED_LR_EXPECTED);
 }
