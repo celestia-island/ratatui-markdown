@@ -361,7 +361,12 @@ fn draw_all_edges(
         for i in 0..wp.len().saturating_sub(1) {
             let (x1, y1) = wp[i];
             let (x2, y2) = wp[i + 1];
-            rasterize_segment(&mut global_cells, x1, y1, x2, y2);
+            if x1 == x2 || y1 == y2 {
+                rasterize_segment(&mut global_cells, x1, y1, x2, y2);
+            } else {
+                rasterize_segment(&mut global_cells, x1, y1, x1, y2);
+                rasterize_segment(&mut global_cells, x1, y2, x2, y2);
+            }
         }
 
         // Waypoints are always present (half-open segment ranges exclude ends)
@@ -387,6 +392,13 @@ fn draw_all_edges(
     for s in stray {
         global_cells.remove(&s);
     }
+
+    global_cells.retain(|&(cx, cy)| {
+        if cy >= gh || cx >= gw {
+            return false;
+        }
+        grid[cy][cx].is_edge || grid[cy][cx].ch == ' '
+    });
 
     // ════════════════════════════════════════════════════════════
     //  Pass C: Global resolution — one cell, one char, correct
@@ -546,7 +558,7 @@ fn resolve_edge_char(up: bool, down: bool, left: bool, right: bool) -> char {
         // Stem always points in the diagram's primary axis direction
         // (down for TD, right for LR) so that merge points visually
         // flow toward their target, not away from it.
-        (true,  true,  true,  false) => TEE_RIGHT,
+        (true,  true,  true,  false) => TEE_LEFT,
         (true,  true,  false, true ) => TEE_RIGHT,
         (true,  false, true,  true ) => TEE_UP,
         (false, true,  true,  true ) => TEE_DOWN,
