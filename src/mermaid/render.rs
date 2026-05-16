@@ -178,7 +178,7 @@ fn draw_edge_connectivity(
 
     let edge_style = Style::default().fg(theme.get_secondary_color());
 
-    // Step 1: rasterize all segments → set of occupied cells with direction info
+    // Step 1: rasterize all segments → set of occupied cells
     let mut path_cells: HashSet<(usize, usize)> = HashSet::new();
 
     for i in 0..wp.len().saturating_sub(1) {
@@ -187,9 +187,29 @@ fn draw_edge_connectivity(
         rasterize_segment(&mut path_cells, x1, y1, x2, y2);
     }
 
-    // Step 2: resolve each cell's character from its neighbor connectivity
+    // Step 1b: remove isolated cells (no orthogonal neighbor on the path).
+    // Bresenham diagonal walks can produce cells that are only diagonally
+    // adjacent to the main path — these would render as garbage.
     let gh = grid.len();
     let gw = grid[0].len();
+    let isolated: Vec<(usize, usize)> = path_cells
+        .iter()
+        .filter(|&&(cx, cy)| {
+            let has_neighbor =
+                (cy > 0 && path_cells.contains(&(cx, cy - 1)))
+                    || (cy + 1 < gh && path_cells.contains(&(cx, cy + 1)))
+                    || (cx > 0 && path_cells.contains(&(cx - 1, cy)))
+                    || (cx + 1 < gw && path_cells.contains(&(cx + 1, cy)));
+            !has_neighbor
+        })
+        .copied()
+        .collect();
+    for cell in isolated {
+        path_cells.remove(&cell);
+    }
+
+    // Step 2: resolve each cell's character from its neighbor connectivity
+    let gh = grid.len();
 
     for &(cx, cy) in &path_cells {
         if cy >= gh || cx >= gw {
@@ -251,17 +271,18 @@ fn draw_edge_connectivity(
 }
 
 /// Walk from (x1,y1) to (x2,y2), collecting every grid cell touched.
-/// Handles horizontal, vertical, and diagonal (45°/30°) segments.
+///
+/// Axis-aligned segments use range filling (guarantees orthogonal connectivity).
+/// Diagonal segments use Bresenham walk; diagonal chars (╱╲ at ~26.6°
+/// for 1:2 terminal aspect ratio, i.e. arctan(1/2)) are reserved for
+/// future use — currently diagonal cells fall back to HLINE/VLINE.
 fn rasterize_segment(cells: &mut HashSet<(usize, usize)>, x1: usize, y1: usize, x2: usize, y2: usize) {
     if x1 == x2 && y1 == y2 {
         cells.insert((x1, y1));
         return;
     }
 
-    let dx = x2.abs_diff(x1);
-    let dy = y2.abs_diff(y1);
-
-    // Pure horizontal or pure vertical: simple range
+    // Pure horizontal: range fill — every cell has left/right neighbors
     if y1 == y2 {
         let (lo, hi) = if x1 <= x2 { (x1, x2) } else { (x2, x1) };
         for x in lo..=hi {
@@ -269,6 +290,8 @@ fn rasterize_segment(cells: &mut HashSet<(usize, usize)>, x1: usize, y1: usize, 
         }
         return;
     }
+
+    // Pure vertical: range fill — every cell has up/down neighbors
     if x1 == x2 {
         let (lo, hi) = if y1 <= y2 { (y1, y2) } else { (y2, y1) };
         for y in lo..=hi {
@@ -277,7 +300,12 @@ fn rasterize_segment(cells: &mut HashSet<(usize, usize)>, x1: usize, y1: usize, 
         return;
     }
 
-    // Diagonal or multi-segment: Bresenham-style walk
+    // Genuine diagonal: Bresenham walk
+    // Future: replace intermediate cells with ╱/╲ when diagonal rendering
+    // is enabled. For now these cells get resolved by pick_line_char based on
+    // whatever orthogonal neighbors they happen to have.
+    let dx = x2.abs_diff(x1);
+    let dy = y2.abs_diff(y1);
     let steps = dx.max(dy);
     for i in 0..=steps {
         let t = if steps > 0 { i as f64 / steps as f64 } else { 0.0 };
@@ -316,8 +344,8 @@ fn pick_line_char(up: bool, down: bool, left: bool, right: bool) -> char {
         (false, false, true, false) |
         (false, false, false, true) => HLINE,
 
-        // isolated / fallback
-        _ => '·',
+        // isolated / fallback (should not happen after cleanup pass)
+        _ => HLINE,
     }
 }
 
