@@ -1,5 +1,8 @@
 use ratatui::style::Color;
 
+#[cfg(feature = "mermaid")]
+use crate::mermaid::theme::MermaidTheme;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Generation(pub u64);
 
@@ -31,6 +34,11 @@ pub trait RichTextTheme {
     }
     fn get_background_color(&self) -> Color {
         Color::Black
+    }
+
+    #[cfg(feature = "mermaid")]
+    fn get_mermaid_theme(&self) -> MermaidTheme {
+        MermaidTheme::for_background(self.get_background_color())
     }
 }
 

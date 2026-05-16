@@ -8,6 +8,7 @@ mod pie;
 mod quadrant;
 mod render;
 mod sequence;
+pub mod theme;
 mod types;
 
 #[cfg(test)]

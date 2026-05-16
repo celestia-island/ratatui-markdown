@@ -118,15 +118,66 @@ fn color_to_rgba(c: ratatui::style::Color) -> image::Rgba<u8> {
     }
 }
 
+fn to_renderer_theme(src: &ratatui_markdown::mermaid::theme::MermaidTheme) -> mermaid_rs_renderer::Theme {
+    use ratatui_markdown::mermaid::theme::{color_to_hex, GIT_COLORS_HSL};
+    let hex = |c: ratatui::style::Color| format!("#{}", color_to_hex(c));
+    let pie: [String; 12] = src.pie_colors.map(hex);
+    mermaid_rs_renderer::Theme {
+        font_family: "sans-serif".to_string(),
+        font_size: 14.0,
+        primary_color: hex(src.primary_color),
+        primary_text_color: hex(src.primary_text_color),
+        primary_border_color: hex(src.primary_border_color),
+        line_color: hex(src.line_color),
+        secondary_color: hex(src.secondary_color),
+        tertiary_color: hex(src.tertiary_color),
+        edge_label_background: hex(src.edge_label_background),
+        cluster_background: hex(src.cluster_background),
+        cluster_border: hex(src.cluster_border),
+        background: hex(src.background),
+        sequence_actor_fill: hex(src.actor_fill),
+        sequence_actor_border: hex(src.actor_border),
+        sequence_actor_line: hex(src.actor_line),
+        sequence_note_fill: hex(src.note_fill),
+        sequence_note_border: hex(src.note_border),
+        sequence_activation_fill: hex(src.activation_fill),
+        sequence_activation_border: hex(src.activation_border),
+        text_color: hex(src.text_color),
+        git_colors: GIT_COLORS_HSL.map(|v| v.to_string()),
+        git_inv_colors: ["hsl(60, 100%, 3.7%)", "rgb(0,0,160)", "rgb(49,0,147)", "rgb(147,73,0)", "rgb(147,0,0)", "rgb(147,0,73)", "rgb(0,147,0)", "rgb(0,147,147)"].map(|v| v.to_string()),
+        git_branch_label_colors: ["#ffffff", "black", "black", "#ffffff", "black", "black", "black", "black"].map(|v| v.to_string()),
+        git_commit_label_color: hex(src.git_commit_label_color),
+        git_commit_label_background: hex(src.git_commit_label_bg),
+        git_tag_label_color: hex(src.git_tag_label_color),
+        git_tag_label_background: hex(src.git_tag_label_bg),
+        git_tag_label_border: "hsl(240, 60%, 86.3%)".to_string(),
+        pie_colors: pie,
+        pie_title_text_size: 25.0,
+        pie_title_text_color: hex(src.text_color),
+        pie_section_text_size: 17.0,
+        pie_section_text_color: hex(src.text_color),
+        pie_legend_text_size: 17.0,
+        pie_legend_text_color: hex(src.text_color),
+        pie_stroke_color: hex(src.pie_stroke_color),
+        pie_stroke_width: 2.0,
+        pie_outer_stroke_width: 2.0,
+        pie_outer_stroke_color: hex(src.pie_outer_stroke_color),
+        pie_opacity: 0.75,
+    }
+}
+
 fn render_mermaid_to_image(
     source: &str,
+    mermaid_theme: &ratatui_markdown::mermaid::theme::MermaidTheme,
     bg_color: image::Rgba<u8>,
     font_w: u32,
     font_h: u32,
 ) -> Option<image::DynamicImage> {
-    let bg_hex = format!("{:02X}{:02X}{:02X}", bg_color.0[0], bg_color.0[1], bg_color.0[2]);
-    let mut opts = mermaid_rs_renderer::RenderOptions::default();
-    opts.theme.background = bg_hex;
+    let renderer_theme = to_renderer_theme(mermaid_theme);
+    let opts = mermaid_rs_renderer::RenderOptions {
+        theme: renderer_theme,
+        layout: mermaid_rs_renderer::LayoutConfig::default(),
+    };
     let svg = mermaid_rs_renderer::render_with_options(source, opts).ok()?;
 
     let mut font_db = fontdb::Database::new();
@@ -234,6 +285,7 @@ impl MermaidImage {
 }
 
 struct MermaidImageHooks {
+    mermaid_theme: ratatui_markdown::mermaid::theme::MermaidTheme,
     bg_color: image::Rgba<u8>,
     font_w: u32,
     font_h: u32,
@@ -241,7 +293,7 @@ struct MermaidImageHooks {
 
 impl RenderHooks for MermaidImageHooks {
     fn render_mermaid_image(&self, source: &str) -> Option<image::DynamicImage> {
-        render_mermaid_to_image(source, self.bg_color, self.font_w, self.font_h)
+        render_mermaid_to_image(source, &self.mermaid_theme, self.bg_color, self.font_w, self.font_h)
     }
 }
 
@@ -330,7 +382,9 @@ fn main() -> anyhow::Result<()> {
     let content_width = max_w as usize;
 
     let bg_rgba = color_to_rgba(theme.get_background_color());
+    let mermaid_theme = theme.get_mermaid_theme();
     let hooks = MermaidImageHooks {
+        mermaid_theme: mermaid_theme.clone(),
         bg_color: bg_rgba,
         font_w: font_w as u32,
         font_h: font_h as u32,
