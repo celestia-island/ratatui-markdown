@@ -2,6 +2,20 @@ use std::collections::HashMap;
 
 use super::graph::LayeredGraph;
 use super::types::*;
+use unicode_width::UnicodeWidthStr;
+
+fn label_display_width(label: &str) -> usize {
+    label
+        .lines()
+        .map(UnicodeWidthStr::width)
+        .max()
+        .unwrap_or(0)
+}
+
+fn label_line_count(label: &str) -> usize {
+    let n = label.lines().count();
+    if n == 0 { 1 } else { n }
+}
 
 // ── pixel-space types ──────────────────────────────────────────
 
@@ -82,7 +96,11 @@ pub fn compute_layout(
                     .iter()
                     .find(|n| &n.id == id)
                     .expect("layer node must exist in diagram nodes");
-                let text_w = unicode_width::UnicodeWidthStr::width(node.label.as_str());
+                let text_w = if node.label.contains('\n') {
+                    label_display_width(&node.label)
+                } else {
+                    unicode_width::UnicodeWidthStr::width(node.label.as_str())
+                };
                 (text_w + NODE_H_PADDING * 2).max(MIN_NODE_WIDTH)
             })
             .collect();
@@ -112,6 +130,7 @@ pub fn compute_layout(
         };
 
         let mut x = x_start;
+        let mut layer_max_h = 0usize;
         for (i, id) in layer.iter().enumerate() {
             let node = diagram
                 .nodes
@@ -119,24 +138,38 @@ pub fn compute_layout(
                 .find(|n| &n.id == id)
                 .expect("layer node must exist in diagram nodes");
             let w = node_widths[i];
+            let is_multiline = node.label.contains('\n');
+            let h = if is_multiline {
+                label_line_count(&node.label)
+            } else {
+                node_v_height
+            };
+            if h > layer_max_h {
+                layer_max_h = h;
+            }
+            let label = if is_multiline {
+                node.label.clone()
+            } else {
+                truncate_label(&node.label, w.saturating_sub(NODE_H_PADDING * 2))
+            };
 
             let (nx, ny) = if is_vertical { (x, y_offset) } else { (y_offset, x) };
 
             layout_nodes.push(LayoutNode {
                 id: id.clone(),
-                label: truncate_label(&node.label, w.saturating_sub(NODE_H_PADDING * 2)),
+                label,
                 shape: node.shape.clone(),
                 x: nx,
                 y: ny,
                 width: w,
-                height: node_v_height,
+                height: h,
             });
-            node_positions.insert(id.clone(), (nx + w / 2, ny + node_v_height / 2));
+            node_positions.insert(id.clone(), (nx + w / 2, ny + h / 2));
             x += w + h_spacing;
         }
 
         if is_vertical {
-            y_offset += node_v_height + v_spacing;
+            y_offset += layer_max_h + v_spacing;
         } else {
             let max_w = node_widths.iter().copied().max().unwrap_or(0);
             y_offset += max_w + h_spacing;
@@ -194,7 +227,11 @@ fn adapt_spacing(
             .nodes
             .iter()
             .map(|n| {
-                let tw = unicode_width::UnicodeWidthStr::width(n.label.as_str());
+                let tw = if n.label.contains('\n') {
+                    label_display_width(&n.label)
+                } else {
+                    unicode_width::UnicodeWidthStr::width(n.label.as_str())
+                };
                 (tw + NODE_H_PADDING * 2).max(MIN_NODE_WIDTH)
             })
             .sum::<usize>()

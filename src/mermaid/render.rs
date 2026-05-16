@@ -57,11 +57,9 @@ pub fn render_layout(
         draw_node(&mut grid, node, theme);
     }
 
-    // Phase 2: draw edges via connectivity-aware rasterization
+    // Phase 2: draw edges — global accumulation → global resolution
     let is_vertical = matches!(direction, Direction::TopDown | Direction::BottomUp);
-    for edge in &layout.edges {
-        draw_edge_connectivity(&mut grid, edge, is_vertical, theme);
-    }
+    draw_all_edges(&mut grid, &layout.edges, is_vertical, theme);
 
     let mut lines = Vec::new();
     for row in grid.iter() {
@@ -83,6 +81,11 @@ fn draw_node(grid: &mut [Vec<Cell>], node: &LayoutNode, theme: &impl RichTextThe
     let w = node.width;
     let h = node.height;
 
+    if node.label.contains('\n') {
+        draw_multiline_node(grid, node, theme);
+        return;
+    }
+
     let (tl, tr, bl, br) = match node.shape {
         NodeShape::Rounded | NodeShape::Circle | NodeShape::Diamond => (RTLC, RTRC, RBLC, RBRC),
         NodeShape::Rect => (TLC, TRC, BLC, BRC),
@@ -91,7 +94,6 @@ fn draw_node(grid: &mut [Vec<Cell>], node: &LayoutNode, theme: &impl RichTextThe
     let border_style = Style::default().fg(theme.get_muted_text_color());
     let text_style = Style::default().fg(theme.get_text_color());
 
-    // top border
     if y < grid.len() && x + w <= grid[0].len() {
         let row = &mut grid[y];
         row[x] = Cell { ch: tl, style: border_style, is_edge: false };
@@ -101,7 +103,6 @@ fn draw_node(grid: &mut [Vec<Cell>], node: &LayoutNode, theme: &impl RichTextThe
         }
     }
 
-    // text row
     let text_row = y + h / 2;
     if text_row < grid.len() && x + w <= grid[0].len() {
         let row = &mut grid[text_row];
@@ -130,7 +131,6 @@ fn draw_node(grid: &mut [Vec<Cell>], node: &LayoutNode, theme: &impl RichTextThe
         }
     }
 
-    // side borders (non-text rows)
     for vy in (y + 1)..(y + h - 1) {
         if vy == text_row {
             continue;
@@ -145,7 +145,6 @@ fn draw_node(grid: &mut [Vec<Cell>], node: &LayoutNode, theme: &impl RichTextThe
         }
     }
 
-    // bottom border
     let bottom_row = y + h - 1;
     if bottom_row < grid.len() && x + w <= grid[0].len() {
         let row = &mut grid[bottom_row];
@@ -157,153 +156,258 @@ fn draw_node(grid: &mut [Vec<Cell>], node: &LayoutNode, theme: &impl RichTextThe
     }
 }
 
-// ── Edge drawing: connectivity-based rasterization ───────────────
+fn draw_multiline_node(grid: &mut [Vec<Cell>], node: &LayoutNode, theme: &impl RichTextTheme) {
+    let x = node.x;
+    let y = node.y;
+    let w = node.width;
 
-/// Draw an edge by rasterizing its path into cells, then resolving each
-/// cell's character from its local connectivity pattern.
+    let border_style = Style::default().fg(theme.get_muted_text_color());
+    let grid_w = if !grid.is_empty() { grid[0].len() } else { return };
+
+    for (row_idx, line) in node.label.lines().enumerate() {
+        let ry = y + row_idx;
+        if ry >= grid.len() {
+            break;
+        }
+        if x >= grid_w {
+            break;
+        }
+        let row = &mut grid[ry];
+        let mut cx = x;
+        for ch in line.chars() {
+            if cx >= x + w || cx >= grid_w {
+                break;
+            }
+            let cw = ch.width().unwrap_or(1);
+            if cx + cw > x + w {
+                break;
+            }
+            let style = if is_box_drawing_char(ch) {
+                border_style
+            } else {
+                Style::default().fg(theme.get_text_color())
+            };
+            row[cx] = Cell { ch, style, is_edge: false };
+            cx += cw;
+        }
+    }
+}
+
+fn is_box_drawing_char(ch: char) -> bool {
+    matches!(ch,
+        '─' | '│' | '┌' | '┐' | '└' | '┘' | '├' | '┤' | '┬' | '┴' | '┼'
+        | '╭' | '╮' | '╰' | '╯'
+        | '═' | '║' | '╔' | '╗' | '╚' | '╝' | '╠' | '╣' | '╦' | '╩' | '╬'
+    )
+}
+
+// ── Edge drawing: global-accumulation pipeline ──────────────────────
+
+/// Two-pass edge renderer that prevents per-edge character overwrites at
+/// shared junction cells.
 ///
-/// This replaces the old "draw segments → post-process junctions" approach.
-/// Every cell knows exactly which neighbors are on the same path, so corners,
-/// tees, and crosses are correct by construction — no fix-up pass needed.
-fn draw_edge_connectivity(
+/// **Pass A** — Rasterizes every edge's waypoint-path cells into a **single
+/// shared** `HashSet`.  Junction cells where 3+ edges meet can now see the
+/// complete multi-edge neighbourhood.
+///
+/// **Pass B** — Stray cleanup (Bresenham diagonal-artefact cells with zero
+/// orthogonal neighbours anywhere in the global set).
+///
+/// **Pass C** — Resolves each cell **once**, computing `(up,down,left,right)`
+/// connectivity against the shared set.  A cross or T-junction rendered by
+/// pass C can never be corrupted by a later edge.
+///
+/// Arrows and labels follow in passes D/E.
+fn draw_all_edges(
     grid: &mut [Vec<Cell>],
-    edge: &LayoutEdge,
+    edges: &[LayoutEdge],
     is_vertical: bool,
     theme: &impl RichTextTheme,
 ) {
-    let wp = &edge.waypoints;
-    if wp.len() < 2 {
+    if edges.is_empty() || grid.is_empty() {
         return;
     }
-
-    let edge_style = Style::default().fg(theme.get_secondary_color());
-
-    // Step 1: rasterize all segments → set of occupied cells
-    let mut path_cells: HashSet<(usize, usize)> = HashSet::new();
-
-    for i in 0..wp.len().saturating_sub(1) {
-        let (x1, y1) = wp[i];
-        let (x2, y2) = wp[i + 1];
-        rasterize_segment(&mut path_cells, x1, y1, x2, y2);
-    }
-
-    // Step 1b: remove isolated cells (no orthogonal neighbor on the path).
-    // Bresenham diagonal walks can produce cells that are only diagonally
-    // adjacent to the main path — these would render as garbage.
     let gh = grid.len();
     let gw = grid[0].len();
-    let isolated: Vec<(usize, usize)> = path_cells
-        .iter()
-        .filter(|&&(cx, cy)| {
-            let has_neighbor =
-                (cy > 0 && path_cells.contains(&(cx, cy - 1)))
-                    || (cy + 1 < gh && path_cells.contains(&(cx, cy + 1)))
-                    || (cx > 0 && path_cells.contains(&(cx - 1, cy)))
-                    || (cx + 1 < gw && path_cells.contains(&(cx + 1, cy)));
-            !has_neighbor
-        })
-        .copied()
-        .collect();
-    for cell in isolated {
-        path_cells.remove(&cell);
+
+    let edge_style = Style::default().fg(theme.get_secondary_color());
+    let arrow_style = Style::default()
+        .fg(theme.get_primary_color())
+        .add_modifier(Modifier::BOLD);
+    let label_style = Style::default()
+        .fg(theme.get_info_color())
+        .add_modifier(Modifier::ITALIC);
+
+    // ════════════════════════════════════════════════════════════
+    //  Pass A: Rasterize every edge into a SHARED global set
+    // ════════════════════════════════════════════════════════════
+    let mut global_cells: HashSet<(usize, usize)> = HashSet::new();
+
+    struct EdgeMeta {
+        waypoints: Vec<(usize, usize)>,
+        has_arrow: bool,
+        label: Option<String>,
+    }
+    let mut meta: Vec<EdgeMeta> = Vec::with_capacity(edges.len());
+
+    for edge in edges {
+        let wp = &edge.waypoints;
+        if wp.len() < 2 {
+            meta.push(EdgeMeta {
+                waypoints: wp.clone(),
+                has_arrow: false,
+                label: None,
+            });
+            continue;
+        }
+
+        meta.push(EdgeMeta {
+            waypoints: wp.clone(),
+            has_arrow: edge.edge_type == EdgeType::Arrow,
+            label: edge.label.clone(),
+        });
+
+        for i in 0..wp.len().saturating_sub(1) {
+            let (x1, y1) = wp[i];
+            let (x2, y2) = wp[i + 1];
+            rasterize_segment(&mut global_cells, x1, y1, x2, y2);
+        }
+
+        // Waypoints are always present (half-open segment ranges exclude ends)
+        for &pt in wp {
+            global_cells.insert(pt);
+        }
     }
 
-    // Step 2: resolve each cell's character from its neighbor connectivity
-    let gh = grid.len();
+    // ════════════════════════════════════════════════════════════
+    //  Pass B: Stray cleanup (Bresenham artefacts)
+    // ════════════════════════════════════════════════════════════
+    let stray: Vec<(usize, usize)> = global_cells
+        .iter()
+        .copied()
+        .filter(|&(cx, cy)| {
+            let has_ortho = (cy > 0 && global_cells.contains(&(cx, cy.saturating_sub(1))))
+                || (cy + 1 < gh && global_cells.contains(&(cx, cy + 1)))
+                || (cx > 0 && global_cells.contains(&(cx.saturating_sub(1), cy)))
+                || (cx + 1 < gw && global_cells.contains(&(cx + 1, cy)));
+            !has_ortho
+        })
+        .collect();
+    for s in stray {
+        global_cells.remove(&s);
+    }
 
-    for &(cx, cy) in &path_cells {
+    // ════════════════════════════════════════════════════════════
+    //  Pass C: Global resolution — one cell, one char, correct
+    // ════════════════════════════════════════════════════════════
+    for &(cx, cy) in &global_cells {
         if cy >= gh || cx >= gw {
             continue;
         }
-        // skip cells already occupied by non-edge content (node borders)
         if !grid[cy][cx].is_edge && grid[cy][cx].ch != ' ' {
             continue;
         }
 
-        let up = cy > 0 && path_cells.contains(&(cx, cy - 1));
-        let down = cy + 1 < gh && path_cells.contains(&(cx, cy + 1));
-        let left = cx > 0 && path_cells.contains(&(cx - 1, cy));
-        let right = cx + 1 < gw && path_cells.contains(&(cx + 1, cy));
+        let up = cy > 0 && global_cells.contains(&(cx, cy.saturating_sub(1)));
+        let down = cy + 1 < gh && global_cells.contains(&(cx, cy + 1));
+        let left = cx > 0 && global_cells.contains(&(cx.saturating_sub(1), cy));
+        let right = cx + 1 < gw && global_cells.contains(&(cx + 1, cy));
 
-        let ch = pick_line_char(up, down, left, right);
-        grid[cy][cx] = Cell { ch, style: edge_style, is_edge: true };
+        let ch = resolve_edge_char(up, down, left, right);
+        grid[cy][cx] = Cell {
+            ch,
+            style: edge_style,
+            is_edge: true,
+        };
     }
 
-    // Step 3: place arrow at last waypoint (overwrites the line char there)
-    if edge.edge_type == EdgeType::Arrow && wp.len() >= 2 {
-        let last_idx = wp.len().saturating_sub(1);
-        let &(ax, ay) = &wp[last_idx];
-        let &(prev_x, prev_y) = &wp[wp.len() - 2];
+    // ════════════════════════════════════════════════════════════
+    //  Pass D: Arrows (overwrite edge cells at terminal waypoints)
+    // ════════════════════════════════════════════════════════════
+    for m in &meta {
+        if !m.has_arrow || m.waypoints.len() < 2 {
+            continue;
+        }
+        let wp = &m.waypoints;
+        let last = wp[wp.len() - 1];
+        let prev = wp[wp.len() - 2];
         let arrow_ch = if is_vertical {
-            if ay > prev_y { '▼' } else { '▲' }
-        } else if ax > prev_x {
-            '►'
+            if last.1 > prev.1 {
+                ARROW_DOWN
+            } else {
+                ARROW_UP
+            }
+        } else if last.0 > prev.0 {
+            ARROW_RIGHT
         } else {
-            '◄'
+            ARROW_LEFT
         };
-        let arrow_style = Style::default()
-            .fg(theme.get_primary_color())
-            .add_modifier(Modifier::BOLD);
-        if ay < gh && ax < gw {
-            grid[ay][ax] = Cell { ch: arrow_ch, style: arrow_style, is_edge: true };
+        if last.1 < gh && last.0 < gw {
+            grid[last.1][last.0] = Cell {
+                ch: arrow_ch,
+                style: arrow_style,
+                is_edge: true,
+            };
         }
     }
 
-    // Step 4: place label near middle of path
-    if let Some(ref label) = edge.label {
-        if wp.len() >= 2 {
-            let mid = wp.len() / 2;
-            let (mx, my) = wp[mid];
-            let label_style = Style::default()
-                .fg(theme.get_info_color())
-                .add_modifier(Modifier::ITALIC);
-            let lw = unicode_width::UnicodeWidthStr::width(label.as_str());
-            let lx = mx.saturating_sub(lw / 2);
-            let ly = my.saturating_sub(1);
-            let mut cx = lx;
-            for ch in label.chars() {
-                let cw = unicode_width::UnicodeWidthChar::width(ch).unwrap_or(1);
-                place_label_char(grid, cx, ly, ch, label_style);
-                cx += cw;
+    // ════════════════════════════════════════════════════════════
+    //  Pass E: Labels (near mid-point of each edge path)
+    // ════════════════════════════════════════════════════════════
+    for m in &meta {
+        if let Some(ref label) = m.label {
+            let wp = &m.waypoints;
+            if wp.len() >= 2 {
+                let mid = wp.len() / 2;
+                let (mx, my) = wp[mid];
+                let lw = unicode_width::UnicodeWidthStr::width(label.as_str());
+                let lx = mx.saturating_sub(lw / 2);
+                let ly = my.saturating_sub(1);
+                let mut cx = lx;
+                for ch in label.chars() {
+                    let cw = unicode_width::UnicodeWidthChar::width(ch).unwrap_or(1);
+                    place_label_char(grid, cx, ly, ch, label_style);
+                    cx += cw;
+                }
             }
         }
     }
 }
 
-/// Walk from (x1,y1) to (x2,y2), collecting every grid cell touched.
+/// Walk the grid cells touched by the segment (x1,y1)→(x2,y2).
 ///
-/// Axis-aligned segments use range filling (guarantees orthogonal connectivity).
-/// Diagonal segments use Bresenham walk; diagonal chars (╱╲ at ~26.6°
-/// for 1:2 terminal aspect ratio, i.e. arctan(1/2)) are reserved for
-/// future use — currently diagonal cells fall back to HLINE/VLINE.
+/// Axis-aligned segments use **half-open** ranges `[start, end)` so that
+/// a shared corner waypoint receives axial neighbours from **only one**
+/// adjacent segment, yielding correct 2-way corner characters (└┐┌┘)
+/// instead of spurious 3-way T-junctions (├┤┬┴).
+///
+/// Diagonal segments use Bresenham linear interpolation; stray cells
+/// are cleaned up by the caller (global pass B).
 fn rasterize_segment(cells: &mut HashSet<(usize, usize)>, x1: usize, y1: usize, x2: usize, y2: usize) {
     if x1 == x2 && y1 == y2 {
         cells.insert((x1, y1));
         return;
     }
 
-    // Pure horizontal: range fill — every cell has left/right neighbors
+    // Pure horizontal: half-open [x1, x2) — excludes x2 (next segment start)
     if y1 == y2 {
         let (lo, hi) = if x1 <= x2 { (x1, x2) } else { (x2, x1) };
-        for x in lo..=hi {
+        for x in lo..hi {
             cells.insert((x, y1));
         }
         return;
     }
 
-    // Pure vertical: range fill — every cell has up/down neighbors
+    // Pure vertical: half-open [y1, y2) — excludes y2
     if x1 == x2 {
         let (lo, hi) = if y1 <= y2 { (y1, y2) } else { (y2, y1) };
-        for y in lo..=hi {
+        for y in lo..hi {
             cells.insert((x1, y));
         }
         return;
     }
 
-    // Genuine diagonal: Bresenham walk
-    // Future: replace intermediate cells with ╱/╲ when diagonal rendering
-    // is enabled. For now these cells get resolved by pick_line_char based on
-    // whatever orthogonal neighbors they happen to have.
+    // Diagonal: Bresenham walk (strays cleaned up after global merge)
     let dx = x2.abs_diff(x1);
     let dy = y2.abs_diff(y1);
     let steps = dx.max(dy);
@@ -315,37 +419,55 @@ fn rasterize_segment(cells: &mut HashSet<(usize, usize)>, x1: usize, y1: usize, 
     }
 }
 
-/// Pick the correct box-drawing character for a cell given its four-way
-/// connectivity to neighboring path cells.
-///
-/// This table covers all 16 combinations of (up,down,left,right).
-/// Only patterns that actually occur in Manhattan paths are listed;
-/// fallbacks handle rare cases gracefully.
-fn pick_line_char(up: bool, down: bool, left: bool, right: bool) -> char {
+// ── Box-drawing named constants (T/C junctions) ───────────────────
+#[allow(dead_code)]
+const TEE_UP: char = '┴';    // U+2534  tee pointing up (reserved for BottomUp)
+const TEE_DOWN: char = '┬';   // U+252C  tee pointing down (up+left+right)
+#[allow(dead_code)]
+const TEE_LEFT: char = '┤';  // U+2524  tee pointing left (reserved for RightLeft)
+const TEE_RIGHT: char = '├'; // U+251C  tee pointing right (up+down+left)
+const CROSS: char = '┼';     // U+253C  four-way junction
+const ARROW_DOWN: char = '▼';
+const ARROW_UP: char = '▲';
+const ARROW_RIGHT: char = '►';
+const ARROW_LEFT: char = '◄';
+
+/// Complete 16-entry truth table: (up, down, left, right) → box-drawing
+/// character.  Every combination is mapped explicitly — no hidden fallback
+/// can quietly render a wrong char.
+#[rustfmt::skip]
+fn resolve_edge_char(up: bool, down: bool, left: bool, right: bool) -> char {
     match (up, down, left, right) {
-        // cross
-        (true, true, true, true) => '┼',
+        // ── 4-way ──────────────────────────────────────────────
+        (true,  true,  true,  true ) => CROSS,
 
-        // T-junctions
-        (true, true, true, false) => '├',
-        (true, true, false, true) => '┤',
-        (true, false, true, true) => '┴',
-        (false, true, true, true) => '┬',
+        // ── 3-way T-junctions ──────────────────────────────────
+        // Stem always points in the diagram's primary axis direction
+        // (down for TD, right for LR) so that merge points visually
+        // flow toward their target, not away from it.
+        (true,  true,  true,  false) => TEE_RIGHT,
+        (true,  true,  false, true ) => TEE_RIGHT,
+        (true,  false, true,  true ) => TEE_DOWN,
+        (false, true,  true,  true ) => TEE_DOWN,
 
-        // corners
-        (true, false, true, false) => BRC,
-        (true, false, false, true) => BLC,
-        (false, true, true, false) => TRC,
-        (false, true, false, true) => TLC,
+        // ── 2-way straight (mid-segment) ──────────────────────
+        (true,  true,  false, false) => VLINE,
+        (false, false, true,  true ) => HLINE,
 
-        // straight lines
-        (true, false, false, false) |
-        (false, true, false, false) => VLINE,
-        (false, false, true, false) |
-        (false, false, false, true) => HLINE,
+        // ── 2-way corners ─────────────────────────────────────
+        (true,  false, true,  false) => BRC,   // up+left  → ┘
+        (true,  false, false, true ) => BLC,   // up+right → └
+        (false, true,  true,  false) => TRC,   // down+left→ ┐
+        (false, true,  false, true ) => TLC,   // down+right→┌
 
-        // isolated / fallback (should not happen after cleanup pass)
-        _ => HLINE,
+        // ── 1-way straight (dead-end / endpoint) ──────────────
+        (true,  false, false, false) |
+        (false, true,  false, false) => VLINE,
+        (false, false, true,  false) |
+        (false, false, false, true ) => HLINE,
+
+        // ── Isolated (Bresenham cleanup fallback) ─────────────
+        (false, false, false, false) => HLINE,
     }
 }
 

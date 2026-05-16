@@ -10,6 +10,9 @@ mod render;
 mod sequence;
 mod types;
 
+#[cfg(test)]
+mod tests;
+
 pub use block::{BlockDiagram, BlockEntry};
 pub use class_diagram::{
     ClassDefinition, ClassDiagram, ClassMember, ClassRelationship, RelationshipType, Visibility,
@@ -204,7 +207,7 @@ fn parse_state_diagram(source: &str) -> Option<MermaidDiagram> {
 }
 
 #[cfg(test)]
-mod tests {
+mod parse_tests {
     use super::*;
 
     #[test]

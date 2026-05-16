@@ -1,0 +1,9 @@
+mod common;
+mod flowchart;
+mod class_diagram;
+mod sequence;
+mod state;
+mod pie;
+mod gantt;
+mod quadrant;
+mod block;

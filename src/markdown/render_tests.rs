@@ -1696,6 +1696,186 @@ mod mermaid_render_tests {
         );
         Ok(())
     }
+
+    fn lines_to_text(lines: &[Line<'static>]) -> String {
+        lines
+            .iter()
+            .map(|l| {
+                l.spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<Vec<&str>>()
+                    .join("")
+            })
+            .collect::<Vec<String>>()
+            .join("\n")
+    }
+
+    fn render_lines(source: &str, width: usize) -> Vec<Line<'static>> {
+        crate::mermaid::render_mermaid(source, width, None, &test_theme())
+            .unwrap_or_default()
+    }
+
+    #[test]
+    fn mermaid_fork_uses_correct_tee() -> anyhow::Result<()> {
+        let source = "graph TD\nD{Decision} -->|Yes| A[Action A]\nD -->|No| B[Action B]";
+        let lines = render_lines(source, 80);
+        let text = lines_to_text(&lines);
+
+        assert!(
+            text.contains('┬'),
+            "fork junction should use ┬ (tee-down), got:\n{text}"
+        );
+        assert!(
+            !text.contains('┴'),
+            "fork junction should NOT use ┴ (tee-up), got:\n{text}"
+        );
+        assert!(
+            text.contains("Decision"),
+            "should contain Decision label"
+        );
+        assert!(
+            text.contains("Action A") && text.contains("Action B"),
+            "should contain both action labels"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn mermaid_merge_uses_correct_tee() -> anyhow::Result<()> {
+        let source = "graph TD\nA[Action A] --> E[End]\nB[Action B] --> E";
+        let lines = render_lines(source, 80);
+        let text = lines_to_text(&lines);
+
+        assert!(
+            text.contains('┬'),
+            "merge junction should use ┬ (tee-down), got:\n{text}"
+        );
+        assert!(
+            !text.contains('┴'),
+            "merge junction should NOT use ┴ (tee-up), got:\n{text}"
+        );
+        assert!(
+            text.contains("Action A") && text.contains("Action B") && text.contains("End"),
+            "should contain all node labels"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn mermaid_straight_line_has_no_breaks() -> anyhow::Result<()> {
+        let source = "graph TD\nA[Start] --> B[End]";
+        let lines = render_lines(source, 80);
+        let text = lines_to_text(&lines);
+
+        assert!(
+            text.contains('│') || text.contains('▼'),
+            "straight edge should have vertical line or arrow, got:\n{text}"
+        );
+        assert!(
+            !text.contains('┼'),
+            "straight edge should NOT have cross chars, got:\n{text}"
+        );
+        assert!(
+            !text.contains('┬') || text.split('┬').count() <= 2,
+            "straight edge should NOT have spurious T-junctions"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn mermaid_corners_are_correct() -> anyhow::Result<()> {
+        let source = "graph TD\nA[Start] --> B[End]";
+        let lines = render_lines(source, 80);
+        let text = lines_to_text(&lines);
+
+        let bad_chars: Vec<char> = text
+            .chars()
+            .filter(|c| "╱╲+*#".contains(*c))
+            .collect();
+        assert!(
+            bad_chars.is_empty(),
+            "should not contain stray chars {:?}, got:\n{text}",
+            bad_chars
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn mermaid_class_diagram_renders_borders() -> anyhow::Result<()> {
+        let source = "classDiagram\nclass Animal {\n  +String name\n  +makeSound() void\n}";
+        let lines = render_lines(source, 80);
+        let text = lines_to_text(&lines);
+
+        assert!(
+            text.contains("Animal"),
+            "class diagram should contain class name, got:\n{text}"
+        );
+        assert!(
+            text.contains("name"),
+            "class diagram should contain attribute, got:\n{text}"
+        );
+        assert!(
+            text.contains("makeSound"),
+            "class diagram should contain method, got:\n{text}"
+        );
+
+        let top_border_count = text.matches('┌').count();
+        let bottom_border_count = text.matches('└').count();
+        assert!(
+            top_border_count >= 1 && bottom_border_count >= 1,
+            "class box should have top-left ┌ and bottom-left └ corners, got:\n{text}"
+        );
+
+        let right_top = text.matches('┐').count();
+        let right_bottom = text.matches('┘').count();
+        assert!(
+            right_top >= 1 && right_bottom >= 1,
+            "class box should have top-right ┐ and bottom-right ┘ corners, got:\n{text}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn mermaid_class_inheritance_edge_renders() -> anyhow::Result<()> {
+        let source = "classDiagram\nclass Animal {\n  +String name\n}\nclass Dog {\n  +String breed\n}\nAnimal <|-- Dog";
+        let lines = render_lines(source, 80);
+        let text = lines_to_text(&lines);
+
+        assert!(
+            text.contains("Animal") && text.contains("Dog"),
+            "should contain both class names, got:\n{text}"
+        );
+        let has_edge_chars = text.contains('│') || text.contains('┬')
+            || text.contains('├') || text.contains('▼');
+        assert!(
+            has_edge_chars,
+            "inheritance should have edge line chars, got:\n{text}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn mermaid_three_way_fork_full_output() -> anyhow::Result<()> {
+        let source = "graph TD\nS[Start] --> A[One]\nS --> B[Two]\nS --> C[Three]";
+        let lines = render_lines(source, 80);
+        let text = lines_to_text(&lines);
+
+        assert!(text.contains("Start"), "should have Start");
+        assert!(text.contains("One"), "should have One");
+        assert!(text.contains("Two"), "should have Two");
+        assert!(text.contains("Three"), "should have Three");
+
+        assert!(
+            text.contains('┬'),
+            "three-way fork should have ┬ junction, got:\n{text}"
+        );
+        assert!(
+            !text.contains('┼'),
+            "should not have spurious cross chars, got:\n{text}"
+        );
+        Ok(())
+    }
 }
 
 // ==================== Link Inline Parsing Tests ====================

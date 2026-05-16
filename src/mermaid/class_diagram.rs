@@ -89,35 +89,65 @@ fn relationship_to_edge_type(r: RelationshipType) -> EdgeType {
     }
 }
 
-fn build_class_label(class: &ClassDefinition, max_width: usize) -> String {
-    let available = max_width.saturating_sub(4).max(8);
-    let mut lines: Vec<String> = Vec::new();
+fn unicode_width(s: &str) -> usize {
+    s.chars().map(|c| c.width().unwrap_or(0)).sum()
+}
 
+fn build_class_label(class: &ClassDefinition, max_width: usize) -> String {
+    let title_content = format!(" {} ", class.name);
+    let title_w = unicode_width(&title_content);
+
+    let attr_texts: Vec<String> = class
+        .attributes
+        .iter()
+        .map(|a| {
+            let v = visibility_char(a.visibility);
+            if a.type_info.is_empty() {
+                format!("{} {}", v, a.name)
+            } else {
+                format!("{} {}: {}", v, a.name, a.type_info)
+            }
+        })
+        .collect();
+
+    let method_texts: Vec<String> = class
+        .methods
+        .iter()
+        .map(|m| {
+            let v = visibility_char(m.visibility);
+            if m.type_info.is_empty() {
+                format!("{} {}()", v, m.name)
+            } else {
+                format!("{} {}(): {}", v, m.name, m.type_info)
+            }
+        })
+        .collect();
+
+    let max_content = title_w
+        .max(attr_texts.iter().map(|t| unicode_width(t) + 2).max().unwrap_or(0))
+        .max(method_texts.iter().map(|t| unicode_width(t) + 2).max().unwrap_or(0));
+
+    let available = max_content.max(max_width.saturating_sub(4)).min(60).max(4);
     let sep = "\u{2500}".repeat(available);
+
+    let mut lines: Vec<String> = Vec::new();
     lines.push(format!("\u{250c}{}\u{2510}", sep));
 
-    let title = format!(" {} ", class.name);
-    let pad = available.saturating_sub(class.name.len() + 2);
+    let pad = available.saturating_sub(title_w);
     let left = pad / 2;
     let right = pad - left;
     lines.push(format!(
         "\u{2502}{}{}{}\u{2502}",
         " ".repeat(left),
-        title,
+        title_content,
         " ".repeat(right)
     ));
 
     lines.push(format!("\u{251c}{}\u{2524}", sep));
 
-    for attr in &class.attributes {
-        let v = visibility_char(attr.visibility);
-        let text = if attr.type_info.is_empty() {
-            format!("{} {}", v, attr.name)
-        } else {
-            format!("{} {}: {}", v, attr.name, attr.type_info)
-        };
-        let text_w: usize = text.chars().map(|c| c.width().unwrap_or(0)).sum();
-        let pad = available.saturating_sub(2 + text_w);
+    for text in &attr_texts {
+        let tw = unicode_width(text);
+        let pad = available.saturating_sub(tw + 2);
         lines.push(format!("\u{2502} {}{}\u{2502}", text, " ".repeat(pad)));
     }
 
@@ -125,15 +155,9 @@ fn build_class_label(class: &ClassDefinition, max_width: usize) -> String {
         lines.push(format!("\u{2502}{}\u{2502}", " ".repeat(available)));
     }
 
-    for method in &class.methods {
-        let v = visibility_char(method.visibility);
-        let text = if method.type_info.is_empty() {
-            format!("{} {}()", v, method.name)
-        } else {
-            format!("{} {}(): {}", v, method.name, method.type_info)
-        };
-        let text_w: usize = text.chars().map(|c| c.width().unwrap_or(0)).sum();
-        let pad = available.saturating_sub(2 + text_w);
+    for text in &method_texts {
+        let tw = unicode_width(text);
+        let pad = available.saturating_sub(tw + 2);
         lines.push(format!("\u{2502} {}{}\u{2502}", text, " ".repeat(pad)));
     }
 
