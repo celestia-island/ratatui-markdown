@@ -5,7 +5,7 @@ use ratatui::{
     Frame,
 };
 
-use super::SpanTree;
+use super::{CursorLineMode, SpanTree};
 use crate::{scroll::render_arrow_scrollbar, theme::RichTextTheme};
 
 pub(super) fn render(
@@ -41,15 +41,20 @@ pub(super) fn render(
             }
             if global_line >= start {
                 let mut spans: Vec<Span<'static>> = entry_spans.clone();
+                let should_render_cursor = tree.cursor_column < spans.len()
+                    && match tree.cursor_line_mode {
+                        CursorLineMode::HeaderOnly => line_idx == 0,
+                        CursorLineMode::AllLines => true,
+                    };
 
                 if is_selected {
-                    if line_idx == 0 && tree.cursor_column < spans.len() {
+                    if should_render_cursor {
                         spans[tree.cursor_column] = tree.cursor_span.clone();
                     }
                     for span in &mut spans {
                         span.style = span.style.bg(highlight_bg);
                     }
-                } else if line_idx == 0 && tree.cursor_column < spans.len() {
+                } else if should_render_cursor {
                     spans[tree.cursor_column] = tree.blank_cursor_span.clone();
                 }
 

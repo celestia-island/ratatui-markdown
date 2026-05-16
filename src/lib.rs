@@ -156,6 +156,7 @@ pub mod scroll;
 pub mod theme;
 #[cfg(feature = "tree")]
 pub mod tree;
+pub mod text_input;
 #[cfg(feature = "viewer")]
 pub mod viewer;
 

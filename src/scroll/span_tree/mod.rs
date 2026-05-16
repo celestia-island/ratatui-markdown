@@ -6,6 +6,13 @@ use ratatui::{
     text::Span,
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CursorLineMode {
+    #[default]
+    HeaderOnly,
+    AllLines,
+}
+
 #[derive(Debug, Clone)]
 pub struct SpanTreeEntry {
     pub id: String,
@@ -34,6 +41,7 @@ pub struct SpanTree {
     blank_cursor_span: Span<'static>,
     cursor_column: usize,
     auto_follow: bool,
+    cursor_line_mode: CursorLineMode,
 }
 
 impl Default for SpanTree {
@@ -53,6 +61,7 @@ impl SpanTree {
             blank_cursor_span: Span::raw(" "),
             cursor_column: 0,
             auto_follow: false,
+            cursor_line_mode: CursorLineMode::default(),
         }
     }
 
@@ -73,6 +82,11 @@ impl SpanTree {
 
     pub fn with_auto_follow(mut self, follow: bool) -> Self {
         self.auto_follow = follow;
+        self
+    }
+
+    pub fn with_cursor_line_mode(mut self, mode: CursorLineMode) -> Self {
+        self.cursor_line_mode = mode;
         self
     }
 
@@ -141,6 +155,10 @@ impl SpanTree {
 
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
+    }
+
+    pub fn cursor_line_mode(&self) -> CursorLineMode {
+        self.cursor_line_mode
     }
 
     pub fn render(
@@ -438,5 +456,17 @@ mod tests {
         assert_eq!(tree.scroll_offset(), 3);
         tree.scroll_up(2);
         assert_eq!(tree.scroll_offset(), 1);
+    }
+
+    #[test]
+    fn cursor_line_mode_default_is_header_only() {
+        let tree = SpanTree::new();
+        assert_eq!(tree.cursor_line_mode(), CursorLineMode::HeaderOnly);
+    }
+
+    #[test]
+    fn cursor_line_mode_all_lines_builder() {
+        let tree = SpanTree::new().with_cursor_line_mode(CursorLineMode::AllLines);
+        assert_eq!(tree.cursor_line_mode(), CursorLineMode::AllLines);
     }
 }

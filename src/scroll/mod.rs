@@ -12,4 +12,4 @@ pub use hybrid_scroll::{FocusableItemRange, FocusableRegion, HybridScrollView};
 pub use scrollable_list::{ListItemRenderer, RenderParams, ScrollableList};
 pub use scrollable_panel::{render_scrollable, ScrollableRenderResult};
 pub use scrollbar::{anchored_panel_scrollbar_area, render_arrow_scrollbar, ArrowScrollbar};
-pub use span_tree::{SpanTree, SpanTreeEntry};
+pub use span_tree::{CursorLineMode, SpanTree, SpanTreeEntry};
