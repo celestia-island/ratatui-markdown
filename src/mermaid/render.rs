@@ -60,7 +60,10 @@ pub fn render_layout(
         draw_edge(&mut grid, edge, is_vertical, theme);
     }
 
-    fix_edge_junctions(&mut grid);
+    // NOTE: fix_edge_junctions disabled — it produces spurious ├/╪ artifacts
+    // because edge segments are drawn independently and don't form clean
+    // intersection patterns at corners. Plain ─│▼► look correct.
+    // fix_edge_junctions(&mut grid);
 
     let mut lines = Vec::new();
     for row in grid.iter() {
@@ -313,79 +316,3 @@ fn set_label_char(grid: &mut [Vec<Cell>], x: usize, y: usize, ch: char, style: S
     }
 }
 
-fn is_neighbor_connector(ch: char) -> bool {
-    matches!(
-        ch,
-        HLINE
-            | VLINE
-            | '┼'
-            | TLC
-            | TRC
-            | BLC
-            | BRC
-            | '├'
-            | '┤'
-            | '┬'
-            | '┴'
-            | RTLC
-            | RTRC
-            | RBLC
-            | RBRC
-            | '▼'
-            | '▲'
-            | '►'
-            | '◄'
-            | '╌'
-    )
-}
-
-fn fix_edge_junctions(grid: &mut [Vec<Cell>]) {
-    let gh = grid.len();
-    if gh == 0 {
-        return;
-    }
-    let gw = grid[0].len();
-    if gw == 0 {
-        return;
-    }
-
-    for y in 0..gh {
-        for x in 0..gw {
-            if !grid[y][x].is_edge {
-                continue;
-            }
-            let ch = grid[y][x].ch;
-            if !matches!(ch, HLINE | VLINE) {
-                continue;
-            }
-
-            // only count neighbors that are ALSO edge cells — never node borders
-            let up = y > 0 && grid[y - 1][x].is_edge && is_neighbor_connector(grid[y - 1][x].ch);
-            let down = y + 1 < gh && grid[y + 1][x].is_edge && is_neighbor_connector(grid[y + 1][x].ch);
-            let left = x > 0 && grid[y][x - 1].is_edge && is_neighbor_connector(grid[y][x - 1].ch);
-            let right = x + 1 < gw && grid[y][x + 1].is_edge && is_neighbor_connector(grid[y][x + 1].ch);
-
-            let new_ch = pick_junction_char(up, down, left, right);
-            if new_ch != ch {
-                grid[y][x].ch = new_ch;
-            }
-        }
-    }
-}
-
-fn pick_junction_char(up: bool, down: bool, left: bool, right: bool) -> char {
-    match (up, down, left, right) {
-        (true, true, true, true) => '┼',
-        (true, true, true, false) => '├',
-        (true, true, false, true) => '┤',
-        (true, false, true, true) => '┴',
-        (false, true, true, true) => '┬',
-        (true, false, true, false) => BRC,
-        (true, false, false, true) => BLC,
-        (false, true, true, false) => TRC,
-        (false, true, false, true) => TLC,
-        (true, true, false, false) => VLINE,
-        (false, false, true, true) => HLINE,
-        _ => VLINE,
-    }
-}
