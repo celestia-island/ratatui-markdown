@@ -8,8 +8,7 @@ use ratatui::{
     Frame,
 };
 
-use crate::markdown::MarkdownRenderer;
-use crate::theme::RichTextTheme;
+use crate::{markdown::MarkdownRenderer, theme::RichTextTheme};
 
 pub struct MarkdownViewer {
     content: String,

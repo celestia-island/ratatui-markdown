@@ -8,24 +8,23 @@ mod pie;
 mod quadrant;
 mod render;
 mod sequence;
-pub mod theme;
-mod types;
-
 #[cfg(test)]
 mod tests;
+pub mod theme;
+mod types;
 
 pub use block::{BlockDiagram, BlockEntry};
 pub use class_diagram::{
     ClassDefinition, ClassDiagram, ClassMember, ClassRelationship, RelationshipType, Visibility,
 };
 pub use quadrant::{QuadrantChart, QuadrantPoint};
+use ratatui::text::Line;
 pub use types::{
     Direction, EdgeType, GanttChart, GanttSection, GanttTask, MermaidDiagram, MermaidEdge,
     MermaidNode, NodeShape, PieChart, SeqArrowKind, SequenceDiagram, SequenceMessage,
 };
 
 use crate::theme::RichTextTheme;
-use ratatui::text::Line;
 
 pub fn render_mermaid(
     source: &str,

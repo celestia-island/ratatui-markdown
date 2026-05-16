@@ -3,14 +3,13 @@ mod edit_render;
 mod read_render;
 mod types;
 
+use std::rc::Rc;
+
+use ratatui::{layout::Rect, Frame};
 pub use types::{
     CursorBlinkController, CursorPosition, CursorShape, CursorStyle, InputMode, Selection,
     SelectionStyle,
 };
-
-use std::rc::Rc;
-
-use ratatui::{layout::Rect, Frame};
 
 use crate::theme::RichTextTheme;
 

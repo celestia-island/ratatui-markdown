@@ -1,13 +1,16 @@
+use std::collections::HashSet;
+
 use ratatui::{
     style::{Modifier, Style},
     text::{Line, Span},
 };
-
-use super::layout::{Layout, LayoutEdge, LayoutNode};
-use super::types::{Direction, EdgeType, NodeShape};
-use crate::theme::RichTextTheme;
-use std::collections::HashSet;
 use unicode_width::UnicodeWidthChar;
+
+use super::{
+    layout::{Layout, LayoutEdge, LayoutNode},
+    types::{Direction, EdgeType, NodeShape},
+};
+use crate::theme::RichTextTheme;
 
 const HLINE: char = '─';
 const VLINE: char = '│';

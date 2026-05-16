@@ -9,12 +9,16 @@ use ratatui::{
     layout::Rect,
     style::{Color, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Padding, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    widgets::{
+        Block, Borders, Padding, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
+    },
     Frame,
 };
-use ratatui_markdown::constants::{HLINE, ROUNDED_BL, ROUNDED_TL, VLINE};
-use ratatui_markdown::theme::RichTextTheme;
-use ratatui_markdown::tree::{CollapsibleTree, EntryKind, KeyStyle, ValueType};
+use ratatui_markdown::{
+    constants::{HLINE, ROUNDED_BL, ROUNDED_TL, VLINE},
+    theme::RichTextTheme,
+    tree::{CollapsibleTree, EntryKind, KeyStyle, ValueType},
+};
 
 const JSON_DATA: &str = r#"{
   "package": "ratatui-markdown",
@@ -324,11 +328,7 @@ fn render_tree_plain(
         .collect()
 }
 
-fn build_code_block(
-    lang: &str,
-    code: &str,
-    theme: &impl RichTextTheme,
-) -> Vec<Line<'static>> {
+fn build_code_block(lang: &str, code: &str, theme: &impl RichTextTheme) -> Vec<Line<'static>> {
     let muted = theme.get_muted_text_color();
     let yellow = theme.get_accent_yellow();
     let mut lines = Vec::new();
@@ -642,10 +642,10 @@ fn main() -> anyhow::Result<()> {
                     };
                     app.rebuild(&theme);
                 }
-                KeyCode::Char('c') => {
-                    if app.selector_mode == SelectorMode::Gutter {
-                        app.cursor_every_line = !app.cursor_every_line;
-                    }
+                KeyCode::Char('c')
+                    if app.selector_mode == SelectorMode::Gutter =>
+                {
+                    app.cursor_every_line = !app.cursor_every_line;
                 }
                 KeyCode::Char('a') => {
                     if app.selected.len() == app.blocks.len() {

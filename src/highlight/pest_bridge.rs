@@ -1,5 +1,4 @@
-use pest::iterators::Pairs;
-use pest::RuleType;
+use pest::{iterators::Pairs, RuleType};
 use ratatui::style::Style;
 
 use super::StyleSegment;

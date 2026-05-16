@@ -1,11 +1,10 @@
+#[cfg(feature = "image")]
+pub use image;
 use ratatui::{
     prelude::Stylize,
     style::{Color, Style},
     text::{Line, Span},
 };
-
-#[cfg(feature = "image")]
-pub use image;
 
 #[cfg(feature = "image")]
 pub struct CropRect {

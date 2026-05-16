@@ -8,10 +8,10 @@ use std::sync::Arc;
 use common::{draw_frame, poll_and_handle, restore_terminal, setup_terminal, AppState, Theme};
 use mcfunction::McfunctionHighlighter;
 use ratatui::style::{Color, Modifier, Style};
-use ratatui_markdown::highlight::{
-    CodeHighlighter, HighlightHooks, StyleSegment, TreeSitterHighlighter,
+use ratatui_markdown::{
+    highlight::{CodeHighlighter, HighlightHooks, StyleSegment, TreeSitterHighlighter},
+    markdown::{MarkdownRenderer, RenderHooks},
 };
-use ratatui_markdown::markdown::{MarkdownRenderer, RenderHooks};
 
 struct BrainfuckHighlighter;
 

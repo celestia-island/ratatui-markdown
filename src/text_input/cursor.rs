@@ -1,8 +1,9 @@
+use std::borrow::Cow;
+
 use ratatui::{
     style::{Color, Modifier, Style},
     text::{Line, Span},
 };
-use std::borrow::Cow;
 
 use super::types::{CursorShape, CursorStyle, Selection, SelectionStyle};
 use crate::theme::RichTextTheme;

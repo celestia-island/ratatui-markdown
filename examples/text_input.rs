@@ -1,8 +1,7 @@
 #[path = "utils/mod.rs"]
 mod common;
 
-use std::cell::Cell;
-use std::rc::Rc;
+use std::{cell::Cell, rc::Rc};
 
 use common::{restore_terminal, setup_terminal, Theme};
 use ratatui::{

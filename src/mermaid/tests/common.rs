@@ -1,8 +1,9 @@
-use crate::theme::ThemeConfig;
 use ratatui::{
     backend::TestBackend, buffer::Buffer, layout::Rect, style::Color, text::Line,
     widgets::Paragraph, Terminal,
 };
+
+use crate::theme::ThemeConfig;
 
 pub fn test_theme() -> ThemeConfig {
     ThemeConfig::default()

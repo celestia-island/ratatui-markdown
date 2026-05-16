@@ -4,6 +4,8 @@ use ratatui::{
     text::{Line, Span},
 };
 
+#[cfg(feature = "image")]
+use super::image::{ImageResolver, MarkdownRenderOutput};
 use super::{
     inline::parse_inline_formatting,
     types::{MarkdownBlock, TextToken},
@@ -16,9 +18,6 @@ use crate::{
     },
     theme::RichTextTheme,
 };
-
-#[cfg(feature = "image")]
-use super::image::{ImageResolver, MarkdownRenderOutput};
 
 const LANG_MERMAID: &str = "mermaid";
 
@@ -186,19 +185,17 @@ impl MarkdownRenderer {
                             let prefix = format!("{VLINE} ");
                             let row = ctx.lines.len();
                             for _ in 0..h_cells {
-                                ctx.lines.push(Line::from(Span::styled(
-                                    prefix.clone(),
-                                    border_style,
-                                )));
+                                ctx.lines
+                                    .push(Line::from(Span::styled(prefix.clone(), border_style)));
                             }
-                        ctx.placements.push(super::image::ImagePlacement {
-                            row,
-                            col: prefix_w,
-                            width_cells: w_cells,
-                            height_cells: h_cells,
-                            image: img,
-                            crop: None,
-                        });
+                            ctx.placements.push(super::image::ImagePlacement {
+                                row,
+                                col: prefix_w,
+                                width_cells: w_cells,
+                                height_cells: h_cells,
+                                image: img,
+                                crop: None,
+                            });
                             ctx.lines.push(Line::from(Span::styled(
                                 format!("{ROUNDED_BL}{HLINE}"),
                                 border_style,

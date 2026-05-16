@@ -2,8 +2,10 @@ use std::sync::Mutex;
 
 use tree_sitter_highlight::Highlighter;
 
-use super::config::{highlight_to_style, HIGHLIGHT_NAMES};
-use super::{CodeHighlighter, StyleSegment};
+use super::{
+    config::{highlight_to_style, HIGHLIGHT_NAMES},
+    CodeHighlighter, StyleSegment,
+};
 
 struct LangEntry {
     language: tree_sitter::Language,

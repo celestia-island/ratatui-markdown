@@ -1,33 +1,23 @@
-mod segment;
-
 #[cfg(feature = "highlight")]
 mod config;
-
+#[cfg(feature = "highlight")]
+mod hooks;
+#[cfg(feature = "highlight-pest")]
+mod pest_bridge;
+mod segment;
 #[cfg(feature = "highlight")]
 mod treesitter;
 
 #[cfg(feature = "highlight")]
-mod hooks;
-
-#[cfg(feature = "highlight-pest")]
-mod pest_bridge;
-
-pub use segment::segments_to_lines;
-
-#[cfg(feature = "highlight")]
 pub use config::{highlight_to_style, HIGHLIGHT_NAMES};
-
-#[cfg(feature = "highlight")]
-pub use treesitter::TreeSitterHighlighter;
-
 #[cfg(feature = "highlight")]
 pub use hooks::HighlightHooks;
-
 #[cfg(feature = "highlight-pest")]
 pub use pest_bridge::pest_pairs_to_segments;
-
-use ratatui::style::Style;
-use ratatui::text::Line;
+use ratatui::{style::Style, text::Line};
+pub use segment::segments_to_lines;
+#[cfg(feature = "highlight")]
+pub use treesitter::TreeSitterHighlighter;
 
 #[derive(Debug, Clone)]
 pub struct StyleSegment {

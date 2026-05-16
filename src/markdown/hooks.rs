@@ -1,7 +1,6 @@
 use ratatui::text::Line;
 
 use super::types::MarkdownBlock;
-
 #[cfg(feature = "image")]
 use crate::markdown::image::image;
 

@@ -1,3 +1,7 @@
+#[path = "utils/mod.rs"]
+mod common;
+
+use common::{lorem, Theme};
 use ratatui::{
     backend::CrosstermBackend,
     crossterm::{
@@ -19,11 +23,6 @@ use ratatui_image::{
     Image, Resize,
 };
 use ratatui_markdown::markdown::{ImageResolver, MarkdownRenderer};
-
-#[path = "utils/mod.rs"]
-mod common;
-
-use common::{lorem, Theme};
 
 fn fix_protocol_override(picker: &mut Picker) {
     use ratatui_image::picker::Capability;

@@ -1,4 +1,3 @@
-use crate::theme::RichTextTheme;
 use ratatui::text::Line;
 use unicode_width::UnicodeWidthChar;
 
@@ -6,6 +5,7 @@ use super::{
     graph, layout, render,
     types::{Direction, EdgeType, MermaidDiagram, MermaidEdge, MermaidNode, NodeShape},
 };
+use crate::theme::RichTextTheme;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClassDefinition {

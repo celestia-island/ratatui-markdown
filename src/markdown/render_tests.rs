@@ -1,3 +1,5 @@
+use anyhow::Context as _;
+
 use ratatui::{
     backend::TestBackend,
     buffer::Buffer,
@@ -7,8 +9,6 @@ use ratatui::{
     widgets::Paragraph,
     Terminal,
 };
-
-use anyhow::Context as _;
 
 use crate::{
     markdown::{MarkdownBlock, MarkdownRenderer, RenderHooks},
@@ -2077,9 +2077,13 @@ mod mermaid_image_render_tests {
         let sz = tree.size();
         let w = (sz.width() as f64).round() as u32;
         let h = (sz.height() as f64).round() as u32;
-        if w == 0 || h == 0 { return None; }
+        if w == 0 || h == 0 {
+            return None;
+        }
         let mut pm = tiny_skia::Pixmap::new(w, h)?;
-        pm.fill(tiny_skia::Color::from_rgba8(bg.0[0], bg.0[1], bg.0[2], bg.0[3]));
+        pm.fill(tiny_skia::Color::from_rgba8(
+            bg.0[0], bg.0[1], bg.0[2], bg.0[3],
+        ));
         resvg::render(&tree, tiny_skia::Transform::identity(), &mut pm.as_mut());
         let rgba = pm.data().to_vec();
         image::RgbaImage::from_raw(w, h, rgba).map(image::DynamicImage::ImageRgba8)
@@ -2092,8 +2096,7 @@ mod mermaid_image_render_tests {
     #[test]
     fn mermaid_image_no_black_edges_simple() {
         let bg = image::Rgba([0, 0, 0, 255]);
-        let img = render_svg_to_image("graph TD\n    A-->B", bg)
-            .expect("render should succeed");
+        let img = render_svg_to_image("graph TD\n    A-->B", bg).expect("render should succeed");
         let (w, h) = (img.width(), img.height());
         assert!(w > 0 && h > 0, "image should have nonzero dimensions");
 
@@ -2113,8 +2116,7 @@ mod mermaid_image_render_tests {
     fn mermaid_image_no_black_edges_complex() {
         let bg = image::Rgba([0, 0, 0, 255]);
         let source = "graph TD\n    A{Cache Hit?} -->|No| B[Compute Result]\n    B --> C[Update Cache]\n    A -->|Yes| D[Return Cached]\n    C --> D\n    D --> E[Response]";
-        let img = render_svg_to_image(source, bg)
-            .expect("render should succeed");
+        let img = render_svg_to_image(source, bg).expect("render should succeed");
         let (w, h) = (img.width(), img.height());
         assert!(w > 0 && h > 0, "image should have nonzero dimensions");
         let rgba = img.to_rgba8();
@@ -2136,8 +2138,8 @@ mod mermaid_image_render_tests {
         let font_w: u32 = 9;
         let font_h: u32 = 18;
 
-        let img = render_svg_to_image("graph LR\n    Input-->Output", bg)
-            .expect("render should succeed");
+        let img =
+            render_svg_to_image("graph LR\n    Input-->Output", bg).expect("render should succeed");
         let img_w = img.width();
         let img_h = img.height();
 
@@ -2149,7 +2151,10 @@ mod mermaid_image_render_tests {
         assert!(
             target_px_w >= img_w && target_px_h >= img_h,
             "cell-aligned canvas ({},{}) should >= image ({},{})",
-            target_px_w, target_px_h, img_w, img_h,
+            target_px_w,
+            target_px_h,
+            img_w,
+            img_h,
         );
 
         let extra_x = target_px_w - img_w;
@@ -2157,7 +2162,10 @@ mod mermaid_image_render_tests {
         assert!(
             extra_x < font_w && extra_y < font_h,
             "padding should be < 1 cell: extra_x={} < font_w={}, extra_y={} < font_h={}",
-            extra_x, font_w, extra_y, font_h,
+            extra_x,
+            font_w,
+            extra_y,
+            font_h,
         );
 
         let mut canvas = image::RgbaImage::from_pixel(target_px_w, target_px_h, bg);
@@ -2168,8 +2176,12 @@ mod mermaid_image_render_tests {
         let center_x = ox + img_w / 2;
         let center_y = oy + img_h / 2;
         let center_px = canvas.get_pixel(center_x, center_y);
-        assert!(!is_bg(*center_px, bg),
-            "center pixel ({},{}) should be SVG content, not bg", center_x, center_y);
+        assert!(
+            !is_bg(*center_px, bg),
+            "center pixel ({},{}) should be SVG content, not bg",
+            center_x,
+            center_y
+        );
 
         let top_left_bg = is_bg(*canvas.get_pixel(0, 0), bg);
         let bot_right_bg = is_bg(*canvas.get_pixel(target_px_w - 1, target_px_h - 1), bg);
@@ -2201,7 +2213,9 @@ mod mermaid_image_render_tests {
         let aligned_h = cell_h * font_h;
 
         let mut pm = tiny_skia::Pixmap::new(aligned_w, aligned_h).unwrap();
-        pm.fill(tiny_skia::Color::from_rgba8(bg.0[0], bg.0[1], bg.0[2], bg.0[3]));
+        pm.fill(tiny_skia::Color::from_rgba8(
+            bg.0[0], bg.0[1], bg.0[2], bg.0[3],
+        ));
 
         let scale_x = aligned_w as f32 / sz.width();
         let scale_y = aligned_h as f32 / sz.height();
@@ -2215,13 +2229,27 @@ mod mermaid_image_render_tests {
             let top = img.get_pixel(x, 0);
             assert!(!is_bg(*top, bg), "scaled top px({},0) should not be bg", x);
             let bot = img.get_pixel(x, aligned_h - 1);
-            assert!(!is_bg(*bot, bg), "scaled bottom px({},{}) should not be bg", x, aligned_h - 1);
+            assert!(
+                !is_bg(*bot, bg),
+                "scaled bottom px({},{}) should not be bg",
+                x,
+                aligned_h - 1
+            );
         }
         for y in 0..aligned_h {
             let left = img.get_pixel(0, y);
-            assert!(!is_bg(*left, bg), "scaled left px(0,{}) should not be bg", y);
+            assert!(
+                !is_bg(*left, bg),
+                "scaled left px(0,{}) should not be bg",
+                y
+            );
             let right = img.get_pixel(aligned_w - 1, y);
-            assert!(!is_bg(*right, bg), "scaled right px({},{}) should not be bg", aligned_w - 1, y);
+            assert!(
+                !is_bg(*right, bg),
+                "scaled right px({},{}) should not be bg",
+                aligned_w - 1,
+                y
+            );
         }
     }
 
@@ -2235,38 +2263,42 @@ mod mermaid_image_render_tests {
         let md = "```mermaid\ngraph TD\n    A-->B\n```\n";
         let blocks = renderer.parse(md);
         let mut resolver = crate::markdown::image::NoopImageResolver;
-        let output = renderer.render_full(
-            &blocks,
-            &theme,
-            &[],
-            &mut resolver,
-            80,
-            999,
-        );
+        let output = renderer.render_full(&blocks, &theme, &[], &mut resolver, 80, 999);
 
-        assert!(!output.images.is_empty(), "should have at least one image placement");
+        assert!(
+            !output.images.is_empty(),
+            "should have at least one image placement"
+        );
 
         for placement in &output.images {
             let expected_rows = placement.height_cells as usize;
             let mut count = 0;
             let start = placement.row;
             for line in &output.lines[start..start + expected_rows] {
-                let has_prefix = line.spans.first().map_or(false, |s| s.content.starts_with("│") || s.content.starts_with("|"));
-                if has_prefix { count += 1; }
+                let has_prefix = line.spans.first().map_or(false, |s| {
+                    s.content.starts_with("│") || s.content.starts_with("|")
+                });
+                if has_prefix {
+                    count += 1;
+                }
             }
-            assert_eq!(count, expected_rows,
+            assert_eq!(
+                count, expected_rows,
                 "placeholder rows with │ prefix ({}) should match height_cells ({})",
-                count, expected_rows);
+                count, expected_rows
+            );
         }
 
-        let header = output.lines.iter().find(|l| {
-            l.spans.iter().any(|s| s.content.contains("mermaid"))
-        });
+        let header = output
+            .lines
+            .iter()
+            .find(|l| l.spans.iter().any(|s| s.content.contains("mermaid")));
         assert!(header.is_some(), "should have ╭─ mermaid header line");
 
-        let footer = output.lines.iter().find(|l| {
-            l.spans.iter().any(|s| s.content.starts_with("╰"))
-        });
+        let footer = output
+            .lines
+            .iter()
+            .find(|l| l.spans.iter().any(|s| s.content.starts_with("╰")));
         assert!(footer.is_some(), "should have ╰─ footer line");
     }
 
@@ -2280,23 +2312,23 @@ mod mermaid_image_render_tests {
         let md = "```mermaid\ngraph TD\n    A-->B\n```\n";
         let blocks = renderer.parse(md);
         let mut resolver = crate::markdown::image::NoopImageResolver;
-        let output = renderer.render_full(
-            &blocks,
-            &theme,
-            &[],
-            &mut resolver,
-            80,
-            999,
-        );
+        let output = renderer.render_full(&blocks, &theme, &[], &mut resolver, 80, 999);
 
-         for placement in &output.images {
-             assert!(placement.col >= 2,
-                 "image col should be at least 2 (prefix), got {}", placement.col);
-             let available = 80u16.saturating_sub(2);
-             assert!(placement.col as u16 + placement.width_cells <= 2 + available,
-                 "image should fit within available width: col={}, width={}, available={}",
-                 placement.col, placement.width_cells, available);
-         }
+        for placement in &output.images {
+            assert!(
+                placement.col >= 2,
+                "image col should be at least 2 (prefix), got {}",
+                placement.col
+            );
+            let available = 80u16.saturating_sub(2);
+            assert!(
+                placement.col as u16 + placement.width_cells <= 2 + available,
+                "image should fit within available width: col={}, width={}, available={}",
+                placement.col,
+                placement.width_cells,
+                available
+            );
+        }
     }
 
     struct MermaidImageHookImpl {
@@ -2319,8 +2351,10 @@ mod mermaid_image_render_tests {
         assert!(svg.contains(bg_hex), "should contain custom bg hex");
 
         let default_svg = mermaid_rs_renderer::render("graph TD\n    A-->B").unwrap();
-        assert!(default_svg.contains("#FFFFFF"),
-            "default theme should contain white bg");
+        assert!(
+            default_svg.contains("#FFFFFF"),
+            "default theme should contain white bg"
+        );
     }
 
     #[test]
@@ -2333,7 +2367,7 @@ mod mermaid_image_render_tests {
 
     #[test]
     fn mermaid_theme_light_bg_uses_saturated_colors() {
-        use crate::mermaid::theme::{MermaidTheme, PRIMARY_LIGHT, PIE_COLORS_LIGHT};
+        use crate::mermaid::theme::{MermaidTheme, PIE_COLORS_LIGHT, PRIMARY_LIGHT};
         let theme = MermaidTheme::light_bg();
         assert_eq!(theme.primary_color, PRIMARY_LIGHT);
         assert_eq!(theme.pie_colors, PIE_COLORS_LIGHT);

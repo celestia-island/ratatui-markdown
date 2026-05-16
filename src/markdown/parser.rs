@@ -1,7 +1,6 @@
-use super::{types::MarkdownBlock, MarkdownRenderer};
-
 #[cfg(feature = "image")]
 use super::image::ImageResolver;
+use super::{types::MarkdownBlock, MarkdownRenderer};
 
 const MD_FENCE: &str = "```";
 const MD_HRULE_DASH: &str = "---";

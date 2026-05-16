@@ -1,10 +1,10 @@
-use crate::theme::RichTextTheme;
 use ratatui::text::Line;
 
 use super::{
     graph, layout, render,
     types::{Direction, MermaidDiagram, MermaidEdge, MermaidNode, NodeShape},
 };
+use crate::theme::RichTextTheme;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BlockDiagram {

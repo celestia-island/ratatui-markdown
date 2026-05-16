@@ -145,14 +145,13 @@
 //! | [`theme`] | always | `RichTextTheme` trait for theming |
 //! | [`constants`] | always | Box-drawing chars, tree connectors, arrows |
 
-#[cfg(feature = "mermaid")]
-pub mod mermaid;
-
 pub mod constants;
 #[cfg(feature = "highlight")]
 pub mod highlight;
 #[cfg(feature = "markdown")]
 pub mod markdown;
+#[cfg(feature = "mermaid")]
+pub mod mermaid;
 #[cfg(feature = "preview")]
 pub mod preview;
 #[cfg(feature = "scroll")]

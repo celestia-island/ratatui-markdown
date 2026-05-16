@@ -1,9 +1,10 @@
-use crate::theme::RichTextTheme;
 use ratatui::{
     style::{Modifier, Style},
     text::{Line, Span},
 };
 use unicode_width::UnicodeWidthChar;
+
+use crate::theme::RichTextTheme;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct QuadrantChart {

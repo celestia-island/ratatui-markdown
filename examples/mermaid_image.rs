@@ -1,3 +1,7 @@
+#[path = "utils/mod.rs"]
+mod common;
+
+use common::{lorem, Theme};
 use ratatui::{
     backend::CrosstermBackend,
     crossterm::{
@@ -22,11 +26,6 @@ use ratatui_markdown::{
     theme::RichTextTheme,
 };
 
-#[path = "utils/mod.rs"]
-mod common;
-
-use common::{lorem, Theme};
-
 fn fix_protocol_override(picker: &mut Picker) {
     use ratatui_image::picker::Capability;
     let caps = picker.capabilities();
@@ -37,7 +36,11 @@ fn fix_protocol_override(picker: &mut Picker) {
 
 fn safe_font_size(picker: &Picker) -> (u16, u16) {
     let (fw, fh) = picker.font_size();
-    if fw == 0 || fh == 0 { (8, 16) } else { (fw, fh) }
+    if fw == 0 || fh == 0 {
+        (8, 16)
+    } else {
+        (fw, fh)
+    }
 }
 
 fn height_divisor(font_h: u16, proto: ProtocolType) -> f64 {
@@ -48,7 +51,9 @@ fn height_divisor(font_h: u16, proto: ProtocolType) -> f64 {
 }
 
 fn pixel_to_cell(pw: u32, ph: u32, font_w: u16, font_h: u16, proto: ProtocolType) -> (u16, u16) {
-    if pw == 0 || ph == 0 || font_w == 0 { return (0, 0); }
+    if pw == 0 || ph == 0 || font_w == 0 {
+        return (0, 0);
+    }
     let cw = (pw as f64 / font_w as f64).ceil() as u16;
     let ch = (ph as f64 / height_divisor(font_h, proto)).ceil() as u16;
     (cw.max(1), ch.max(1))
@@ -110,7 +115,9 @@ sequenceDiagram
 LOREM_3
 "#;
 
-fn to_renderer_theme(src: &ratatui_markdown::mermaid::theme::MermaidTheme) -> mermaid_rs_renderer::Theme {
+fn to_renderer_theme(
+    src: &ratatui_markdown::mermaid::theme::MermaidTheme,
+) -> mermaid_rs_renderer::Theme {
     use ratatui_markdown::mermaid::theme::{color_to_hex, GIT_COLORS_HSL};
     let hex = |c: ratatui::style::Color| format!("#{}", color_to_hex(c));
     let pie: [String; 12] = src.pie_colors.map(hex);
@@ -136,8 +143,21 @@ fn to_renderer_theme(src: &ratatui_markdown::mermaid::theme::MermaidTheme) -> me
         sequence_activation_border: hex(src.activation_border),
         text_color: hex(src.text_color),
         git_colors: GIT_COLORS_HSL.map(|v| v.to_string()),
-        git_inv_colors: ["hsl(60, 100%, 3.7%)", "rgb(0,0,160)", "rgb(49,0,147)", "rgb(147,73,0)", "rgb(147,0,0)", "rgb(147,0,73)", "rgb(0,147,0)", "rgb(0,147,147)"].map(|v| v.to_string()),
-        git_branch_label_colors: ["#ffffff", "black", "black", "#ffffff", "black", "black", "black", "black"].map(|v| v.to_string()),
+        git_inv_colors: [
+            "hsl(60, 100%, 3.7%)",
+            "rgb(0,0,160)",
+            "rgb(49,0,147)",
+            "rgb(147,73,0)",
+            "rgb(147,0,0)",
+            "rgb(147,0,73)",
+            "rgb(0,147,0)",
+            "rgb(0,147,147)",
+        ]
+        .map(|v| v.to_string()),
+        git_branch_label_colors: [
+            "#ffffff", "black", "black", "#ffffff", "black", "black", "black", "black",
+        ]
+        .map(|v| v.to_string()),
         git_commit_label_color: hex(src.git_commit_label_color),
         git_commit_label_background: hex(src.git_commit_label_bg),
         git_tag_label_color: hex(src.git_tag_label_color),
@@ -302,12 +322,18 @@ struct MermaidResolver {
 impl MermaidResolver {
     fn new(picker: &Picker) -> Self {
         let (fw, fh) = safe_font_size(picker);
-        Self { font_w: fw, font_h: fh, proto: picker.protocol_type() }
+        Self {
+            font_w: fw,
+            font_h: fh,
+            proto: picker.protocol_type(),
+        }
     }
 }
 
 impl ImageResolver for MermaidResolver {
-    fn resolve(&mut self, _path: &str) -> Option<image::DynamicImage> { None }
+    fn resolve(&mut self, _path: &str) -> Option<image::DynamicImage> {
+        None
+    }
 
     fn cell_dimensions(
         &mut self,
@@ -315,7 +341,13 @@ impl ImageResolver for MermaidResolver {
         max_width: u16,
         max_height: u16,
     ) -> (u16, u16) {
-        let (cw, ch) = pixel_to_cell(img.width(), img.height(), self.font_w, self.font_h, self.proto);
+        let (cw, ch) = pixel_to_cell(
+            img.width(),
+            img.height(),
+            self.font_w,
+            self.font_h,
+            self.proto,
+        );
         let w = cw.min(max_width);
         let h = if w < cw {
             let ratio = img.height() as f64 * w as f64 / (img.width() as f64).max(1.0);
@@ -338,7 +370,7 @@ struct AppState {
     scroll: u16,
     font_w: u16,
     font_h: u16,
-     max_w: u16,
+    max_w: u16,
 }
 
 impl AppState {
@@ -366,7 +398,10 @@ fn main() -> anyhow::Result<()> {
 
     let theme = Theme;
     let picker = match Picker::from_query_stdio() {
-        Ok(mut p) => { fix_protocol_override(&mut p); p }
+        Ok(mut p) => {
+            fix_protocol_override(&mut p);
+            p
+        }
         Err(_) => Picker::halfblocks(),
     };
 
@@ -376,12 +411,12 @@ fn main() -> anyhow::Result<()> {
     let max_w = area.width.saturating_sub(4);
     let content_width = max_w as usize;
 
-     let mermaid_theme = theme.get_mermaid_theme();
-     let hooks = MermaidImageHooks {
-         mermaid_theme: mermaid_theme.clone(),
-         font_w: font_w as u32,
-         font_h: font_h as u32,
-     };
+    let mermaid_theme = theme.get_mermaid_theme();
+    let hooks = MermaidImageHooks {
+        mermaid_theme: mermaid_theme.clone(),
+        font_w: font_w as u32,
+        font_h: font_h as u32,
+    };
     let renderer = MarkdownRenderer::new(content_width).with_render_hooks(Box::new(hooks));
 
     let md = MARKDOWN_TEMPLATE
@@ -397,12 +432,12 @@ fn main() -> anyhow::Result<()> {
         picker,
         resolver,
         blocks,
-         images: Vec::new(),
-         scroll: 0,
-         font_w,
-         font_h,
-         max_w,
-     };
+        images: Vec::new(),
+        scroll: 0,
+        font_w,
+        font_h,
+        max_w,
+    };
 
     let output = state.rebuild_output();
 
@@ -419,12 +454,7 @@ fn main() -> anyhow::Result<()> {
     loop {
         terminal.draw(|f| {
             let area = f.area();
-            let block_area = Rect::new(
-                area.x,
-                area.y,
-                area.width,
-                area.height.saturating_sub(1),
-            );
+            let block_area = Rect::new(area.x, area.y, area.width, area.height.saturating_sub(1));
 
             let block = Block::default()
                 .borders(Borders::ALL)
@@ -441,14 +471,20 @@ fn main() -> anyhow::Result<()> {
 
             let mut doc_h = output.lines.len() as u16;
             for (i, img) in state.images.iter().enumerate() {
-                if img.failed { continue; }
+                if img.failed {
+                    continue;
+                }
                 let (_, img_h) = img.cell_size();
                 let placement = &output.images[i];
                 let img_end = placement.row as u16 + img_h;
-                if img_end > doc_h { doc_h = img_end; }
+                if img_end > doc_h {
+                    doc_h = img_end;
+                }
             }
             let max_scroll = doc_h.saturating_sub(content_h);
-            if state.scroll > max_scroll { state.scroll = max_scroll; }
+            if state.scroll > max_scroll {
+                state.scroll = max_scroll;
+            }
 
             f.render_widget(
                 Paragraph::new(output.lines.clone())
@@ -464,7 +500,9 @@ fn main() -> anyhow::Result<()> {
                 };
 
                 let (img_w, img_h) = mi.cell_size();
-                if img_h < 1 || img_w < 1 { continue; }
+                if img_h < 1 || img_w < 1 {
+                    continue;
+                }
 
                 let img_l = text_left as i32 + placement.col as i32;
                 let img_t = text_top as i32 + placement.row as i32 - state.scroll as i32;
@@ -516,7 +554,8 @@ fn main() -> anyhow::Result<()> {
                         || crop_cells_b > 0;
 
                     let img_for_proto = if need_crop {
-                        mi.image.crop_imm(crop_px_x, crop_px_y, crop_px_w, crop_px_h)
+                        mi.image
+                            .crop_imm(crop_px_x, crop_px_y, crop_px_w, crop_px_h)
                     } else {
                         mi.image.clone()
                     };
@@ -541,9 +580,15 @@ fn main() -> anyhow::Result<()> {
                     };
 
                     let rect_for_proto = Rect::new(0, 0, vis_w, vis_h);
-                    match state.picker.new_protocol(final_img, rect_for_proto, Resize::Fit(None)) {
+                    match state
+                        .picker
+                        .new_protocol(final_img, rect_for_proto, Resize::Fit(None))
+                    {
                         Ok(p) => mi.protocol = Some(p),
-                        Err(_) => { mi.failed = true; continue; }
+                        Err(_) => {
+                            mi.failed = true;
+                            continue;
+                        }
                     }
                     mi.dirty = false;
                 }
@@ -557,13 +602,15 @@ fn main() -> anyhow::Result<()> {
                     let widget = Image::new(proto_ref);
                     f.render_widget(widget, rect);
                 }));
-                if result.is_err() { mi.failed = true; continue; }
+                if result.is_err() {
+                    mi.failed = true;
+                    continue;
+                }
             }
 
             if doc_h > content_h && content_h > 0 {
                 let sb_area = Rect::new(sb_col, inner.y, 1, content_h);
-                let ratatui_content_len =
-                    doc_h.saturating_sub(content_h).saturating_add(1);
+                let ratatui_content_len = doc_h.saturating_sub(content_h).saturating_add(1);
                 let sb = Scrollbar::default()
                     .orientation(ScrollbarOrientation::VerticalRight)
                     .thumb_symbol("█")
@@ -646,6 +693,8 @@ fn main() -> anyhow::Result<()> {
 
 fn mark_dirty(images: &mut [MermaidImage]) {
     for img in images.iter_mut() {
-        if !img.failed { img.dirty = true; }
+        if !img.failed {
+            img.dirty = true;
+        }
     }
 }

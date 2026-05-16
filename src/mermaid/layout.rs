@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use super::graph::LayeredGraph;
-use super::types::*;
 use unicode_width::UnicodeWidthStr;
+
+use super::{graph::LayeredGraph, types::*};
 
 fn label_display_width(label: &str) -> usize {
     label.lines().map(UnicodeWidthStr::width).max().unwrap_or(0)
