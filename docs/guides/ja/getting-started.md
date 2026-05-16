@@ -14,7 +14,7 @@
 ratatui-markdown = "0.1"
 ```
 
-これにより、デフォルトですべての機能（`markdown`、`scroll`、`tree`、`preview`）が有効になります。
+これにより、デフォルトですべての機能（`markdown`、`scroll`、`tree`、`preview`、`mermaid`、`image`、`viewer`）が有効になります。
 
 ### 機能の選択
 

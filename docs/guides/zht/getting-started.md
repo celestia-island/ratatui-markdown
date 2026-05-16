@@ -14,7 +14,7 @@
 ratatui-markdown = "0.1"
 ```
 
-預設會啟用所有功能（`markdown`、`scroll`、`tree`、`preview`）。
+預設會啟用所有功能（`markdown`、`scroll`、`tree`、`preview`、`mermaid`、`image`、`viewer`）。
 
 ### 選擇性功能
 

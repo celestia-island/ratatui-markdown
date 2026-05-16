@@ -20,6 +20,9 @@ cargo test --no-default-features
 cargo test --no-default-features --features markdown
 cargo test --no-default-features --features scroll
 cargo test --no-default-features --features tree
+cargo test --no-default-features --features mermaid
+cargo test --no-default-features --features image
+cargo test --no-default-features --features viewer
 ```
 
 ## 프로젝트 규칙
@@ -79,7 +82,10 @@ cargo test --no-default-features
 cargo test --no-default-features --features markdown
 cargo test --no-default-features --features scroll
 cargo test --no-default-features --features tree
-cargo test --no-default-features --features preview  # 모든 기능 포함
+cargo test --no-default-features --features mermaid
+cargo test --no-default-features --features image
+cargo test --no-default-features --features viewer
+cargo test --no-default-features --features preview  # markdown, scroll, tree 포함
 ```
 
 ### 문서

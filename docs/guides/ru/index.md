@@ -111,8 +111,8 @@ ratatui-markdown = "0.2"
 ```bash
 cargo run --example basic
 cargo run --example code --features highlight-lang-all
-cargo run --example image --features image
-cargo run --example mermaid --features mermaid
+cargo run --example image
+cargo run --example mermaid
 cargo run --example tree_list
 ```
 
@@ -125,18 +125,18 @@ cargo run --example tree_list
 ratatui-markdown = { version = "0.2", default-features = false, features = ["markdown"] }
 ```
 
-| Функция               | Зависимости                         | Описание                                          |
-|-----------------------|-------------------------------------|---------------------------------------------------|
-| `markdown`            | —                                   | Парсер и рендерер Markdown                        |
-| `image`               | —                                   | Разрешение изображений через `ImageResolver`      |
-| `scroll`              | —                                   | HybridScrollView, прокручиваемые списки, полоса   |
-| `tree`                | `scroll`, `serde_json`, `toml`      | Сворачиваемое дерево JSON/TOML                    |
-| `preview`             | `markdown`, `scroll`, `tree`        | Унифицированный виджет MarkdownPreview            |
-| `mermaid`             | `markdown`                          | Рендеринг диаграмм Mermaid                        |
-| `viewer`              | `markdown`, `scroll`                | Виджет MarkdownViewer                             |
-| `highlight`           | —                                   | Подсветка синтаксиса через tree-sitter            |
-| `highlight-lang-*`    | `highlight`                         | Отдельные языковые грамматики                     |
-| `highlight-lang-all`  | `highlight`                         | Все встроенные грамматики                         |
+| Функция               | Зависимости                         | Описание                                          | По умолчанию |
+|-----------------------|-------------------------------------|---------------------------------------------------|--------------|
+| `markdown`            | —                                   | Парсер и рендерер Markdown                        | ✓            |
+| `image`               | —                                   | Разрешение изображений через `ImageResolver`      | ✓            |
+| `scroll`              | —                                   | HybridScrollView, прокручиваемые списки, полоса   | ✓            |
+| `tree`                | `scroll`, `serde_json`, `toml`      | Сворачиваемое дерево JSON/TOML                    | ✓            |
+| `preview`             | `markdown`, `scroll`, `tree`        | Унифицированный виджет MarkdownPreview            | ✓            |
+| `mermaid`             | `markdown`                          | Рендеринг диаграмм Mermaid                        | ✓            |
+| `viewer`              | `markdown`, `scroll`                | Виджет MarkdownViewer                             | ✓            |
+| `highlight`           | —                                   | Подсветка синтаксиса через tree-sitter            |              |
+| `highlight-lang-*`    | `highlight`                         | Отдельные языковые грамматики                     |              |
+| `highlight-lang-all`  | `highlight`                         | Все встроенные грамматики                         |              |
 
 ## Документация
 

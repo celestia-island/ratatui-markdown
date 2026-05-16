@@ -20,6 +20,9 @@ cargo test --no-default-features
 cargo test --no-default-features --features markdown
 cargo test --no-default-features --features scroll
 cargo test --no-default-features --features tree
+cargo test --no-default-features --features mermaid
+cargo test --no-default-features --features image
+cargo test --no-default-features --features viewer
 ```
 
 ## 项目约定
@@ -79,7 +82,10 @@ cargo test --no-default-features
 cargo test --no-default-features --features markdown
 cargo test --no-default-features --features scroll
 cargo test --no-default-features --features tree
-cargo test --no-default-features --features preview  # 隐含所有功能
+cargo test --no-default-features --features mermaid
+cargo test --no-default-features --features image
+cargo test --no-default-features --features viewer
+cargo test --no-default-features --features preview  # 隐含 markdown, scroll, tree
 ```
 
 ### 文档

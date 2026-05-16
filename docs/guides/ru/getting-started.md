@@ -14,7 +14,7 @@
 ratatui-markdown = "0.1"
 ```
 
-Это включает все возможности по умолчанию (`markdown`, `scroll`, `tree`, `preview`).
+Это включает все возможности по умолчанию (`markdown`, `scroll`, `tree`, `preview`, `mermaid`, `image`, `viewer`).
 
 ### Выборочные Функции
 

@@ -14,7 +14,7 @@
 ratatui-markdown = "0.1"
 ```
 
-기본적으로 모든 기능(`markdown`, `scroll`, `tree`, `preview`)이 활성화됩니다.
+기본적으로 모든 기능(`markdown`, `scroll`, `tree`, `preview`, `mermaid`, `image`, `viewer`)이 활성화됩니다.
 
 ### 선택적 기능
 
