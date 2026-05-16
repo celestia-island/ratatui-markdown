@@ -6,6 +6,7 @@ use ratatui::{
 use super::layout::{Layout, LayoutEdge, LayoutNode};
 use super::types::{Direction, EdgeType, NodeShape};
 use crate::theme::RichTextTheme;
+use unicode_width::UnicodeWidthChar;
 
 const HLINE: char = '─';
 const VLINE: char = '│';
@@ -147,7 +148,7 @@ fn draw_node(grid: &mut [Vec<Cell>], node: &LayoutNode, theme: &impl RichTextThe
                     style: text_style,
                     is_edge: false,
                 };
-                cx += 1;
+                cx += ch.width().unwrap_or(1);
             }
         }
         while cx < x + w - 1 {
@@ -225,17 +226,21 @@ fn draw_edge(
         .fg(theme.get_primary_color())
         .add_modifier(Modifier::BOLD);
 
-    for i in 0..wp.len() - 1 {
+    let n = wp.len();
+    for i in 0..n - 1 {
         let (x1, y1) = wp[i];
         let (x2, y2) = wp[i + 1];
+        let is_last = i == n - 2;
 
         if y1 == y2 {
             let (lo, hi) = if x1 < x2 { (x1, x2) } else { (x2, x1) };
+            let hi = if is_last { hi.saturating_sub(1) } else { hi };
             for x in lo..=hi {
                 set_if_empty(grid, x, y1, HLINE, edge_style);
             }
         } else if x1 == x2 {
             let (lo, hi) = if y1 < y2 { (y1, y2) } else { (y2, y1) };
+            let hi = if is_last { hi.saturating_sub(1) } else { hi };
             for y in lo..=hi {
                 set_if_empty(grid, x1, y, VLINE, edge_style);
             }
@@ -246,17 +251,26 @@ fn draw_edge(
         let &(sx, sy) = &wp[wp.len() - 2];
         let &(tx, ty) = wp.last().unwrap();
         let arrow_ch = if is_vertical {
-            if ty > sy {
-                '▼'
-            } else {
-                '▲'
-            }
+            if ty > sy { '▼' } else { '▲' }
         } else if tx > sx {
             '►'
         } else {
             '◄'
         };
-        force_set(grid, tx, ty, arrow_ch, arrow_style);
+        let (ax, ay) = if is_vertical {
+            if ty > sy {
+                (tx, ty.saturating_sub(1))
+            } else {
+                (tx, ty + 1)
+            }
+        } else {
+            if tx > sx {
+                (tx.saturating_sub(1), ty)
+            } else {
+                (tx + 1, ty)
+            }
+        };
+        set_if_empty(grid, ax, ay, arrow_ch, arrow_style);
     }
 
     if let Some(ref label) = edge.label {
@@ -287,16 +301,6 @@ fn set_if_empty(grid: &mut [Vec<Cell>], x: usize, y: usize, ch: char, style: Sty
             cell.style = style;
             cell.is_edge = true;
         }
-    }
-}
-
-fn force_set(grid: &mut [Vec<Cell>], x: usize, y: usize, ch: char, style: Style) {
-    if y < grid.len() && x < grid[0].len() {
-        grid[y][x] = Cell {
-            ch,
-            style,
-            is_edge: true,
-        };
     }
 }
 

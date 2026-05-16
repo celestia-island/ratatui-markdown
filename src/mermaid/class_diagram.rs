@@ -3,7 +3,7 @@ use ratatui::text::Line;
 use unicode_width::UnicodeWidthChar;
 
 use super::{
-    layout, render,
+    graph, layout, render,
     types::{Direction, EdgeType, MermaidDiagram, MermaidEdge, MermaidNode, NodeShape},
 };
 
@@ -422,7 +422,8 @@ pub fn render_class_diagram(
     let diagram = parse_class_diagram(source)?;
     let mermaid = convert_to_mermaid_diagram(&diagram);
     let direction = mermaid.direction.clone();
-    let layout = layout::compute_layout(&mermaid, max_width, max_height);
+    let graph = graph::assign_layers(&mermaid);
+    let layout = layout::compute_layout(&mermaid, &graph, max_width, max_height);
     Some(render::render_layout(&layout, &direction, theme))
 }
 

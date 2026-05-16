@@ -2,7 +2,7 @@ use crate::theme::RichTextTheme;
 use ratatui::text::Line;
 
 use super::{
-    layout, render,
+    graph, layout, render,
     types::{Direction, MermaidDiagram, MermaidEdge, MermaidNode, NodeShape},
 };
 
@@ -132,7 +132,8 @@ pub fn render_block_diagram(
     let block = parse_block(source)?;
     let mermaid = convert_to_mermaid_diagram(&block);
     let direction = mermaid.direction.clone();
-    let layout = layout::compute_layout(&mermaid, max_width, max_height);
+    let graph = graph::assign_layers(&mermaid);
+    let layout = layout::compute_layout(&mermaid, &graph, max_width, max_height);
     Some(render::render_layout(&layout, &direction, theme))
 }
 

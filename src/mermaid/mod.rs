@@ -1,6 +1,7 @@
 mod block;
 mod class_diagram;
 mod gantt;
+mod graph;
 mod layout;
 mod parser;
 mod pie;
@@ -63,7 +64,8 @@ fn render_flowchart(
 ) -> Option<Vec<Line<'static>>> {
     let diagram = parser::parse(source).ok()?;
     let direction = diagram.direction.clone();
-    let layout = layout::compute_layout(&diagram, max_width, max_height);
+    let graph = graph::assign_layers(&diagram);
+    let layout = layout::compute_layout(&diagram, &graph, max_width, max_height);
     let lines = render::render_layout(&layout, &direction, theme);
     Some(lines)
 }
@@ -103,7 +105,8 @@ fn render_state_diagram(
 ) -> Option<Vec<Line<'static>>> {
     let diagram = parse_state_diagram(source)?;
     let direction = diagram.direction.clone();
-    let layout = layout::compute_layout(&diagram, max_width, max_height);
+    let graph = graph::assign_layers(&diagram);
+    let layout = layout::compute_layout(&diagram, &graph, max_width, max_height);
     let lines = render::render_layout(&layout, &direction, theme);
     Some(lines)
 }
