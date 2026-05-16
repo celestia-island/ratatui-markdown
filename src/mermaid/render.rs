@@ -60,10 +60,7 @@ pub fn render_layout(
         draw_edge(&mut grid, edge, is_vertical, theme);
     }
 
-    // NOTE: fix_edge_junctions disabled — it produces spurious ├/╪ artifacts
-    // because edge segments are drawn independently and don't form clean
-    // intersection patterns at corners. Plain ─│▼► look correct.
-    // fix_edge_junctions(&mut grid);
+    fix_edge_junctions(&mut grid);
 
     let mut lines = Vec::new();
     for row in grid.iter() {
@@ -313,6 +310,63 @@ fn set_label_char(grid: &mut [Vec<Cell>], x: usize, y: usize, ch: char, style: S
             cell.ch = ch;
             cell.style = style;
         }
+    }
+}
+
+/// Merge adjacent HLINE/VLINE cells into proper corner/tee chars.
+///
+/// Only considers **other HLINE/VLINE edge cells** as neighbors — never
+/// node borders (is_edge==false) or arrows/labels.  This prevents
+/// spurious ├/╪ artifacts while still producing clean └├┬┴ at real
+/// edge-path corners.
+fn fix_edge_junctions(grid: &mut [Vec<Cell>]) {
+    let gh = grid.len();
+    if gh == 0 {
+        return;
+    }
+    let gw = grid[0].len();
+    if gw == 0 {
+        return;
+    }
+
+    for y in 0..gh {
+        for x in 0..gw {
+            let cell = &grid[y][x];
+            if !cell.is_edge {
+                continue;
+            }
+            if !matches!(cell.ch, HLINE | VLINE) {
+                continue;
+            }
+
+            // only pure line chars count as junction participants
+            let up = y > 0 && grid[y - 1][x].is_edge && matches!(grid[y - 1][x].ch, HLINE | VLINE);
+            let down = y + 1 < gh && grid[y + 1][x].is_edge && matches!(grid[y + 1][x].ch, HLINE | VLINE);
+            let left = x > 0 && grid[y][x - 1].is_edge && matches!(grid[y][x - 1].ch, HLINE | VLINE);
+            let right = x + 1 < gw && grid[y][x + 1].is_edge && matches!(grid[y][x + 1].ch, HLINE | VLINE);
+
+            let new_ch = pick_junction_char(up, down, left, right);
+            if new_ch != cell.ch {
+                grid[y][x].ch = new_ch;
+            }
+        }
+    }
+}
+
+fn pick_junction_char(up: bool, down: bool, left: bool, right: bool) -> char {
+    match (up, down, left, right) {
+        (true, true, true, true) => '┼',
+        (true, true, true, false) => '├',
+        (true, true, false, true) => '┤',
+        (true, false, true, true) => '┴',
+        (false, true, true, true) => '┬',
+        (true, false, true, false) => BRC,
+        (true, false, false, true) => BLC,
+        (false, true, true, false) => TRC,
+        (false, true, false, true) => TLC,
+        (true, true, false, false) => VLINE,
+        (false, false, true, true) => HLINE,
+        _ => VLINE, // fallback — should not happen for valid patterns
     }
 }
 
