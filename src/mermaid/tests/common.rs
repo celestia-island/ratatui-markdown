@@ -1,12 +1,7 @@
 use crate::theme::ThemeConfig;
 use ratatui::{
-    backend::TestBackend,
-    buffer::Buffer,
-    layout::Rect,
-    style::Color,
-    text::Line,
-    widgets::Paragraph,
-    Terminal,
+    backend::TestBackend, buffer::Buffer, layout::Rect, style::Color, text::Line,
+    widgets::Paragraph, Terminal,
 };
 
 pub fn test_theme() -> ThemeConfig {
@@ -42,7 +37,11 @@ pub fn buffer_to_string(buf: &Buffer) -> String {
     let mut rows = Vec::with_capacity(height);
     for y in 0..height {
         let row: String = (0..width)
-            .map(|x| buf.cell((x as u16, y as u16)).map(|c| c.symbol()).unwrap_or(" "))
+            .map(|x| {
+                buf.cell((x as u16, y as u16))
+                    .map(|c| c.symbol())
+                    .unwrap_or(" ")
+            })
             .collect();
         rows.push(row.trim_end().to_string());
     }

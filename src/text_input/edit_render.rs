@@ -58,7 +58,10 @@ pub(in crate::text_input) fn char_offset_to_line(text: &str, char_idx: usize) ->
     text.split('\n').count().saturating_sub(1)
 }
 
-pub(in crate::text_input) fn char_offset_to_line_col(text: &str, char_idx: usize) -> (usize, usize) {
+pub(in crate::text_input) fn char_offset_to_line_col(
+    text: &str,
+    char_idx: usize,
+) -> (usize, usize) {
     let mut offset = 0usize;
     for (i, line) in text.split('\n').enumerate() {
         let line_len = line.chars().count();
@@ -67,12 +70,20 @@ pub(in crate::text_input) fn char_offset_to_line_col(text: &str, char_idx: usize
         }
         offset += line_len + 1;
     }
-    let last_line_len = text.split('\n').next_back().map(|l| l.chars().count()).unwrap_or(0);
+    let last_line_len = text
+        .split('\n')
+        .next_back()
+        .map(|l| l.chars().count())
+        .unwrap_or(0);
     let num_lines = text.split('\n').count().saturating_sub(1);
     (num_lines, last_line_len)
 }
 
-pub(in crate::text_input) fn line_col_to_char_offset(text: &str, line_idx: usize, col: usize) -> usize {
+pub(in crate::text_input) fn line_col_to_char_offset(
+    text: &str,
+    line_idx: usize,
+    col: usize,
+) -> usize {
     let mut offset = 0usize;
     for (i, line) in text.split('\n').enumerate() {
         if i == line_idx {
@@ -95,7 +106,10 @@ fn style_source_spans(text: &str, theme: &impl RichTextTheme) -> Vec<Span<'stati
     macro_rules! flush_current {
         () => {
             if !current.is_empty() {
-                spans.push(Span::styled(current.clone(), Style::default().fg(text_color)));
+                spans.push(Span::styled(
+                    current.clone(),
+                    Style::default().fg(text_color),
+                ));
                 current.clear();
             }
         };
@@ -116,9 +130,14 @@ fn style_source_spans(text: &str, theme: &impl RichTextTheme) -> Vec<Span<'stati
                 let space = " ".to_string();
                 spans.push(Span::styled(
                     hashes,
-                    Style::default().fg(theme.get_primary_color()).add_modifier(Modifier::BOLD),
+                    Style::default()
+                        .fg(theme.get_primary_color())
+                        .add_modifier(Modifier::BOLD),
                 ));
-                spans.push(Span::styled(space, Style::default().fg(theme.get_primary_color())));
+                spans.push(Span::styled(
+                    space,
+                    Style::default().fg(theme.get_primary_color()),
+                ));
                 let rest: String = chars[i..].iter().take_while(|c| **c != '\n').collect();
                 if !rest.is_empty() {
                     spans.push(Span::styled(
@@ -223,7 +242,9 @@ fn style_source_spans(text: &str, theme: &impl RichTextTheme) -> Vec<Span<'stati
                     spans.push(Span::styled(delim, Style::default().fg(muted_color)));
                     spans.push(Span::styled(
                         content.clone(),
-                        Style::default().fg(text_color).add_modifier(Modifier::ITALIC),
+                        Style::default()
+                            .fg(text_color)
+                            .add_modifier(Modifier::ITALIC),
                     ));
                     let delim_end = delimiter.to_string();
                     spans.push(Span::styled(delim_end, Style::default().fg(muted_color)));
@@ -313,11 +334,9 @@ fn style_source_spans(text: &str, theme: &impl RichTextTheme) -> Vec<Span<'stati
                         while url_end < len {
                             if chars[url_end] == ')' {
                                 let bracket_open = "[".to_string();
-                                let link_text: String =
-                                    chars[i + 1..end_bracket].iter().collect();
+                                let link_text: String = chars[i + 1..end_bracket].iter().collect();
                                 let bracket_close_paren_open = "](".to_string();
-                                let url_text: String =
-                                    chars[url_start..url_end].iter().collect();
+                                let url_text: String = chars[url_start..url_end].iter().collect();
                                 let paren_close = ")".to_string();
 
                                 flush_current!();
@@ -335,10 +354,8 @@ fn style_source_spans(text: &str, theme: &impl RichTextTheme) -> Vec<Span<'stati
                                     bracket_close_paren_open,
                                     Style::default().fg(muted_color),
                                 ));
-                                spans.push(Span::styled(
-                                    url_text,
-                                    Style::default().fg(muted_color),
-                                ));
+                                spans
+                                    .push(Span::styled(url_text, Style::default().fg(muted_color)));
                                 spans.push(Span::styled(
                                     paren_close,
                                     Style::default().fg(muted_color),
@@ -373,21 +390,22 @@ fn style_source_spans(text: &str, theme: &impl RichTextTheme) -> Vec<Span<'stati
                 ));
                 i += 1;
             }
-            let rest: String = chars[i..]
-                .iter()
-                .take_while(|c| **c != '\n')
-                .collect();
+            let rest: String = chars[i..].iter().take_while(|c| **c != '\n').collect();
             if !rest.is_empty() {
                 spans.push(Span::styled(
                     rest.clone(),
-                    Style::default().fg(text_color).add_modifier(Modifier::ITALIC),
+                    Style::default()
+                        .fg(text_color)
+                        .add_modifier(Modifier::ITALIC),
                 ));
                 i += rest.chars().count();
             }
             continue;
         }
 
-        if (chars[i] == '-' || chars[i] == '*') && i + 1 < len && chars[i + 1] == ' '
+        if (chars[i] == '-' || chars[i] == '*')
+            && i + 1 < len
+            && chars[i + 1] == ' '
             && (i == 0 || chars[i - 1] == '\n')
         {
             flush_current!();

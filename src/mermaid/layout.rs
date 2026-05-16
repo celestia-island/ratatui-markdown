@@ -5,16 +5,16 @@ use super::types::*;
 use unicode_width::UnicodeWidthStr;
 
 fn label_display_width(label: &str) -> usize {
-    label
-        .lines()
-        .map(UnicodeWidthStr::width)
-        .max()
-        .unwrap_or(0)
+    label.lines().map(UnicodeWidthStr::width).max().unwrap_or(0)
 }
 
 fn label_line_count(label: &str) -> usize {
     let n = label.lines().count();
-    if n == 0 { 1 } else { n }
+    if n == 0 {
+        1
+    } else {
+        n
+    }
 }
 
 // ── pixel-space types ──────────────────────────────────────────
@@ -49,7 +49,7 @@ pub struct Layout {
 
 const NODE_H_PADDING: usize = 2;
 const MIN_NODE_WIDTH: usize = 6;
-const NODE_V_HEIGHT: usize = 3;   // vertical direction
+const NODE_V_HEIGHT: usize = 3; // vertical direction
 const NODE_V_HEIGHT_LR: usize = 5; // horizontal direction
 const H_SPACING: usize = 4;
 const V_SPACING: usize = 3;
@@ -73,7 +73,11 @@ pub fn compute_layout(
     }
 
     let is_vertical = matches!(diagram.direction, Direction::TopDown | Direction::BottomUp);
-    let node_v_height = if is_vertical { NODE_V_HEIGHT } else { NODE_V_HEIGHT_LR };
+    let node_v_height = if is_vertical {
+        NODE_V_HEIGHT
+    } else {
+        NODE_V_HEIGHT_LR
+    };
 
     let (h_spacing, v_spacing) =
         adapt_spacing(diagram, &graph.layers, node_v_height, max_width, max_height);
@@ -153,7 +157,11 @@ pub fn compute_layout(
                 truncate_label(&node.label, w.saturating_sub(NODE_H_PADDING * 2))
             };
 
-            let (nx, ny) = if is_vertical { (x, y_offset) } else { (y_offset, x) };
+            let (nx, ny) = if is_vertical {
+                (x, y_offset)
+            } else {
+                (y_offset, x)
+            };
 
             layout_nodes.push(LayoutNode {
                 id: id.clone(),
@@ -179,8 +187,7 @@ pub fn compute_layout(
     // edge paths
     let mut layout_edges = Vec::new();
     for edge in &diagram.edges {
-        let waypoints =
-            compute_edge_path(edge, &layout_nodes, &diagram.direction, v_spacing);
+        let waypoints = compute_edge_path(edge, &layout_nodes, &diagram.direction, v_spacing);
         layout_edges.push(LayoutEdge {
             label: edge.label.clone(),
             edge_type: edge.edge_type.clone(),
@@ -238,10 +245,8 @@ fn adapt_spacing(
             / diagram.nodes.len()
     };
 
-    let natural_w =
-        avg_node_w * max_layer_size + H_SPACING * max_layer_size.saturating_sub(1);
-    let natural_h =
-        node_v_height * layer_count + V_SPACING * layer_count.saturating_sub(1);
+    let natural_w = avg_node_w * max_layer_size + H_SPACING * max_layer_size.saturating_sub(1);
+    let natural_h = node_v_height * layer_count + V_SPACING * layer_count.saturating_sub(1);
 
     let mut hs = H_SPACING;
     let mut vs = V_SPACING;
@@ -275,12 +280,7 @@ fn adapt_spacing(
 
 // ── scale factor ───────────────────────────────────────────────
 
-fn scale_factor(
-    total_w: usize,
-    max_width: usize,
-    node_widths: &[usize],
-    h_spacing: usize,
-) -> f64 {
+fn scale_factor(total_w: usize, max_width: usize, node_widths: &[usize], h_spacing: usize) -> f64 {
     if total_w <= max_width || max_width == 0 {
         return 1.0;
     }
@@ -323,7 +323,11 @@ fn compute_edge_path(
         let tx = target.x + target.width / 2;
         let ty = target.y.saturating_sub(1); // stop one cell ABOVE target top border
 
-        let mid_y = if ty > sy { (sy + ty) / 2 } else { sy + v_spacing / 2 };
+        let mid_y = if ty > sy {
+            (sy + ty) / 2
+        } else {
+            sy + v_spacing / 2
+        };
 
         if sx == tx {
             vec![(sx, sy), (sx, mid_y), (tx, ty)]
@@ -336,7 +340,11 @@ fn compute_edge_path(
         let tx = target.x.saturating_sub(1); // stop one cell LEFT of target left border
         let ty = target.y + target.height / 2;
 
-        let mid_x = if tx > sx { (sx + tx) / 2 } else { sx + v_spacing / 2 };
+        let mid_x = if tx > sx {
+            (sx + tx) / 2
+        } else {
+            sx + v_spacing / 2
+        };
 
         if sy == ty {
             vec![(sx, sy), (mid_x, sy), (tx, ty)]

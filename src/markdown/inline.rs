@@ -197,8 +197,7 @@ pub fn parse_inline_formatting(text: &str, theme: &impl RichTextTheme) -> Vec<Sp
                         let mut url_end = url_start;
                         while url_end < len {
                             if chars[url_end] == ')' {
-                                let link_text: String =
-                                    chars[i + 1..end_bracket].iter().collect();
+                                let link_text: String = chars[i + 1..end_bracket].iter().collect();
                                 let _url: String = chars[url_start..url_end].iter().collect();
                                 flush_current!();
                                 spans.push(Span::styled(

@@ -26,10 +26,13 @@ pub(super) fn apply_cursor_and_selection(
 
     let total_chars: usize = line.spans.iter().map(|s| s.content.chars().count()).sum();
     let fg = cursor_style.fg.unwrap_or_else(|| theme.get_primary_color());
-    let bg = cursor_style.bg.unwrap_or_else(|| theme.get_background_color());
+    let bg = cursor_style
+        .bg
+        .unwrap_or_else(|| theme.get_background_color());
 
     if total_chars == 0 || cursor_col >= total_chars {
-        line.spans.push(make_end_cursor_span(cursor_style.shape, fg, bg));
+        line.spans
+            .push(make_end_cursor_span(cursor_style.shape, fg, bg));
         return;
     }
 
@@ -49,7 +52,14 @@ pub(super) fn apply_cursor_and_selection(
             if is_insert {
                 insert_cursor_before(&mut line.spans, idx, offset_in_span, fg);
             } else {
-                split_and_apply_on_char(&mut line.spans, idx, offset_in_span, cursor_style.shape, fg, bg);
+                split_and_apply_on_char(
+                    &mut line.spans,
+                    idx,
+                    offset_in_span,
+                    cursor_style.shape,
+                    fg,
+                    bg,
+                );
             }
             return;
         }
@@ -57,15 +67,11 @@ pub(super) fn apply_cursor_and_selection(
         idx += 1;
     }
 
-    line.spans.push(make_end_cursor_span(cursor_style.shape, fg, bg));
+    line.spans
+        .push(make_end_cursor_span(cursor_style.shape, fg, bg));
 }
 
-fn insert_cursor_before(
-    spans: &mut Vec<Span<'static>>,
-    span_idx: usize,
-    offset: usize,
-    fg: Color,
-) {
+fn insert_cursor_before(spans: &mut Vec<Span<'static>>, span_idx: usize, offset: usize, fg: Color) {
     let original = spans.remove(span_idx);
     let chars: Vec<char> = original.content.chars().collect();
     let base_style = original.style;
@@ -146,7 +152,9 @@ fn apply_selection(
         Some(s) => s,
         None => return,
     };
-    let sel_bg = selection_style.bg.unwrap_or_else(|| theme.get_popup_selected_background());
+    let sel_bg = selection_style
+        .bg
+        .unwrap_or_else(|| theme.get_popup_selected_background());
     let (sel_start, sel_end) = sel.ordered();
     let mut char_start = 0usize;
 

@@ -126,7 +126,9 @@ fn run(
 }
 
 fn handle_event(app: &mut App) -> anyhow::Result<bool> {
-    let Event::Key(key) = event::read()? else { return Ok(false) };
+    let Event::Key(key) = event::read()? else {
+        return Ok(false);
+    };
     if key.kind != KeyEventKind::Press {
         return Ok(false);
     }
@@ -134,12 +136,10 @@ fn handle_event(app: &mut App) -> anyhow::Result<bool> {
     match key.code {
         KeyCode::Esc => return Ok(true),
 
-        KeyCode::F(2) => {
-            match app.input.mode() {
-                InputMode::Edit => app.input.set_mode(InputMode::Read),
-                InputMode::Read => app.input.set_mode(InputMode::Edit),
-            }
-        }
+        KeyCode::F(2) => match app.input.mode() {
+            InputMode::Edit => app.input.set_mode(InputMode::Read),
+            InputMode::Read => app.input.set_mode(InputMode::Edit),
+        },
 
         KeyCode::F(3) => {
             app.cycle_cursor_shape();

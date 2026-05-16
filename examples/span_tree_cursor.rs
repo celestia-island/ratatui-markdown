@@ -40,9 +40,17 @@ fn make_entry(id: &str, name: &str, details: Vec<&str>) -> SpanTreeEntry {
 fn build_tree(mode: CursorLineMode) -> SpanTree {
     let mut tree = SpanTree::new().with_cursor_line_mode(mode);
     let entries = vec![
-        make_entry("a", "Alpha", vec!["Task: Write docs", "Status: In progress", "Priority: High"]),
+        make_entry(
+            "a",
+            "Alpha",
+            vec!["Task: Write docs", "Status: In progress", "Priority: High"],
+        ),
         make_entry("b", "Beta", vec!["Task: Fix bugs", "Status: Done"]),
-        make_entry("c", "Gamma", vec!["Task: Add tests", "Status: Pending", "ETA: 2 days"]),
+        make_entry(
+            "c",
+            "Gamma",
+            vec!["Task: Add tests", "Status: Pending", "ETA: 2 days"],
+        ),
         make_entry("d", "Delta", vec!["Task: Review PR", "Assignee: Alice"]),
     ];
     tree.set_entries(entries);
@@ -54,7 +62,10 @@ fn run(
     terminal: &mut ratatui::Terminal<ratatui::backend::CrosstermBackend<std::io::Stdout>>,
 ) -> anyhow::Result<()> {
     let mut app = App {
-        trees: [build_tree(CursorLineMode::HeaderOnly), build_tree(CursorLineMode::AllLines)],
+        trees: [
+            build_tree(CursorLineMode::HeaderOnly),
+            build_tree(CursorLineMode::AllLines),
+        ],
         active: 0,
     };
 
@@ -62,7 +73,9 @@ fn run(
         terminal.draw(|f| draw(f, &mut app))?;
 
         if event::poll(std::time::Duration::from_millis(100))? {
-            let Event::Key(key) = event::read()? else { continue };
+            let Event::Key(key) = event::read()? else {
+                continue;
+            };
             if key.kind != KeyEventKind::Press {
                 continue;
             }
@@ -90,7 +103,8 @@ fn draw(f: &mut Frame, app: &mut App) {
     draw_tree_panel(f, app, 0, "HeaderOnly (default)", left_area);
     draw_tree_panel(f, app, 1, "AllLines", right_area);
 
-    let status = " Tab:switch panel \u{00b7} \u{2191}\u{2193}:navigate \u{00b7} Home/End \u{00b7} q:quit ";
+    let status =
+        " Tab:switch panel \u{00b7} \u{2191}\u{2193}:navigate \u{00b7} Home/End \u{00b7} q:quit ";
     let status_area = Rect::new(area.x, area.height.saturating_sub(1), area.width, 1);
     f.render_widget(
         Paragraph::new(Line::from(Span::styled(
@@ -103,7 +117,11 @@ fn draw(f: &mut Frame, app: &mut App) {
 
 fn draw_tree_panel(f: &mut Frame, app: &mut App, idx: usize, title: &str, area: Rect) {
     let focused = app.active == idx;
-    let border_color = if focused { Color::Cyan } else { Color::DarkGray };
+    let border_color = if focused {
+        Color::Cyan
+    } else {
+        Color::DarkGray
+    };
 
     let block = Block::default()
         .borders(Borders::ALL)

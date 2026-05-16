@@ -219,13 +219,17 @@ impl MarkdownRenderer {
                 let after_marker: String = trimmed.chars().skip(2).collect::<String>();
                 let after_marker_trimmed = after_marker.trim_start();
 
-                if after_marker_trimmed.starts_with("[ ] ") || after_marker_trimmed.starts_with("[x] ") || after_marker_trimmed.starts_with("[X] ") {
+                if after_marker_trimmed.starts_with("[ ] ")
+                    || after_marker_trimmed.starts_with("[x] ")
+                    || after_marker_trimmed.starts_with("[X] ")
+                {
                     Self::flush_table(&mut table_buffer, &mut blocks, &mut paragraph_lines);
                     if !paragraph_lines.is_empty() {
                         blocks.push(MarkdownBlock::Paragraph(paragraph_lines.clone()));
                         paragraph_lines.clear();
                     }
-                    let checked = after_marker_trimmed.starts_with("[x] ") || after_marker_trimmed.starts_with("[X] ");
+                    let checked = after_marker_trimmed.starts_with("[x] ")
+                        || after_marker_trimmed.starts_with("[X] ");
                     let text = after_marker_trimmed.chars().skip(4).collect::<String>();
                     blocks.push(MarkdownBlock::TaskItem {
                         text,

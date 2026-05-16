@@ -1,6 +1,7 @@
 use super::common::*;
 
-static SIMPLE_CLASS: &str = "classDiagram\n    class Animal {\n        +name: String\n        +speak()\n    }";
+static SIMPLE_CLASS: &str =
+    "classDiagram\n    class Animal {\n        +name: String\n        +speak()\n    }";
 
 static SIMPLE_CLASS_EXPECTED: &str = "
                              ┌───────────────┐

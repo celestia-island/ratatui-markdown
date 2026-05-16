@@ -456,7 +456,12 @@ impl MarkdownRenderer {
                 );
                 lines.extend(wrapped);
             }
-            MarkdownBlock::Blockquote { level, children, header_override, footer_override } => {
+            MarkdownBlock::Blockquote {
+                level,
+                children,
+                header_override,
+                footer_override,
+            } => {
                 if let Some(h) = hooks {
                     if let Some(custom) = h.blockquote(*level, children) {
                         lines.extend(custom);

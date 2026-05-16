@@ -90,7 +90,12 @@ impl MarkdownBlock {
             Self::Paragraph(lines) => lines.len().max(1),
             Self::CodeBlock { code, .. } => code.lines().count().max(1) + 2,
             Self::ListItem(_, _) | Self::TaskItem { .. } => 1,
-            Self::Blockquote { children, header_override, footer_override, .. } => {
+            Self::Blockquote {
+                children,
+                header_override,
+                footer_override,
+                ..
+            } => {
                 let base = children
                     .iter()
                     .map(|c| c.line_count())

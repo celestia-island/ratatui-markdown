@@ -1263,7 +1263,9 @@ fn blockquote_parsed_with_level_and_children() -> anyhow::Result<()> {
     let blocks = renderer.parse("> quoted text");
     assert_eq!(blocks.len(), 1);
     match &blocks[0] {
-        MarkdownBlock::Blockquote { level, children, .. } => {
+        MarkdownBlock::Blockquote {
+            level, children, ..
+        } => {
             assert_eq!(*level, 1);
             assert!(!children.is_empty());
         }
@@ -1282,7 +1284,9 @@ fn blockquote_multiline_grouped() -> anyhow::Result<()> {
         "consecutive > lines should be grouped into one blockquote"
     );
     match &blocks[0] {
-        MarkdownBlock::Blockquote { level, children, .. } => {
+        MarkdownBlock::Blockquote {
+            level, children, ..
+        } => {
             assert_eq!(*level, 1);
             assert!(!children.is_empty());
         }
@@ -1297,7 +1301,9 @@ fn nested_blockquote_parsed() -> anyhow::Result<()> {
     let blocks = renderer.parse("> level 1\n> > level 2");
     assert!(!blocks.is_empty(), "should parse nested blockquote");
     match &blocks[0] {
-        MarkdownBlock::Blockquote { level, children, .. } => {
+        MarkdownBlock::Blockquote {
+            level, children, ..
+        } => {
             assert_eq!(*level, 1);
             let has_nested = children
                 .iter()
@@ -1712,8 +1718,7 @@ mod mermaid_render_tests {
     }
 
     fn render_lines(source: &str, width: usize) -> Vec<Line<'static>> {
-        crate::mermaid::render_mermaid(source, width, None, &test_theme())
-            .unwrap_or_default()
+        crate::mermaid::render_mermaid(source, width, None, &test_theme()).unwrap_or_default()
     }
 
     #[test]
@@ -1730,10 +1735,7 @@ mod mermaid_render_tests {
             !text.contains('┬'),
             "fork junction should NOT use ┬ (tee-down), got:\n{text}"
         );
-        assert!(
-            text.contains("Decision"),
-            "should contain Decision label"
-        );
+        assert!(text.contains("Decision"), "should contain Decision label");
         assert!(
             text.contains("Action A") && text.contains("Action B"),
             "should contain both action labels"
@@ -1789,10 +1791,7 @@ mod mermaid_render_tests {
         let lines = render_lines(source, 80);
         let text = lines_to_text(&lines);
 
-        let bad_chars: Vec<char> = text
-            .chars()
-            .filter(|c| "╱╲+*#".contains(*c))
-            .collect();
+        let bad_chars: Vec<char> = text.chars().filter(|c| "╱╲+*#".contains(*c)).collect();
         assert!(
             bad_chars.is_empty(),
             "should not contain stray chars {:?}, got:\n{text}",
@@ -1846,8 +1845,8 @@ mod mermaid_render_tests {
             text.contains("Animal") && text.contains("Dog"),
             "should contain both class names, got:\n{text}"
         );
-        let has_edge_chars = text.contains('│') || text.contains('┬')
-            || text.contains('├') || text.contains('▼');
+        let has_edge_chars =
+            text.contains('│') || text.contains('┬') || text.contains('├') || text.contains('▼');
         assert!(
             has_edge_chars,
             "inheritance should have edge line chars, got:\n{text}"
@@ -1916,7 +1915,10 @@ fn strikethrough_renders_crossed_out() -> anyhow::Result<()> {
         .spans
         .iter()
         .any(|s| s.content == "deleted" && s.style.add_modifier == Modifier::CROSSED_OUT);
-    assert!(has_crossed, "strikethrough text should have CROSSED_OUT modifier");
+    assert!(
+        has_crossed,
+        "strikethrough text should have CROSSED_OUT modifier"
+    );
     Ok(())
 }
 

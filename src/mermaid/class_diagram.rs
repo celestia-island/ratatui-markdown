@@ -124,8 +124,20 @@ fn build_class_label(class: &ClassDefinition, max_width: usize) -> String {
         .collect();
 
     let max_content = title_w
-        .max(attr_texts.iter().map(|t| unicode_width(t) + 1).max().unwrap_or(0))
-        .max(method_texts.iter().map(|t| unicode_width(t) + 1).max().unwrap_or(0));
+        .max(
+            attr_texts
+                .iter()
+                .map(|t| unicode_width(t) + 1)
+                .max()
+                .unwrap_or(0),
+        )
+        .max(
+            method_texts
+                .iter()
+                .map(|t| unicode_width(t) + 1)
+                .max()
+                .unwrap_or(0),
+        );
 
     let available = max_content.max(max_width.saturating_sub(4)).clamp(4, 60);
     let sep = "\u{2500}".repeat(available);

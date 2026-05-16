@@ -65,11 +65,7 @@ impl SpanTree {
         }
     }
 
-    pub fn with_cursor_style(
-        mut self,
-        cursor: Span<'static>,
-        blank: Span<'static>,
-    ) -> Self {
+    pub fn with_cursor_style(mut self, cursor: Span<'static>, blank: Span<'static>) -> Self {
         self.cursor_span = cursor;
         self.blank_cursor_span = blank;
         self
@@ -131,10 +127,7 @@ impl SpanTree {
         if self.entries.is_empty() {
             return 0;
         }
-        self.entries
-            .iter()
-            .map(|e| e.total_lines())
-            .sum()
+        self.entries.iter().map(|e| e.total_lines()).sum()
     }
 
     pub fn entry_count(&self) -> usize {
@@ -282,10 +275,7 @@ mod tests {
     #[test]
     fn set_entries_updates_count() {
         let mut tree = SpanTree::new();
-        tree.set_entries(vec![
-            make_entry("a", 2),
-            make_entry("b", 3),
-        ]);
+        tree.set_entries(vec![make_entry("a", 2), make_entry("b", 3)]);
         assert_eq!(tree.entry_count(), 2);
         assert_eq!(tree.total_lines(), 5);
     }
@@ -324,10 +314,7 @@ mod tests {
     #[test]
     fn set_selected_index_works() {
         let mut tree = SpanTree::new();
-        tree.set_entries(vec![
-            make_entry("a", 1),
-            make_entry("b", 1),
-        ]);
+        tree.set_entries(vec![make_entry("a", 1), make_entry("b", 1)]);
         tree.set_selected_index(1);
         assert_eq!(tree.selected_id(), Some("b"));
     }
@@ -379,10 +366,7 @@ mod tests {
     #[test]
     fn navigate_down_from_none_selects_first() {
         let mut tree = SpanTree::new();
-        tree.set_entries(vec![
-            make_entry("a", 1),
-            make_entry("b", 1),
-        ]);
+        tree.set_entries(vec![make_entry("a", 1), make_entry("b", 1)]);
         tree.navigate_down();
         assert_eq!(tree.selected_id(), Some("a"));
     }
@@ -391,10 +375,7 @@ mod tests {
     fn scroll_offset_clamps_on_set_entries() {
         let mut tree = SpanTree::new();
         tree.viewport_height = 2;
-        tree.set_entries(vec![
-            make_entry("a", 5),
-            make_entry("b", 5),
-        ]);
+        tree.set_entries(vec![make_entry("a", 5), make_entry("b", 5)]);
         tree.scroll_offset = 100;
         tree.set_entries(vec![make_entry("x", 1)]);
         assert!(tree.scroll_offset <= tree.max_scroll_offset());
@@ -404,10 +385,7 @@ mod tests {
     fn auto_follow_keeps_at_bottom() {
         let mut tree = SpanTree::new().with_auto_follow(true);
         tree.viewport_height = 3;
-        tree.set_entries(vec![
-            make_entry("a", 2),
-            make_entry("b", 2),
-        ]);
+        tree.set_entries(vec![make_entry("a", 2), make_entry("b", 2)]);
         let offset_before = tree.scroll_offset();
         tree.set_entries(vec![
             make_entry("a", 2),
@@ -420,10 +398,7 @@ mod tests {
     #[test]
     fn total_lines_counts_multi_line_entries() {
         let mut tree = SpanTree::new();
-        tree.set_entries(vec![
-            make_entry("a", 3),
-            make_entry("b", 2),
-        ]);
+        tree.set_entries(vec![make_entry("a", 3), make_entry("b", 2)]);
         assert_eq!(tree.total_lines(), 5);
     }
 
@@ -435,11 +410,7 @@ mod tests {
 
     #[test]
     fn cursor_style_customization() {
-        let tree = SpanTree::new()
-            .with_cursor_style(
-                Span::raw(">"),
-                Span::raw(" "),
-            );
+        let tree = SpanTree::new().with_cursor_style(Span::raw(">"), Span::raw(" "));
         assert_eq!(tree.cursor_span.content, ">");
         assert_eq!(tree.blank_cursor_span.content, " ");
     }
@@ -448,10 +419,7 @@ mod tests {
     fn scroll_up_and_down_adjust_offset() {
         let mut tree = SpanTree::new();
         tree.viewport_height = 2;
-        tree.set_entries(vec![
-            make_entry("a", 5),
-            make_entry("b", 5),
-        ]);
+        tree.set_entries(vec![make_entry("a", 5), make_entry("b", 5)]);
         tree.scroll_down(3);
         assert_eq!(tree.scroll_offset(), 3);
         tree.scroll_up(2);

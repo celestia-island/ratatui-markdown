@@ -1,8 +1,4 @@
-use ratatui::{
-    layout::Rect,
-    text::Line,
-    Frame,
-};
+use ratatui::{layout::Rect, text::Line, Frame};
 
 use crate::theme::RichTextTheme;
 

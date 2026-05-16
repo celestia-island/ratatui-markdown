@@ -6,8 +6,8 @@ use ratatui::{
 use super::layout::{Layout, LayoutEdge, LayoutNode};
 use super::types::{Direction, EdgeType, NodeShape};
 use crate::theme::RichTextTheme;
-use unicode_width::UnicodeWidthChar;
 use std::collections::HashSet;
+use unicode_width::UnicodeWidthChar;
 
 const HLINE: char = '─';
 const VLINE: char = '│';
@@ -96,37 +96,73 @@ fn draw_node(grid: &mut [Vec<Cell>], node: &LayoutNode, theme: &impl RichTextThe
 
     if y < grid.len() && x + w <= grid[0].len() {
         let row = &mut grid[y];
-        row[x] = Cell { ch: tl, style: border_style, is_edge: false };
-        row[x + w - 1] = Cell { ch: tr, style: border_style, is_edge: false };
+        row[x] = Cell {
+            ch: tl,
+            style: border_style,
+            is_edge: false,
+        };
+        row[x + w - 1] = Cell {
+            ch: tr,
+            style: border_style,
+            is_edge: false,
+        };
         for cell in row.iter_mut().take(x + w - 1).skip(x + 1) {
-            *cell = Cell { ch: HLINE, style: border_style, is_edge: false };
+            *cell = Cell {
+                ch: HLINE,
+                style: border_style,
+                is_edge: false,
+            };
         }
     }
 
     let text_row = y + h / 2;
     if text_row < grid.len() && x + w <= grid[0].len() {
         let row = &mut grid[text_row];
-        row[x] = Cell { ch: VLINE, style: border_style, is_edge: false };
-        row[x + w - 1] = Cell { ch: VLINE, style: border_style, is_edge: false };
+        row[x] = Cell {
+            ch: VLINE,
+            style: border_style,
+            is_edge: false,
+        };
+        row[x + w - 1] = Cell {
+            ch: VLINE,
+            style: border_style,
+            is_edge: false,
+        };
         let inner_w = w.saturating_sub(2);
         let label_chars: Vec<char> = node.label.chars().collect();
         let label_w = unicode_width::UnicodeWidthStr::width(node.label.as_str());
-        let pad = if label_w < inner_w { (inner_w - label_w) / 2 } else { 0 };
+        let pad = if label_w < inner_w {
+            (inner_w - label_w) / 2
+        } else {
+            0
+        };
         let mut cx = x + 1;
         for _ in 0..pad {
             if cx < x + w - 1 {
-                row[cx] = Cell { ch: ' ', style: text_style, is_edge: false };
+                row[cx] = Cell {
+                    ch: ' ',
+                    style: text_style,
+                    is_edge: false,
+                };
                 cx += 1;
             }
         }
         for ch in &label_chars {
             if cx < x + w - 1 {
-                row[cx] = Cell { ch: *ch, style: text_style, is_edge: false };
+                row[cx] = Cell {
+                    ch: *ch,
+                    style: text_style,
+                    is_edge: false,
+                };
                 cx += ch.width().unwrap_or(1);
             }
         }
         while cx < x + w - 1 {
-            row[cx] = Cell { ch: ' ', style: text_style, is_edge: false };
+            row[cx] = Cell {
+                ch: ' ',
+                style: text_style,
+                is_edge: false,
+            };
             cx += 1;
         }
     }
@@ -137,10 +173,22 @@ fn draw_node(grid: &mut [Vec<Cell>], node: &LayoutNode, theme: &impl RichTextThe
         }
         if vy < grid.len() && x + w <= grid[0].len() {
             let row = &mut grid[vy];
-            row[x] = Cell { ch: VLINE, style: border_style, is_edge: false };
-            row[x + w - 1] = Cell { ch: VLINE, style: border_style, is_edge: false };
+            row[x] = Cell {
+                ch: VLINE,
+                style: border_style,
+                is_edge: false,
+            };
+            row[x + w - 1] = Cell {
+                ch: VLINE,
+                style: border_style,
+                is_edge: false,
+            };
             for cell in row.iter_mut().take(x + w - 1).skip(x + 1) {
-                *cell = Cell { ch: ' ', style: text_style, is_edge: false };
+                *cell = Cell {
+                    ch: ' ',
+                    style: text_style,
+                    is_edge: false,
+                };
             }
         }
     }
@@ -148,10 +196,22 @@ fn draw_node(grid: &mut [Vec<Cell>], node: &LayoutNode, theme: &impl RichTextThe
     let bottom_row = y + h - 1;
     if bottom_row < grid.len() && x + w <= grid[0].len() {
         let row = &mut grid[bottom_row];
-        row[x] = Cell { ch: bl, style: border_style, is_edge: false };
-        row[x + w - 1] = Cell { ch: br, style: border_style, is_edge: false };
+        row[x] = Cell {
+            ch: bl,
+            style: border_style,
+            is_edge: false,
+        };
+        row[x + w - 1] = Cell {
+            ch: br,
+            style: border_style,
+            is_edge: false,
+        };
         for cell in row.iter_mut().take(x + w - 1).skip(x + 1) {
-            *cell = Cell { ch: HLINE, style: border_style, is_edge: false };
+            *cell = Cell {
+                ch: HLINE,
+                style: border_style,
+                is_edge: false,
+            };
         }
     }
 }
@@ -162,7 +222,11 @@ fn draw_multiline_node(grid: &mut [Vec<Cell>], node: &LayoutNode, theme: &impl R
     let w = node.width;
 
     let border_style = Style::default().fg(theme.get_muted_text_color());
-    let grid_w = if !grid.is_empty() { grid[0].len() } else { return };
+    let grid_w = if !grid.is_empty() {
+        grid[0].len()
+    } else {
+        return;
+    };
 
     for (row_idx, line) in node.label.lines().enumerate() {
         let ry = y + row_idx;
@@ -187,17 +251,44 @@ fn draw_multiline_node(grid: &mut [Vec<Cell>], node: &LayoutNode, theme: &impl R
             } else {
                 Style::default().fg(theme.get_text_color())
             };
-            row[cx] = Cell { ch, style, is_edge: false };
+            row[cx] = Cell {
+                ch,
+                style,
+                is_edge: false,
+            };
             cx += cw;
         }
     }
 }
 
 fn is_box_drawing_char(ch: char) -> bool {
-    matches!(ch,
-        '─' | '│' | '┌' | '┐' | '└' | '┘' | '├' | '┤' | '┬' | '┴' | '┼'
-        | '╭' | '╮' | '╰' | '╯'
-        | '═' | '║' | '╔' | '╗' | '╚' | '╝' | '╠' | '╣' | '╦' | '╩' | '╬'
+    matches!(
+        ch,
+        '─' | '│'
+            | '┌'
+            | '┐'
+            | '└'
+            | '┘'
+            | '├'
+            | '┤'
+            | '┬'
+            | '┴'
+            | '┼'
+            | '╭'
+            | '╮'
+            | '╰'
+            | '╯'
+            | '═'
+            | '║'
+            | '╔'
+            | '╗'
+            | '╚'
+            | '╝'
+            | '╠'
+            | '╣'
+            | '╦'
+            | '╩'
+            | '╬'
     )
 }
 
@@ -383,7 +474,13 @@ fn draw_all_edges(
 ///
 /// Diagonal segments use Bresenham linear interpolation; stray cells
 /// are cleaned up by the caller (global pass B).
-fn rasterize_segment(cells: &mut HashSet<(usize, usize)>, x1: usize, y1: usize, x2: usize, y2: usize) {
+fn rasterize_segment(
+    cells: &mut HashSet<(usize, usize)>,
+    x1: usize,
+    y1: usize,
+    x2: usize,
+    y2: usize,
+) {
     if x1 == x2 && y1 == y2 {
         cells.insert((x1, y1));
         return;
@@ -412,7 +509,11 @@ fn rasterize_segment(cells: &mut HashSet<(usize, usize)>, x1: usize, y1: usize, 
     let dy = y2.abs_diff(y1);
     let steps = dx.max(dy);
     for i in 0..=steps {
-        let t = if steps > 0 { i as f64 / steps as f64 } else { 0.0 };
+        let t = if steps > 0 {
+            i as f64 / steps as f64
+        } else {
+            0.0
+        };
         let x = x1 as f64 + (x2 as f64 - x1 as f64) * t;
         let y = y1 as f64 + (y2 as f64 - y1 as f64) * t;
         cells.insert((x.round() as usize, y.round() as usize));
@@ -421,12 +522,12 @@ fn rasterize_segment(cells: &mut HashSet<(usize, usize)>, x1: usize, y1: usize, 
 
 // ── Box-drawing named constants (T/C junctions) ───────────────────
 #[allow(dead_code)]
-const TEE_UP: char = '┴';    // U+2534  connects up+left+right (no down stem)
-const TEE_DOWN: char = '┬';   // U+252C  connects down+left+right (no up stem)
+const TEE_UP: char = '┴'; // U+2534  connects up+left+right (no down stem)
+const TEE_DOWN: char = '┬'; // U+252C  connects down+left+right (no up stem)
 #[allow(dead_code)]
-const TEE_LEFT: char = '┤';  // U+2524  tee pointing left (reserved for RightLeft)
+const TEE_LEFT: char = '┤'; // U+2524  tee pointing left (reserved for RightLeft)
 const TEE_RIGHT: char = '├'; // U+251C  tee pointing right (up+down+left)
-const CROSS: char = '┼';     // U+253C  four-way junction
+const CROSS: char = '┼'; // U+253C  four-way junction
 const ARROW_DOWN: char = '▼';
 const ARROW_UP: char = '▲';
 const ARROW_RIGHT: char = '►';

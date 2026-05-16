@@ -196,7 +196,8 @@ impl TextInput {
     }
 
     pub fn move_cursor_up(&mut self) {
-        let (line_idx, col) = edit_render::char_offset_to_line_col(&self.text, self.cursor_char_idx);
+        let (line_idx, col) =
+            edit_render::char_offset_to_line_col(&self.text, self.cursor_char_idx);
         if line_idx == 0 {
             return;
         }
@@ -204,7 +205,8 @@ impl TextInput {
     }
 
     pub fn move_cursor_down(&mut self) {
-        let (line_idx, col) = edit_render::char_offset_to_line_col(&self.text, self.cursor_char_idx);
+        let (line_idx, col) =
+            edit_render::char_offset_to_line_col(&self.text, self.cursor_char_idx);
         let num_lines = self.text.split('\n').count();
         if line_idx + 1 >= num_lines {
             return;
@@ -245,7 +247,8 @@ impl TextInput {
                     edit_render::char_offset_to_line(&self.text, self.cursor_char_idx)
                 };
 
-                let (_, cursor_col) = edit_render::char_offset_to_line_col(&self.text, self.cursor_char_idx);
+                let (_, cursor_col) =
+                    edit_render::char_offset_to_line_col(&self.text, self.cursor_char_idx);
 
                 let blink_visible = self
                     .blink_controller
@@ -270,7 +273,8 @@ impl TextInput {
                 if total > visible_h {
                     let scroll = self.scroll_offset.min(total.saturating_sub(visible_h));
                     self.scroll_offset = scroll;
-                    let visible: Vec<_> = all_lines.into_iter().skip(scroll).take(visible_h).collect();
+                    let visible: Vec<_> =
+                        all_lines.into_iter().skip(scroll).take(visible_h).collect();
                     let paragraph = ratatui::widgets::Paragraph::new(visible);
                     f.render_widget(paragraph, area);
                 } else {
@@ -281,13 +285,7 @@ impl TextInput {
             InputMode::Read => {
                 #[cfg(feature = "markdown")]
                 {
-                    read_render::render_read_mode(
-                        &self.text,
-                        f,
-                        area,
-                        self.scroll_offset,
-                        theme,
-                    );
+                    read_render::render_read_mode(&self.text, f, area, self.scroll_offset, theme);
                 }
                 #[cfg(not(feature = "markdown"))]
                 {
