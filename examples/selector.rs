@@ -642,9 +642,7 @@ fn main() -> anyhow::Result<()> {
                     };
                     app.rebuild(&theme);
                 }
-                KeyCode::Char('c')
-                    if app.selector_mode == SelectorMode::Gutter =>
-                {
+                KeyCode::Char('c') if app.selector_mode == SelectorMode::Gutter => {
                     app.cursor_every_line = !app.cursor_every_line;
                 }
                 KeyCode::Char('a') => {
