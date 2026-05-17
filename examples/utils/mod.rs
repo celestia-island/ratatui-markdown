@@ -12,7 +12,7 @@ use ratatui::{
     },
     Frame, Terminal,
 };
-use ratatui_markdown::theme::ThemeConfig;
+use ratatui_markdown::theme::{CodeColors, ThemeConfig};
 
 pub struct Theme;
 
@@ -40,6 +40,7 @@ static THEME: ThemeConfig = ThemeConfig {
     json_bool_color: Color::Magenta,
     json_null_color: Color::DarkGray,
     accent_yellow: Color::Yellow,
+    code_colors: CodeColors::DEFAULT,
 };
 
 impl ratatui_markdown::theme::RichTextTheme for Theme {

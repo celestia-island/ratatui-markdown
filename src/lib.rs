@@ -165,4 +165,4 @@ pub mod viewer;
 
 #[allow(deprecated)]
 pub use theme::DefaultTheme;
-pub use theme::{RichTextTheme, ThemeBuilder, ThemeConfig};
+pub use theme::{CodeColors, RichTextTheme, ThemeBuilder, ThemeConfig};

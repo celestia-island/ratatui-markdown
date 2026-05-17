@@ -1,4 +1,6 @@
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
+
+use crate::theme::CodeColors;
 
 pub const HIGHLIGHT_NAMES: &[&str] = &[
     "attribute",
@@ -39,36 +41,35 @@ pub const HIGHLIGHT_NAMES: &[&str] = &[
     "error",
 ];
 
-pub fn highlight_to_style(idx: usize) -> Style {
+pub fn highlight_to_style(idx: usize, colors: &CodeColors) -> Style {
     let name = HIGHLIGHT_NAMES.get(idx).unwrap_or(&"");
     match *name {
         "comment" | "comment.documentation" => Style::default()
-            .fg(Color::DarkGray)
+            .fg(colors.comment)
             .add_modifier(Modifier::ITALIC),
-        "constant" | "constant.builtin" | "boolean" => Style::default().fg(Color::Yellow),
-        "string" | "string.special" => Style::default().fg(Color::Green),
-        "string.escape" | "string.regex" => Style::default().fg(Color::LightGreen),
+        "constant" | "constant.builtin" | "boolean" => Style::default().fg(colors.constant),
+        "string" | "string.special" => Style::default().fg(colors.string),
+        "string.escape" | "string.regex" => Style::default().fg(colors.string_escape),
         "keyword" | "keyword.function" | "conditional" | "repeat" | "exception" | "include" => {
             Style::default()
-                .fg(Color::Magenta)
+                .fg(colors.keyword)
                 .add_modifier(Modifier::BOLD)
         }
-        "number" => Style::default().fg(Color::Yellow),
-        "function" | "function.builtin" => Style::default().fg(Color::Cyan),
-        "type" | "type.builtin" | "namespace" => Style::default().fg(Color::LightCyan),
+        "number" => Style::default().fg(colors.number),
+        "function" | "function.builtin" => Style::default().fg(colors.function),
+        "type" | "type.builtin" | "namespace" | "constructor" => Style::default().fg(colors.r#type),
         "variable" | "variable.builtin" | "variable.parameter" | "variable.member" => {
-            Style::default().fg(Color::White)
+            Style::default().fg(colors.variable)
         }
-        "property" => Style::default().fg(Color::LightBlue),
-        "operator" => Style::default().fg(Color::LightMagenta),
+        "property" => Style::default().fg(colors.property),
+        "operator" => Style::default().fg(colors.operator),
         "punctuation" | "punctuation.bracket" | "punctuation.delimiter" | "punctuation.special" => {
-            Style::default().fg(Color::DarkGray)
+            Style::default().fg(colors.punctuation)
         }
-        "attribute" => Style::default().fg(Color::LightYellow),
-        "constructor" => Style::default().fg(Color::LightCyan),
-        "tag" => Style::default().fg(Color::Cyan),
-        "label" => Style::default().fg(Color::LightRed),
-        "error" => Style::default().fg(Color::Red),
+        "attribute" => Style::default().fg(colors.attribute),
+        "tag" => Style::default().fg(colors.tag),
+        "label" => Style::default().fg(colors.label),
+        "error" => Style::default().fg(colors.error),
         _ => Style::default(),
     }
 }

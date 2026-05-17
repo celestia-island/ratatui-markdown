@@ -3,6 +3,129 @@ use ratatui::style::Color;
 #[cfg(feature = "mermaid")]
 use crate::mermaid::theme::MermaidTheme;
 
+#[derive(Debug, Clone, Copy)]
+pub struct CodeColors {
+    pub comment: Color,
+    pub keyword: Color,
+    pub string: Color,
+    pub string_escape: Color,
+    pub number: Color,
+    pub constant: Color,
+    pub function: Color,
+    pub r#type: Color,
+    pub variable: Color,
+    pub property: Color,
+    pub operator: Color,
+    pub punctuation: Color,
+    pub attribute: Color,
+    pub tag: Color,
+    pub label: Color,
+    pub error: Color,
+}
+
+impl Default for CodeColors {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
+impl CodeColors {
+    pub const DEFAULT: Self = Self {
+        comment: Color::DarkGray,
+        keyword: Color::Magenta,
+        string: Color::Green,
+        string_escape: Color::LightGreen,
+        number: Color::Yellow,
+        constant: Color::Yellow,
+        function: Color::Cyan,
+        r#type: Color::LightCyan,
+        variable: Color::White,
+        property: Color::LightBlue,
+        operator: Color::LightMagenta,
+        punctuation: Color::DarkGray,
+        attribute: Color::LightYellow,
+        tag: Color::Cyan,
+        label: Color::LightRed,
+        error: Color::Red,
+    };
+
+    pub fn builder() -> CodeColorsBuilder {
+        CodeColorsBuilder(Self::default())
+    }
+}
+
+pub struct CodeColorsBuilder(CodeColors);
+
+impl CodeColorsBuilder {
+    pub fn comment(mut self, c: Color) -> Self {
+        self.0.comment = c;
+        self
+    }
+    pub fn keyword(mut self, c: Color) -> Self {
+        self.0.keyword = c;
+        self
+    }
+    pub fn string(mut self, c: Color) -> Self {
+        self.0.string = c;
+        self
+    }
+    pub fn string_escape(mut self, c: Color) -> Self {
+        self.0.string_escape = c;
+        self
+    }
+    pub fn number(mut self, c: Color) -> Self {
+        self.0.number = c;
+        self
+    }
+    pub fn constant(mut self, c: Color) -> Self {
+        self.0.constant = c;
+        self
+    }
+    pub fn function(mut self, c: Color) -> Self {
+        self.0.function = c;
+        self
+    }
+    pub fn r#type(mut self, c: Color) -> Self {
+        self.0.r#type = c;
+        self
+    }
+    pub fn variable(mut self, c: Color) -> Self {
+        self.0.variable = c;
+        self
+    }
+    pub fn property(mut self, c: Color) -> Self {
+        self.0.property = c;
+        self
+    }
+    pub fn operator(mut self, c: Color) -> Self {
+        self.0.operator = c;
+        self
+    }
+    pub fn punctuation(mut self, c: Color) -> Self {
+        self.0.punctuation = c;
+        self
+    }
+    pub fn attribute(mut self, c: Color) -> Self {
+        self.0.attribute = c;
+        self
+    }
+    pub fn tag(mut self, c: Color) -> Self {
+        self.0.tag = c;
+        self
+    }
+    pub fn label(mut self, c: Color) -> Self {
+        self.0.label = c;
+        self
+    }
+    pub fn error(mut self, c: Color) -> Self {
+        self.0.error = c;
+        self
+    }
+    pub fn build(self) -> CodeColors {
+        self.0
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Generation(pub u64);
 
@@ -28,6 +151,10 @@ pub trait RichTextTheme {
     fn get_json_bool_color(&self) -> Color;
     fn get_json_null_color(&self) -> Color;
     fn get_accent_yellow(&self) -> Color;
+
+    fn get_code_colors(&self) -> CodeColors {
+        CodeColors::default()
+    }
 
     fn get_popup_selected_text_color(&self) -> Color {
         Color::White
@@ -59,6 +186,7 @@ pub struct ThemeConfig {
     pub json_bool_color: Color,
     pub json_null_color: Color,
     pub accent_yellow: Color,
+    pub code_colors: CodeColors,
 }
 
 impl Default for ThemeConfig {
@@ -79,6 +207,7 @@ impl Default for ThemeConfig {
             json_bool_color: Color::Magenta,
             json_null_color: Color::DarkGray,
             accent_yellow: Color::Yellow,
+            code_colors: CodeColors::DEFAULT,
         }
     }
 }
@@ -168,6 +297,11 @@ impl ThemeConfig {
         self.accent_yellow = c;
         self
     }
+
+    pub fn with_code_colors(mut self, colors: CodeColors) -> Self {
+        self.code_colors = colors;
+        self
+    }
 }
 
 impl RichTextTheme for ThemeConfig {
@@ -215,6 +349,9 @@ impl RichTextTheme for ThemeConfig {
     }
     fn get_accent_yellow(&self) -> Color {
         self.accent_yellow
+    }
+    fn get_code_colors(&self) -> CodeColors {
+        self.code_colors
     }
 }
 
@@ -295,6 +432,11 @@ impl ThemeBuilder {
 
     pub fn with_accent_yellow(mut self, c: Color) -> Self {
         self.config.accent_yellow = c;
+        self
+    }
+
+    pub fn with_code_colors(mut self, colors: CodeColors) -> Self {
+        self.config.code_colors = colors;
         self
     }
 

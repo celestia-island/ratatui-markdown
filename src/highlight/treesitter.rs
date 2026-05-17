@@ -2,6 +2,8 @@ use std::sync::Mutex;
 
 use tree_sitter_highlight::Highlighter;
 
+use crate::theme::CodeColors;
+
 use super::{
     config::{highlight_to_style, HIGHLIGHT_NAMES},
     CodeHighlighter, StyleSegment,
@@ -320,13 +322,24 @@ fn build_config(entry: &LangEntry) -> tree_sitter_highlight::HighlightConfigurat
 
 pub struct TreeSitterHighlighter {
     highlighter: Mutex<Highlighter>,
+    code_colors: CodeColors,
 }
 
 impl TreeSitterHighlighter {
     pub fn new() -> Self {
         Self {
             highlighter: Mutex::new(Highlighter::new()),
+            code_colors: CodeColors::default(),
         }
+    }
+
+    pub fn with_code_colors(mut self, colors: CodeColors) -> Self {
+        self.code_colors = colors;
+        self
+    }
+
+    pub fn set_code_colors(&mut self, colors: CodeColors) {
+        self.code_colors = colors;
     }
 }
 
@@ -356,9 +369,10 @@ impl CodeHighlighter for TreeSitterHighlighter {
         for event in events {
             match event {
                 Ok(tree_sitter_highlight::HighlightEvent::Source { start, end }) => {
+                    let colors = &self.code_colors;
                     let style = style_stack
                         .last()
-                        .map(|&idx| highlight_to_style(idx))
+                        .map(|&idx| highlight_to_style(idx, colors))
                         .unwrap_or_default();
                     if start != end {
                         segments.push(StyleSegment { start, end, style });
