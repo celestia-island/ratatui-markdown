@@ -1,6 +1,6 @@
 [package]
 name = "ratatui-markdown"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 rust-version = "1.74"
 authors = ["langyo <langyo.china@gmail.com>"]
@@ -15,7 +15,15 @@ categories = ["command-line-interface", "text-processing"]
 doctest = false
 
 [features]
-default = ["markdown", "scroll", "tree", "preview", "mermaid", "image", "viewer"]
+default = [
+    "markdown",
+    "scroll",
+    "tree",
+    "preview",
+    "mermaid",
+    "image",
+    "viewer",
+]
 markdown = []
 image = ["dep:image"]
 scroll = []
@@ -106,7 +114,10 @@ highlight-lang-all = [
 ]
 
 [dependencies]
-image = { version = "^0.25", optional = true, default-features = false, features = ["png", "webp"] }
+image = { version = "^0.25", optional = true, default-features = false, features = [
+    "png",
+    "webp",
+] }
 pest = { version = "^2", optional = true }
 pest_derive = { version = "^2", optional = true }
 ratatui = "^0.29"
@@ -161,7 +172,9 @@ fontdb = "^0.23"
 lipsum = "^0.9"
 mermaid-rs-renderer = { version = "0.2", default-features = false }
 pest_derive = "^2"
-ratatui-image = { version = "9", default-features = false, features = ["crossterm"] }
+ratatui-image = { version = "9", default-features = false, features = [
+    "crossterm",
+] }
 resvg = "0.46"
 tiny-skia = "0.11"
 usvg = "0.46"
