@@ -527,7 +527,11 @@ mod render_tests {
         tree.set_selected("agent2");
 
         let rows = render_to_lines(&mut tree, 60, 10);
-        assert!(rows[0].contains("▸"), "header should show cursor: {:?}", rows[0]);
+        assert!(
+            rows[0].contains("▸"),
+            "header should show cursor: {:?}",
+            rows[0]
+        );
         assert!(
             !rows[1].contains("▸"),
             "body line should NOT show cursor: {:?}",
@@ -571,11 +575,7 @@ mod render_tests {
             "body1 should contain tree connector: {:?}",
             body1
         );
-        assert!(
-            body2.contains("└─"),
-            "body2 should contain └─: {:?}",
-            body2
-        );
+        assert!(body2.contains("└─"), "body2 should contain └─: {:?}", body2);
     }
 
     #[test]
@@ -657,10 +657,8 @@ mod render_tests {
             .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
 
         let root = build_timeline_entry("root", "", "", "root", &[]);
-        let child1 =
-            build_timeline_entry("c1", "├─ ", "│  ", "child1", &["detail1", "detail2"]);
-        let child2 =
-            build_timeline_entry("c2", "└─ ", "   ", "child2", &["detail3"]);
+        let child1 = build_timeline_entry("c1", "├─ ", "│  ", "child1", &["detail1", "detail2"]);
+        let child2 = build_timeline_entry("c2", "└─ ", "   ", "child2", &["detail3"]);
         tree.set_entries(vec![root, child1, child2]);
         tree.set_selected("c2");
 
@@ -688,19 +686,21 @@ mod render_tests {
             .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "))
             .with_cursor_line_mode(CursorLineMode::AllLines);
 
-        let entry = build_timeline_entry(
-            "x",
-            "└─ ",
-            "   ",
-            "#001 agent",
-            &["status line"],
-        );
+        let entry = build_timeline_entry("x", "└─ ", "   ", "#001 agent", &["status line"]);
         tree.set_entries(vec![entry]);
         tree.set_selected("x");
 
         let rows = render_to_lines(&mut tree, 60, 10);
-        assert!(rows[0].contains("▸"), "header should have cursor: {:?}", rows[0]);
-        assert!(rows[1].contains("▸"), "body should have cursor in AllLines: {:?}", rows[1]);
+        assert!(
+            rows[0].contains("▸"),
+            "header should have cursor: {:?}",
+            rows[0]
+        );
+        assert!(
+            rows[1].contains("▸"),
+            "body should have cursor in AllLines: {:?}",
+            rows[1]
+        );
     }
 
     #[test]
@@ -708,13 +708,7 @@ mod render_tests {
         let mut tree = SpanTree::new()
             .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
 
-        let entry = build_timeline_entry(
-            "a",
-            "└─ ",
-            "   ",
-            "#001 agent",
-            &["status"],
-        );
+        let entry = build_timeline_entry("a", "└─ ", "   ", "#001 agent", &["status"]);
         tree.set_entries(vec![entry]);
 
         let rows = render_to_lines(&mut tree, 60, 10);
@@ -735,13 +729,7 @@ mod render_tests {
         let mut tree = SpanTree::new()
             .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
 
-        let entry = build_timeline_entry(
-            "a",
-            "└─ ",
-            "   ",
-            "#002 agent",
-            &["status", "tool"],
-        );
+        let entry = build_timeline_entry("a", "└─ ", "   ", "#002 agent", &["status", "tool"]);
         tree.set_entries(vec![entry]);
         tree.set_selected("a");
 
@@ -769,20 +757,17 @@ mod render_tests {
         let mut tree = SpanTree::new()
             .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
 
-        let root = SpanTreeEntry::new(
-            "root",
-            vec![vec![
-                Span::raw("  "),
-                Span::raw("#demiurge"),
-            ]],
-        );
+        let root = SpanTreeEntry::new("root", vec![vec![Span::raw("  "), Span::raw("#demiurge")]]);
 
         let agent1_prefix = "├─ ";
         let agent1 = SpanTreeEntry::new(
             "agent1",
             vec![vec![
                 Span::raw("  "),
-                Span::styled(agent1_prefix.to_string(), Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    agent1_prefix.to_string(),
+                    Style::default().fg(Color::DarkGray),
+                ),
                 Span::raw("#demiurge.001 hubris ✓"),
             ]],
         );
@@ -848,9 +833,7 @@ mod render_tests {
         );
 
         let header_connector_col = rows[2].find('└').unwrap_or(0);
-        let body_connector_col = body1
-            .find(|c: char| c == '├' || c == '│')
-            .unwrap_or(0);
+        let body_connector_col = body1.find(|c: char| c == '├' || c == '│').unwrap_or(0);
         assert!(
             body_connector_col > header_connector_col,
             "body connector (col {}) should be right of header connector (col {})\n  header: {:?}\n  body1: {:?}",
@@ -866,18 +849,12 @@ mod render_tests {
         let mut tree = SpanTree::new()
             .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
 
-        let root = SpanTreeEntry::new(
-            "root",
-            vec![vec![Span::raw("  "), Span::raw("root")]],
-        );
+        let root = SpanTreeEntry::new("root", vec![vec![Span::raw("  "), Span::raw("root")]]);
         let child = SpanTreeEntry::new(
             "child",
             vec![vec![
                 Span::raw("  "),
-                Span::styled(
-                    "├─ ".to_string(),
-                    Style::default().fg(Color::DarkGray),
-                ),
+                Span::styled("├─ ".to_string(), Style::default().fg(Color::DarkGray)),
                 Span::raw("child"),
             ]],
         );
@@ -886,10 +863,7 @@ mod render_tests {
             vec![
                 vec![
                     Span::raw("  "),
-                    Span::styled(
-                        "│  └─ ".to_string(),
-                        Style::default().fg(Color::DarkGray),
-                    ),
+                    Span::styled("│  └─ ".to_string(), Style::default().fg(Color::DarkGray)),
                     Span::raw("grandchild header"),
                 ],
                 vec![
@@ -916,7 +890,11 @@ mod render_tests {
 
         let rows = render_to_lines(&mut tree, 60, 10);
 
-        assert!(rows[2].contains("▸"), "selected header should have cursor: {:?}", rows[2]);
+        assert!(
+            rows[2].contains("▸"),
+            "selected header should have cursor: {:?}",
+            rows[2]
+        );
         assert!(
             rows[2].contains("│  └─"),
             "grandchild should have │  └─ prefix: {:?}",
@@ -1003,13 +981,7 @@ mod render_tests {
         let mut tree = SpanTree::new()
             .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
 
-        let sib1 = build_timeline_entry(
-            "s1",
-            "├─ ",
-            "│  ",
-            "sibling1",
-            &["s1-detail"],
-        );
+        let sib1 = build_timeline_entry("s1", "├─ ", "│  ", "sibling1", &["s1-detail"]);
         let sib2 = build_timeline_entry(
             "s2",
             "└─ ",
@@ -1022,12 +994,24 @@ mod render_tests {
 
         let rows = render_to_lines(&mut tree, 60, 10);
 
-        assert!(rows[0].contains("▸") && rows[0].contains("├─"), "selected s1: {:?}", rows[0]);
+        assert!(
+            rows[0].contains("▸") && rows[0].contains("├─"),
+            "selected s1: {:?}",
+            rows[0]
+        );
 
-        assert!(rows[1].contains("│") && rows[1].contains("└─"), "s1 detail: {:?}", rows[1]);
+        assert!(
+            rows[1].contains("│") && rows[1].contains("└─"),
+            "s1 detail: {:?}",
+            rows[1]
+        );
 
         assert!(rows[2].contains("└─"), "non-selected s2: {:?}", rows[2]);
-        assert!(!rows[2].contains("▸"), "non-selected should not have cursor: {:?}", rows[2]);
+        assert!(
+            !rows[2].contains("▸"),
+            "non-selected should not have cursor: {:?}",
+            rows[2]
+        );
 
         assert!(rows[3].contains("├─"), "s2 detail1: {:?}", rows[3]);
         assert!(rows[4].contains("└─"), "s2 detail2: {:?}", rows[4]);
@@ -1040,9 +1024,7 @@ mod render_tests {
         header_text: &str,
         detail_count: usize,
     ) -> SpanTreeEntry {
-        let details: Vec<String> = (0..detail_count)
-            .map(|i| format!("detail-{}", i))
-            .collect();
+        let details: Vec<String> = (0..detail_count).map(|i| format!("detail-{}", i)).collect();
         let detail_refs: Vec<&str> = details.iter().map(|s| s.as_str()).collect();
         build_timeline_entry(
             id,
@@ -1266,10 +1248,7 @@ mod render_tests {
         let mut tree = SpanTree::new()
             .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
 
-        let entry_a = SpanTreeEntry::new(
-            "a",
-            vec![vec![Span::raw("  "), Span::raw("header-a")]],
-        );
+        let entry_a = SpanTreeEntry::new("a", vec![vec![Span::raw("  "), Span::raw("header-a")]]);
         let entry_b = make_multi_detail_entry("b", "└─ ", "   ", "#agent-B", 5);
         tree.set_entries(vec![entry_a, entry_b]);
         tree.set_selected("a");
@@ -1418,10 +1397,8 @@ mod render_tests {
         let mut tree = SpanTree::new()
             .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
 
-        let top_entry = SpanTreeEntry::new(
-            "top",
-            vec![vec![Span::raw("  "), Span::raw("top-header")]],
-        );
+        let top_entry =
+            SpanTreeEntry::new("top", vec![vec![Span::raw("  "), Span::raw("top-header")]]);
         let bottom_entry = make_multi_detail_entry("bot", "└─ ", "   ", "#bottom", 4);
         tree.set_entries(vec![top_entry, bottom_entry]);
         tree.set_selected("top");
@@ -1529,10 +1506,7 @@ mod render_tests {
         let mut tree = SpanTree::new()
             .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
 
-        let e1 = SpanTreeEntry::new(
-            "e1",
-            vec![vec![Span::raw("  "), Span::raw("header-1")]],
-        );
+        let e1 = SpanTreeEntry::new("e1", vec![vec![Span::raw("  "), Span::raw("header-1")]]);
         let e2 = make_multi_detail_entry("e2", "└─ ", "   ", "#agent-2", 4);
         tree.set_entries(vec![e1, e2]);
         tree.set_selected("e2");
@@ -1584,11 +1558,7 @@ mod render_tests {
             );
         }
         let last = rows[10].trim_end();
-        assert!(
-            last.contains("└─"),
-            "last detail should use └─: {:?}",
-            last
-        );
+        assert!(last.contains("└─"), "last detail should use └─: {:?}", last);
     }
 
     #[test]
@@ -1598,13 +1568,8 @@ mod render_tests {
 
         for round in 0..5 {
             let count = 3 + round;
-            let entry = make_multi_detail_entry(
-                "a",
-                "└─ ",
-                "   ",
-                &format!("#agent-v{}", round),
-                count,
-            );
+            let entry =
+                make_multi_detail_entry("a", "└─ ", "   ", &format!("#agent-v{}", round), count);
             tree.set_entries(vec![entry]);
             tree.set_selected("a");
             set_scroll(&mut tree, round.min(count));
