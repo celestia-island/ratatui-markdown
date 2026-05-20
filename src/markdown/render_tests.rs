@@ -2190,19 +2190,21 @@ mod mermaid_image_render_tests {
     }
 
     #[test]
-    fn mermaid_image_render_to_cell_aligned_dimensions() {
+    fn mermaid_image_render_to_cell_aligned_dimensions() -> anyhow::Result<()> {
         let bg = image::Rgba([30, 30, 46, 255]);
         let font_w: u32 = 9;
         let font_h: u32 = 18;
 
         let source = "graph LR\n    Input-->Output";
-        let svg = mermaid_rs_renderer::render(source).expect("mermaid render");
+        let svg = mermaid_rs_renderer::render(source)
+            .map_err(|e| anyhow::anyhow!("mermaid render: {e}"))?;
         let db = setup_fontdb();
         let opts = usvg::Options {
             fontdb: std::sync::Arc::new(db),
             ..usvg::Options::default()
         };
-        let tree = usvg::Tree::from_str(&svg, &opts).unwrap();
+        let tree =
+            usvg::Tree::from_str(&svg, &opts).map_err(|e| anyhow::anyhow!("svg parse: {e}"))?;
         let sz = tree.size();
 
         let raw_w = (sz.width() as f64).round() as u32;
@@ -2212,7 +2214,9 @@ mod mermaid_image_render_tests {
         let aligned_w = cell_w * font_w;
         let aligned_h = cell_h * font_h;
 
-        let mut pm = tiny_skia::Pixmap::new(aligned_w, aligned_h).unwrap();
+        let mut pm = tiny_skia::Pixmap::new(aligned_w, aligned_h).ok_or_else(|| {
+            anyhow::anyhow!("failed to create pixmap {}x{}", aligned_w, aligned_h)
+        })?;
         pm.fill(tiny_skia::Color::from_rgba8(
             bg.0[0], bg.0[1], bg.0[2], bg.0[3],
         ));
@@ -2223,7 +2227,8 @@ mod mermaid_image_render_tests {
         resvg::render(&tree, ts, &mut pm.as_mut());
 
         let rgba = pm.data();
-        let img = image::RgbaImage::from_raw(aligned_w, aligned_h, rgba.to_vec()).unwrap();
+        let img = image::RgbaImage::from_raw(aligned_w, aligned_h, rgba.to_vec())
+            .ok_or_else(|| anyhow::anyhow!("failed to create rgba image"))?;
 
         for x in 0..aligned_w {
             let top = img.get_pixel(x, 0);
@@ -2251,6 +2256,7 @@ mod mermaid_image_render_tests {
                 y
             );
         }
+        Ok(())
     }
 
     #[test]
@@ -2342,19 +2348,22 @@ mod mermaid_image_render_tests {
     }
 
     #[test]
-    fn mermaid_image_svg_background_is_patched() {
+    fn mermaid_image_svg_background_is_patched() -> anyhow::Result<()> {
         let bg_hex = "1a1b2c";
         let mut opts = mermaid_rs_renderer::RenderOptions::default();
         opts.theme.background = bg_hex.to_string();
-        let svg = mermaid_rs_renderer::render_with_options("graph TD\n    A-->B", opts).unwrap();
+        let svg = mermaid_rs_renderer::render_with_options("graph TD\n    A-->B", opts)
+            .map_err(|e| anyhow::anyhow!("render with options: {e}"))?;
         assert!(!svg.contains("#FFFFFF"), "should have no #FFFFFF left");
         assert!(svg.contains(bg_hex), "should contain custom bg hex");
 
-        let default_svg = mermaid_rs_renderer::render("graph TD\n    A-->B").unwrap();
+        let default_svg = mermaid_rs_renderer::render("graph TD\n    A-->B")
+            .map_err(|e| anyhow::anyhow!("default render: {e}"))?;
         assert!(
             default_svg.contains("#FFFFFF"),
             "default theme should contain white bg"
         );
+        Ok(())
     }
 
     #[test]

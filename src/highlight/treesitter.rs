@@ -356,7 +356,7 @@ impl CodeHighlighter for TreeSitterHighlighter {
             None => return Vec::new(),
         };
         let config = build_config(&entry);
-        let mut hl = self.highlighter.lock().unwrap();
+        let mut hl = self.highlighter.lock().unwrap_or_else(|e| e.into_inner());
 
         let events = match hl.highlight(&config, code.as_bytes(), None, |_| None) {
             Ok(e) => e,

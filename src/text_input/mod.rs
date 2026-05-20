@@ -435,14 +435,18 @@ mod tests {
     }
 
     #[test]
-    fn selection_set_clear() {
+    fn selection_set_clear() -> anyhow::Result<()> {
         let mut input = TextInput::new();
         assert!(input.selection().is_none());
         input.set_selection(Some(Selection::new(0, 5)));
-        assert_eq!(input.selection().unwrap().start, 0);
-        assert_eq!(input.selection().unwrap().end, 5);
+        let sel = input
+            .selection()
+            .ok_or_else(|| anyhow::anyhow!("expected selection"))?;
+        assert_eq!(sel.start, 0);
+        assert_eq!(sel.end, 5);
         input.set_selection(None);
         assert!(input.selection().is_none());
+        Ok(())
     }
 
     #[test]
