@@ -2281,9 +2281,10 @@ mod mermaid_image_render_tests {
             let mut count = 0;
             let start = placement.row;
             for line in &output.lines[start..start + expected_rows] {
-                let has_prefix = line.spans.first().map_or(false, |s| {
-                    s.content.starts_with("│") || s.content.starts_with("|")
-                });
+                let has_prefix = line
+                    .spans
+                    .first()
+                    .is_some_and(|s| s.content.starts_with("│") || s.content.starts_with("|"));
                 if has_prefix {
                     count += 1;
                 }
