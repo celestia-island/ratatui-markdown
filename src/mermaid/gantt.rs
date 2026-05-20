@@ -97,7 +97,7 @@ fn parse_task(line: &str) -> Option<GanttTask> {
         if part.starts_with("after ") {
             deps = Some(
                 part.strip_prefix("after ")
-                    .unwrap()
+                    .expect("already checked with starts_with")
                     .split(',')
                     .map(|s| s.trim().to_string())
                     .collect(),

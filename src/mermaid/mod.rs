@@ -247,41 +247,45 @@ mod parse_tests {
     }
 
     #[test]
-    fn test_parse_sequence_diagram() {
+    fn test_parse_sequence_diagram() -> anyhow::Result<()> {
         let diagram = sequence::parse_sequence(
             "sequenceDiagram\n    Alice->>Bob: Hello\n    Bob-->>Alice: Hi",
         )
-        .unwrap();
+        .ok_or_else(|| anyhow::anyhow!("failed to parse sequence diagram"))?;
         assert_eq!(diagram.participants.len(), 2);
         assert_eq!(diagram.messages.len(), 2);
+        Ok(())
     }
 
     #[test]
-    fn test_parse_pie_chart() {
-        let chart =
-            pie::parse_pie("pie title Pets\n    \"Dogs\" : 386\n    \"Cats\" : 85").unwrap();
+    fn test_parse_pie_chart() -> anyhow::Result<()> {
+        let chart = pie::parse_pie("pie title Pets\n    \"Dogs\" : 386\n    \"Cats\" : 85")
+            .ok_or_else(|| anyhow::anyhow!("failed to parse pie chart"))?;
         assert_eq!(chart.title.as_deref(), Some("Pets"));
         assert_eq!(chart.slices.len(), 2);
+        Ok(())
     }
 
     #[test]
-    fn test_parse_gantt_chart() {
+    fn test_parse_gantt_chart() -> anyhow::Result<()> {
         let chart = gantt::parse_gantt(
             "gantt\ntitle Project\nsection Phase 1\nTask 1 :a1, 7d\nTask 2 :a2, after a1, 5d",
         )
-        .unwrap();
+        .ok_or_else(|| anyhow::anyhow!("failed to parse gantt chart"))?;
         assert_eq!(chart.title.as_deref(), Some("Project"));
         assert_eq!(chart.sections.len(), 1);
         assert_eq!(chart.sections[0].tasks.len(), 2);
+        Ok(())
     }
 
     #[test]
-    fn test_parse_state_diagram() {
+    fn test_parse_state_diagram() -> anyhow::Result<()> {
         let diagram = parse_state_diagram(
             "stateDiagram-v2\n    [*] --> Idle\n    Idle --> Running\n    Running --> Idle",
         )
-        .unwrap();
+        .ok_or_else(|| anyhow::anyhow!("failed to parse state diagram"))?;
         assert_eq!(diagram.nodes.len(), 3);
         assert_eq!(diagram.edges.len(), 3);
+        Ok(())
     }
 }
