@@ -20,7 +20,7 @@ pub fn parse_pie(source: &str) -> Option<PieChart> {
         }
 
         if line.starts_with("pie") {
-            let rest = line.strip_prefix("pie").unwrap().trim();
+            let rest = line.strip_prefix("pie").expect("already checked with starts_with").trim();
             if let Some(t) = rest.strip_prefix("title ") {
                 title = Some(t.trim().to_string());
             }
@@ -28,7 +28,7 @@ pub fn parse_pie(source: &str) -> Option<PieChart> {
         }
 
         if line.starts_with("title ") {
-            title = Some(line.strip_prefix("title ").unwrap().trim().to_string());
+            title = Some(line.strip_prefix("title ").expect("already checked with starts_with").trim().to_string());
             continue;
         }
 

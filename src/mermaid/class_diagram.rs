@@ -466,56 +466,63 @@ pub fn render_class_diagram(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::Result;
 
     #[test]
-    fn test_parse_simple_class_diagram() {
+    fn test_parse_simple_class_diagram() -> Result<()> {
         let source =
             "classDiagram\nclass Animal {\n  +String name\n  +int age\n  +makeSound() void\n}\n";
-        let diagram = parse_class_diagram(source).unwrap();
+        let diagram = parse_class_diagram(source).ok_or_else(|| anyhow::anyhow!("failed to parse class diagram"))?;
         assert_eq!(diagram.classes.len(), 1);
         assert_eq!(diagram.classes[0].name, "Animal");
         assert_eq!(diagram.classes[0].attributes.len(), 2);
         assert_eq!(diagram.classes[0].methods.len(), 1);
+        Ok(())
     }
 
     #[test]
-    fn test_parse_relationship() {
-        let rel = parse_relationship("Animal <|-- Dog").unwrap();
+    fn test_parse_relationship() -> Result<()> {
+        let rel = parse_relationship("Animal <|-- Dog").ok_or_else(|| anyhow::anyhow!("failed to parse relationship"))?;
         assert_eq!(rel.from, "Animal");
         assert_eq!(rel.to, "Dog");
         assert_eq!(rel.rel_type, RelationshipType::Inheritance);
+        Ok(())
     }
 
     #[test]
-    fn test_parse_relationship_with_label() {
-        let rel = parse_relationship("Animal <|-- Dog : extends").unwrap();
+    fn test_parse_relationship_with_label() -> Result<()> {
+        let rel = parse_relationship("Animal <|-- Dog : extends").ok_or_else(|| anyhow::anyhow!("failed to parse relationship"))?;
         assert_eq!(rel.from, "Animal");
         assert_eq!(rel.to, "Dog");
         assert_eq!(rel.label.as_deref(), Some("extends"));
+        Ok(())
     }
 
     #[test]
-    fn test_parse_composition() {
-        let rel = parse_relationship("Car *-- Engine").unwrap();
+    fn test_parse_composition() -> Result<()> {
+        let rel = parse_relationship("Car *-- Engine").ok_or_else(|| anyhow::anyhow!("failed to parse relationship"))?;
         assert_eq!(rel.from, "Car");
         assert_eq!(rel.to, "Engine");
         assert_eq!(rel.rel_type, RelationshipType::Composition);
+        Ok(())
     }
 
     #[test]
-    fn test_parse_implements() {
-        let rel = parse_relationship("Dog ..|> Runnable").unwrap();
+    fn test_parse_implements() -> Result<()> {
+        let rel = parse_relationship("Dog ..|> Runnable").ok_or_else(|| anyhow::anyhow!("failed to parse relationship"))?;
         assert_eq!(rel.from, "Dog");
         assert_eq!(rel.to, "Runnable");
         assert_eq!(rel.rel_type, RelationshipType::Implements);
+        Ok(())
     }
 
     #[test]
-    fn test_convert_to_mermaid() {
+    fn test_convert_to_mermaid() -> Result<()> {
         let source = "classDiagram\nclass Animal {\n  +String name\n}\nclass Dog {\n  +String breed\n}\nAnimal <|-- Dog\n";
-        let diagram = parse_class_diagram(source).unwrap();
+        let diagram = parse_class_diagram(source).ok_or_else(|| anyhow::anyhow!("failed to parse class diagram"))?;
         let mermaid = convert_to_mermaid_diagram(&diagram);
         assert_eq!(mermaid.nodes.len(), 2);
         assert_eq!(mermaid.edges.len(), 1);
+        Ok(())
     }
 }

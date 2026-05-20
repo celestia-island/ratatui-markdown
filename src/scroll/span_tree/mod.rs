@@ -503,14 +503,14 @@ fn collect_rendered_lines(tree: &mut SpanTree, width: u16) -> Vec<String> {
     let theme = ThemeConfig::default();
     let area = ratatui::layout::Rect::new(0, 0, width, 10);
     let backend = ratatui::backend::TestBackend::new(width, 10);
-    let mut terminal = ratatui::Terminal::new(backend).unwrap();
+    let mut terminal = ratatui::Terminal::new(backend).expect("test backend creation");
     let mut result = Vec::new();
     terminal
         .draw(|f| {
             let inner = ratatui::layout::Rect::new(0, 0, width, 10);
             tree.render(f, inner, area, &theme);
         })
-        .unwrap();
+        .expect("terminal draw");
     let buffer = terminal.backend().buffer().clone();
     for y in 0..10u16 {
         let mut line = String::new();
