@@ -437,4 +437,88 @@ mod tests {
         let tree = SpanTree::new().with_cursor_line_mode(CursorLineMode::AllLines);
         assert_eq!(tree.cursor_line_mode(), CursorLineMode::AllLines);
     }
+
+    #[test]
+    fn selected_body_line_gets_blank_cursor_in_header_only_mode() {
+        let mut tree = SpanTree::new()
+            .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
+        let entries = vec![SpanTreeEntry::new(
+            "a",
+            vec![
+                vec![Span::raw(" "), Span::raw("├─ "), Span::raw("header")],
+                vec![Span::raw(" "), Span::raw("│  └─ "), Span::raw("body")],
+            ],
+        )];
+        tree.set_entries(entries);
+        tree.set_selected_index(0);
+
+        let lines = collect_rendered_lines(&mut tree, 20);
+        let header = &lines[0];
+        let body = &lines[1];
+
+        assert!(
+            header.starts_with("▸ ├─ "),
+            "selected header should have active cursor, got: {:?}",
+            header
+        );
+        assert!(
+            body.starts_with("  │  └─ "),
+            "selected body should have blank cursor for alignment, got: {:?}",
+            body
+        );
+    }
+
+    #[test]
+    fn non_selected_body_line_gets_blank_cursor() {
+        let mut tree = SpanTree::new()
+            .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
+        let entries = vec![SpanTreeEntry::new(
+            "a",
+            vec![
+                vec![Span::raw(" "), Span::raw("├─ "), Span::raw("header")],
+                vec![Span::raw(" "), Span::raw("│  └─ "), Span::raw("body")],
+            ],
+        )];
+        tree.set_entries(entries);
+
+        let lines = collect_rendered_lines(&mut tree, 20);
+        let header = &lines[0];
+        let body = &lines[1];
+
+        assert!(
+            header.starts_with("  ├─ "),
+            "non-selected header should have blank cursor, got: {:?}",
+            header
+        );
+        assert!(
+            body.starts_with("  │  └─ "),
+            "non-selected body should have blank cursor, got: {:?}",
+            body
+        );
+    }
+}
+
+fn collect_rendered_lines(tree: &mut SpanTree, width: u16) -> Vec<String> {
+    use crate::theme::ThemeConfig;
+    let theme = ThemeConfig::default();
+    let area = ratatui::layout::Rect::new(0, 0, width, 10);
+    let backend = ratatui::backend::TestBackend::new(width, 10);
+    let mut terminal = ratatui::Terminal::new(backend).unwrap();
+    let mut result = Vec::new();
+    terminal
+        .draw(|f| {
+            let inner = ratatui::layout::Rect::new(0, 0, width, 10);
+            tree.render(f, inner, area, &theme);
+        })
+        .unwrap();
+    let buffer = terminal.backend().buffer().clone();
+    for y in 0..10u16 {
+        let mut line = String::new();
+        for x in 0..width {
+            let cell = &buffer[(x, y)];
+            line.push_str(cell.symbol());
+        }
+        result.push(line);
+    }
+    result
 }
