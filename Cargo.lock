@@ -1100,7 +1100,7 @@ dependencies = [
 
 [[package]]
 name = "ratatui-markdown"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "anyhow",
  "crossterm",
@@ -1654,9 +1654,9 @@ checksum = "5d99f8c9a7727884afe522e9bd5edbfc91a3312b36a77b5fb8926e4c31a41801"
 
 [[package]]
 name = "tree-sitter"
-version = "0.26.8"
+version = "0.26.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "887bd495d0582c5e3e0d8ece2233666169fa56a9644d172fc22ad179ab2d0538"
+checksum = "4dab76d0b724ba557954125188cf0633a1ca43199ced82d95c7b9c32cc3de1f3"
 dependencies = [
  "cc",
  "regex",
@@ -1778,9 +1778,9 @@ dependencies = [
 
 [[package]]
 name = "tree-sitter-highlight"
-version = "0.26.8"
+version = "0.26.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ccde2b54a34b58313e69c02496a2a9ad38d59af79b196b5e1df063431752a7e0"
+checksum = "f4fbfa3f35520ff730da507e2c9a526a98156f417e0008c73de873741d7e4ecc"
 dependencies = [
  "regex",
  "streaming-iterator",
@@ -2467,29 +2467,29 @@ dependencies = [
 ]
 
 [[patch.unused]]
+name = "hikari-animation"
+version = "0.2.5"
+
+[[patch.unused]]
+name = "hikari-components"
+version = "0.2.5"
+
+[[patch.unused]]
+name = "hikari-icons"
+version = "0.2.5"
+
+[[patch.unused]]
+name = "hikari-palette"
+version = "0.2.5"
+
+[[patch.unused]]
+name = "hikari-theme"
+version = "0.2.5"
+
+[[patch.unused]]
 name = "aoba"
 version = "0.1.2"
 
 [[patch.unused]]
 name = "kirino"
 version = "0.2.0"
-
-[[patch.unused]]
-name = "hikari-animation"
-version = "0.2.4"
-
-[[patch.unused]]
-name = "hikari-components"
-version = "0.2.4"
-
-[[patch.unused]]
-name = "hikari-icons"
-version = "0.2.4"
-
-[[patch.unused]]
-name = "hikari-palette"
-version = "0.2.4"
-
-[[patch.unused]]
-name = "hikari-theme"
-version = "0.2.4"
