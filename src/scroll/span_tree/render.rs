@@ -41,22 +41,20 @@ pub(super) fn render(
             }
             if global_line >= start {
                 let mut spans: Vec<Span<'static>> = entry_spans.clone();
-                let should_show_active_cursor = tree.cursor_column < spans.len()
+                let should_render_cursor = tree.cursor_column < spans.len()
                     && match tree.cursor_line_mode {
                         CursorLineMode::HeaderOnly => line_idx == 0,
                         CursorLineMode::AllLines => true,
                     };
 
                 if is_selected {
-                    if should_show_active_cursor {
+                    if should_render_cursor {
                         spans[tree.cursor_column] = tree.cursor_span.clone();
-                    } else if tree.cursor_column < spans.len() {
-                        spans[tree.cursor_column] = tree.blank_cursor_span.clone();
                     }
                     for span in &mut spans {
                         span.style = span.style.bg(highlight_bg);
                     }
-                } else if tree.cursor_column < spans.len() {
+                } else if should_render_cursor {
                     spans[tree.cursor_column] = tree.blank_cursor_span.clone();
                 }
 
