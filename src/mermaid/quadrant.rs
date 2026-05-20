@@ -264,7 +264,8 @@ mod tests {
     #[test]
     fn test_parse_quadrant_chart() -> Result<()> {
         let source = "quadrantChart\n    x-axis Low --> High\n    y-axis Low --> High\n    A: [0.3, 0.6]\n    B: [0.45, 0.23]\n";
-        let chart = parse_quadrant(source).ok_or_else(|| anyhow::anyhow!("failed to parse quadrant"))?;
+        let chart =
+            parse_quadrant(source).ok_or_else(|| anyhow::anyhow!("failed to parse quadrant"))?;
         assert_eq!(chart.points.len(), 2);
         assert_eq!(chart.x_axis_left, "Low");
         assert_eq!(chart.x_axis_right, "High");
@@ -274,7 +275,8 @@ mod tests {
     #[test]
     fn test_parse_quadrant_with_quadrants() -> Result<()> {
         let source = "quadrantChart\n    quadrant-1 We should expand\n    A: [0.3, 0.6]\n";
-        let chart = parse_quadrant(source).ok_or_else(|| anyhow::anyhow!("failed to parse quadrant"))?;
+        let chart =
+            parse_quadrant(source).ok_or_else(|| anyhow::anyhow!("failed to parse quadrant"))?;
         assert_eq!(chart.quadrants[0].as_deref(), Some("We should expand"));
         Ok(())
     }

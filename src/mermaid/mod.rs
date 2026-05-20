@@ -259,9 +259,8 @@ mod parse_tests {
 
     #[test]
     fn test_parse_pie_chart() -> anyhow::Result<()> {
-        let chart =
-            pie::parse_pie("pie title Pets\n    \"Dogs\" : 386\n    \"Cats\" : 85")
-                .ok_or_else(|| anyhow::anyhow!("failed to parse pie chart"))?;
+        let chart = pie::parse_pie("pie title Pets\n    \"Dogs\" : 386\n    \"Cats\" : 85")
+            .ok_or_else(|| anyhow::anyhow!("failed to parse pie chart"))?;
         assert_eq!(chart.title.as_deref(), Some("Pets"));
         assert_eq!(chart.slices.len(), 2);
         Ok(())

@@ -145,7 +145,8 @@ mod tests {
     #[test]
     fn test_parse_simple_block() -> Result<()> {
         let source = "block-beta\n    A B C\n    D E F\n";
-        let diagram = parse_block(source).ok_or_else(|| anyhow::anyhow!("failed to parse block"))?;
+        let diagram =
+            parse_block(source).ok_or_else(|| anyhow::anyhow!("failed to parse block"))?;
         assert_eq!(diagram.blocks.len(), 6);
         Ok(())
     }
@@ -153,7 +154,8 @@ mod tests {
     #[test]
     fn test_parse_block_with_columns() -> Result<()> {
         let source = "block-beta\n    columns 2\n    A B\n    C D\n";
-        let diagram = parse_block(source).ok_or_else(|| anyhow::anyhow!("failed to parse block"))?;
+        let diagram =
+            parse_block(source).ok_or_else(|| anyhow::anyhow!("failed to parse block"))?;
         assert_eq!(diagram.columns, 2);
         assert_eq!(diagram.blocks.len(), 4);
         Ok(())
@@ -162,7 +164,8 @@ mod tests {
     #[test]
     fn test_convert_to_mermaid() -> Result<()> {
         let source = "block-beta\n    A B\n    C D\n";
-        let diagram = parse_block(source).ok_or_else(|| anyhow::anyhow!("failed to parse block"))?;
+        let diagram =
+            parse_block(source).ok_or_else(|| anyhow::anyhow!("failed to parse block"))?;
         let mermaid = convert_to_mermaid_diagram(&diagram);
         assert_eq!(mermaid.nodes.len(), 4);
         assert!(mermaid.edges.len() >= 3);

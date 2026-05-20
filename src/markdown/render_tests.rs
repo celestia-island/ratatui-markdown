@@ -2196,13 +2196,15 @@ mod mermaid_image_render_tests {
         let font_h: u32 = 18;
 
         let source = "graph LR\n    Input-->Output";
-        let svg = mermaid_rs_renderer::render(source).map_err(|e| anyhow::anyhow!("mermaid render: {e}"))?;
+        let svg = mermaid_rs_renderer::render(source)
+            .map_err(|e| anyhow::anyhow!("mermaid render: {e}"))?;
         let db = setup_fontdb();
         let opts = usvg::Options {
             fontdb: std::sync::Arc::new(db),
             ..usvg::Options::default()
         };
-        let tree = usvg::Tree::from_str(&svg, &opts).map_err(|e| anyhow::anyhow!("svg parse: {e}"))?;
+        let tree =
+            usvg::Tree::from_str(&svg, &opts).map_err(|e| anyhow::anyhow!("svg parse: {e}"))?;
         let sz = tree.size();
 
         let raw_w = (sz.width() as f64).round() as u32;
@@ -2212,8 +2214,9 @@ mod mermaid_image_render_tests {
         let aligned_w = cell_w * font_w;
         let aligned_h = cell_h * font_h;
 
-        let mut pm = tiny_skia::Pixmap::new(aligned_w, aligned_h)
-            .ok_or_else(|| anyhow::anyhow!("failed to create pixmap {}x{}", aligned_w, aligned_h))?;
+        let mut pm = tiny_skia::Pixmap::new(aligned_w, aligned_h).ok_or_else(|| {
+            anyhow::anyhow!("failed to create pixmap {}x{}", aligned_w, aligned_h)
+        })?;
         pm.fill(tiny_skia::Color::from_rgba8(
             bg.0[0], bg.0[1], bg.0[2], bg.0[3],
         ));
