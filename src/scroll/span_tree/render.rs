@@ -8,6 +8,37 @@ use ratatui::{
 use super::{CursorLineMode, SpanTree};
 use crate::{scroll::render_arrow_scrollbar, theme::RichTextTheme};
 
+fn apply_cursor(
+    spans: &mut Vec<Span<'static>>,
+    tree: &SpanTree,
+    is_selected: bool,
+    line_idx: usize,
+    highlight_bg: ratatui::style::Color,
+) {
+    let col = tree.cursor_column;
+    if col >= spans.len() {
+        return;
+    }
+
+    let is_cursor_line = match tree.cursor_line_mode {
+        CursorLineMode::HeaderOnly => line_idx == 0,
+        CursorLineMode::AllLines => true,
+    };
+
+    if is_selected {
+        if is_cursor_line {
+            spans[col] = tree.cursor_span.clone();
+        } else {
+            spans[col] = tree.blank_cursor_span.clone();
+        }
+        for span in spans {
+            span.style = span.style.bg(highlight_bg);
+        }
+    } else {
+        spans[col] = tree.blank_cursor_span.clone();
+    }
+}
+
 pub(super) fn render(
     tree: &mut SpanTree,
     f: &mut Frame,
@@ -41,23 +72,7 @@ pub(super) fn render(
             }
             if global_line >= start {
                 let mut spans: Vec<Span<'static>> = entry_spans.clone();
-                let should_render_cursor = tree.cursor_column < spans.len()
-                    && match tree.cursor_line_mode {
-                        CursorLineMode::HeaderOnly => line_idx == 0,
-                        CursorLineMode::AllLines => true,
-                    };
-
-                if is_selected {
-                    if should_render_cursor {
-                        spans[tree.cursor_column] = tree.cursor_span.clone();
-                    }
-                    for span in &mut spans {
-                        span.style = span.style.bg(highlight_bg);
-                    }
-                } else if should_render_cursor {
-                    spans[tree.cursor_column] = tree.blank_cursor_span.clone();
-                }
-
+                apply_cursor(&mut spans, tree, is_selected, line_idx, highlight_bg);
                 visible_lines.push(Line::from(spans));
             }
             global_line += 1;

@@ -438,3 +438,598 @@ mod tests {
         assert_eq!(tree.cursor_line_mode(), CursorLineMode::AllLines);
     }
 }
+
+#[cfg(test)]
+mod render_tests {
+    use super::*;
+    use crate::constants::*;
+    use crate::theme::ThemeConfig;
+    use ratatui::{
+        backend::TestBackend,
+        layout::Rect,
+        style::{Color, Style},
+        Terminal,
+    };
+
+    fn test_theme() -> ThemeConfig {
+        ThemeConfig::default()
+    }
+
+    fn render_to_lines(tree: &mut SpanTree, width: u16, height: u16) -> Vec<String> {
+        let backend = TestBackend::new(width, height);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let area = Rect::new(0, 0, width, height);
+        terminal
+            .draw(|f| {
+                tree.render(f, area, area, &test_theme());
+            })
+            .unwrap();
+        let buffer = terminal.backend().buffer().clone();
+        (0..height)
+            .map(|r| {
+                (0..width)
+                    .map(|c| buffer.cell((c, r)).unwrap().symbol().to_string())
+                    .collect::<String>()
+            })
+            .collect()
+    }
+
+    fn build_timeline_entry(
+        id: &str,
+        tree_prefix: &str,
+        continuation_indent: &str,
+        header_text: &str,
+        detail_lines: &[&str],
+    ) -> SpanTreeEntry {
+        let mut lines = Vec::new();
+        let header_spans = vec![
+            Span::raw("  "),
+            Span::styled(
+                tree_prefix.to_string(),
+                Style::default().fg(Color::DarkGray),
+            ),
+            Span::raw(header_text.to_string()),
+        ];
+        lines.push(header_spans);
+
+        let n = detail_lines.len();
+        for (i, detail) in detail_lines.iter().enumerate() {
+            let connector = if i == n - 1 {
+                BRANCH_END_SP
+            } else {
+                BRANCH_MID_SP
+            };
+            let prefix = format!("{}{}", continuation_indent, connector);
+            let detail_spans = vec![
+                Span::raw("  "),
+                Span::styled(prefix, Style::default().fg(Color::DarkGray)),
+                Span::raw(detail.to_string()),
+            ];
+            lines.push(detail_spans);
+        }
+
+        SpanTreeEntry::new(id, lines)
+    }
+
+    #[test]
+    fn tree_multiline_selected_entry_has_cursor_on_header_blank_on_body() {
+        let mut tree = SpanTree::new()
+            .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
+
+        let entry = build_timeline_entry(
+            "agent2",
+            "└─ ",
+            "   ",
+            "#002 hubris",
+            &["work status text", "tool name"],
+        );
+        tree.set_entries(vec![entry]);
+        tree.set_selected("agent2");
+
+        let rows = render_to_lines(&mut tree, 60, 10);
+        assert!(rows[0].contains("▸"), "header should show cursor: {:?}", rows[0]);
+        assert!(
+            !rows[1].contains("▸"),
+            "body line should NOT show cursor: {:?}",
+            rows[1]
+        );
+        assert!(
+            !rows[2].contains("▸"),
+            "body line should NOT show cursor: {:?}",
+            rows[2]
+        );
+    }
+
+    #[test]
+    fn tree_continuation_indent_is_preserved_on_selected_entry() {
+        let mut tree = SpanTree::new()
+            .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
+
+        let entry = build_timeline_entry(
+            "sel",
+            "└─ ",
+            "   ",
+            "#002 hubris",
+            &["work status", "tool name"],
+        );
+        tree.set_entries(vec![entry]);
+        tree.set_selected("sel");
+
+        let rows = render_to_lines(&mut tree, 60, 10);
+
+        let header = rows[0].trim_end();
+        assert!(
+            header.contains("└─"),
+            "header should contain └─: {:?}",
+            header
+        );
+
+        let body1 = rows[1].trim_end();
+        let body2 = rows[2].trim_end();
+        assert!(
+            body1.contains("├─") || body1.contains("│"),
+            "body1 should contain tree connector: {:?}",
+            body1
+        );
+        assert!(
+            body2.contains("└─"),
+            "body2 should contain └─: {:?}",
+            body2
+        );
+    }
+
+    #[test]
+    fn tree_continuation_indent_preserved_on_non_selected_entry() {
+        let mut tree = SpanTree::new()
+            .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
+
+        let entry_a = build_timeline_entry("a", "├─ ", "│  ", "#001 done", &[]);
+        let entry_b = build_timeline_entry(
+            "b",
+            "└─ ",
+            "   ",
+            "#002 active",
+            &["thinking...", "executing tool"],
+        );
+        tree.set_entries(vec![entry_a, entry_b]);
+        tree.set_selected("a");
+
+        let rows = render_to_lines(&mut tree, 60, 10);
+
+        let selected_header = rows[0].trim_end();
+        assert!(
+            selected_header.contains("▸"),
+            "selected header should have cursor: {:?}",
+            selected_header
+        );
+        assert!(
+            selected_header.contains("├─"),
+            "selected header should have ├─: {:?}",
+            selected_header
+        );
+
+        let non_selected_header = rows[1].trim_end();
+        assert!(
+            non_selected_header.contains("└─"),
+            "non-selected header should have └─: {:?}",
+            non_selected_header
+        );
+        assert!(
+            !non_selected_header.contains("▸"),
+            "non-selected header should NOT have cursor: {:?}",
+            non_selected_header
+        );
+
+        let body1 = rows[2].trim_end();
+        let body2 = rows[3].trim_end();
+        assert!(
+            body1.contains("├─"),
+            "continuation line1 should have ├─: {:?}",
+            body1
+        );
+        assert!(
+            body2.contains("└─"),
+            "continuation line2 should have └─: {:?}",
+            body2
+        );
+    }
+
+    #[test]
+    fn tree_blank_cursor_width_matches_placeholder() {
+        let cursor = "▸ ";
+        let blank = "  ";
+        let placeholder = "  ";
+        assert_eq!(
+            blank.chars().count(),
+            placeholder.chars().count(),
+            "blank cursor display width must match placeholder display width"
+        );
+        assert_eq!(
+            cursor.chars().count(),
+            placeholder.chars().count(),
+            "active cursor display width must match placeholder display width"
+        );
+    }
+
+    #[test]
+    fn tree_deeply_nested_continuation_rendered() {
+        let mut tree = SpanTree::new()
+            .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
+
+        let root = build_timeline_entry("root", "", "", "root", &[]);
+        let child1 =
+            build_timeline_entry("c1", "├─ ", "│  ", "child1", &["detail1", "detail2"]);
+        let child2 =
+            build_timeline_entry("c2", "└─ ", "   ", "child2", &["detail3"]);
+        tree.set_entries(vec![root, child1, child2]);
+        tree.set_selected("c2");
+
+        let rows = render_to_lines(&mut tree, 60, 10);
+
+        assert!(rows[0].contains("root"), "row0: {:?}", rows[0]);
+        assert!(rows[1].contains("├─"), "row1 should have ├─: {:?}", rows[1]);
+        assert!(rows[2].contains("│"), "row2 should have │: {:?}", rows[2]);
+        assert!(rows[3].contains("└─"), "row3 should have └─: {:?}", rows[3]);
+        assert!(
+            rows[4].contains("▸"),
+            "selected header should have cursor: {:?}",
+            rows[4]
+        );
+        assert!(
+            rows[5].contains("├─") || rows[5].contains("└─"),
+            "continuation should have connector: {:?}",
+            rows[5]
+        );
+    }
+
+    #[test]
+    fn tree_all_lines_mode_cursor_on_every_line() {
+        let mut tree = SpanTree::new()
+            .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "))
+            .with_cursor_line_mode(CursorLineMode::AllLines);
+
+        let entry = build_timeline_entry(
+            "x",
+            "└─ ",
+            "   ",
+            "#001 agent",
+            &["status line"],
+        );
+        tree.set_entries(vec![entry]);
+        tree.set_selected("x");
+
+        let rows = render_to_lines(&mut tree, 60, 10);
+        assert!(rows[0].contains("▸"), "header should have cursor: {:?}", rows[0]);
+        assert!(rows[1].contains("▸"), "body should have cursor in AllLines: {:?}", rows[1]);
+    }
+
+    #[test]
+    fn tree_no_selection_no_cursor_visible() {
+        let mut tree = SpanTree::new()
+            .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
+
+        let entry = build_timeline_entry(
+            "a",
+            "└─ ",
+            "   ",
+            "#001 agent",
+            &["status"],
+        );
+        tree.set_entries(vec![entry]);
+
+        let rows = render_to_lines(&mut tree, 60, 10);
+        assert!(
+            !rows[0].contains("▸"),
+            "no selection: header should NOT show cursor: {:?}",
+            rows[0]
+        );
+        assert!(
+            !rows[1].contains("▸"),
+            "no selection: body should NOT show cursor: {:?}",
+            rows[1]
+        );
+    }
+
+    #[test]
+    fn tree_cursor_column_alignment_consistent_across_header_and_body() {
+        let mut tree = SpanTree::new()
+            .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
+
+        let entry = build_timeline_entry(
+            "a",
+            "└─ ",
+            "   ",
+            "#002 agent",
+            &["status", "tool"],
+        );
+        tree.set_entries(vec![entry]);
+        tree.set_selected("a");
+
+        let rows = render_to_lines(&mut tree, 60, 10);
+
+        let header_prefix_end = rows[0]
+            .find(|c: char| !c.is_whitespace() && c != '▸')
+            .unwrap_or(0);
+        let body_prefix_end = rows[1]
+            .find(|c: char| !c.is_whitespace() && c != '│' && c != '├' && c != '─')
+            .unwrap_or(0);
+
+        assert!(
+            body_prefix_end > header_prefix_end,
+            "body connector should be indented further than header connector\n  header: {:?}\n  body:   {:?}\n  header_prefix_end={}, body_prefix_end={}",
+            rows[0].trim_end(),
+            rows[1].trim_end(),
+            header_prefix_end,
+            body_prefix_end
+        );
+    }
+
+    #[test]
+    fn tree_simulated_timeline_two_agents_with_continuation() {
+        let mut tree = SpanTree::new()
+            .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
+
+        let root = SpanTreeEntry::new(
+            "root",
+            vec![vec![
+                Span::raw("  "),
+                Span::raw("#demiurge"),
+            ]],
+        );
+
+        let agent1_prefix = "├─ ";
+        let agent1 = SpanTreeEntry::new(
+            "agent1",
+            vec![vec![
+                Span::raw("  "),
+                Span::styled(agent1_prefix.to_string(), Style::default().fg(Color::DarkGray)),
+                Span::raw("#demiurge.001 hubris ✓"),
+            ]],
+        );
+
+        let agent2_prefix = "└─ ";
+        let agent2_cont = "   ";
+        let agent2 = SpanTreeEntry::new(
+            "agent2",
+            vec![
+                vec![
+                    Span::raw("  "),
+                    Span::styled(
+                        agent2_prefix.to_string(),
+                        Style::default().fg(Color::DarkGray),
+                    ),
+                    Span::raw("#demiurge.002 hubris::task_decompose"),
+                ],
+                vec![
+                    Span::raw("  "),
+                    Span::styled(
+                        format!("{}{}", agent2_cont, "├─ "),
+                        Style::default().fg(Color::DarkGray),
+                    ),
+                    Span::raw("…下工作区的当前状态"),
+                ],
+                vec![
+                    Span::raw("  "),
+                    Span::styled(
+                        format!("{}{}", agent2_cont, "└─ "),
+                        Style::default().fg(Color::DarkGray),
+                    ),
+                    Span::raw("hubris::task_decompose [exec]"),
+                ],
+            ],
+        );
+
+        tree.set_entries(vec![root, agent1, agent2]);
+        tree.set_selected("agent2");
+
+        let rows = render_to_lines(&mut tree, 70, 10);
+
+        assert!(rows[0].contains("#demiurge"), "row0: {:?}", rows[0]);
+
+        assert!(rows[1].contains("├─"), "row1 should have ├─: {:?}", rows[1]);
+
+        assert!(
+            rows[2].contains("▸") && rows[2].contains("└─"),
+            "row2 should have cursor + └─: {:?}",
+            rows[2]
+        );
+
+        let body1 = rows[3].trim_end();
+        let body2 = rows[4].trim_end();
+        assert!(
+            body1.contains("├─"),
+            "continuation line1 should have ├─: {:?}",
+            body1
+        );
+        assert!(
+            body2.contains("└─"),
+            "continuation line2 should have └─: {:?}",
+            body2
+        );
+
+        let header_connector_col = rows[2].find('└').unwrap_or(0);
+        let body_connector_col = body1
+            .find(|c: char| c == '├' || c == '│')
+            .unwrap_or(0);
+        assert!(
+            body_connector_col > header_connector_col,
+            "body connector (col {}) should be right of header connector (col {})\n  header: {:?}\n  body1: {:?}",
+            body_connector_col,
+            header_connector_col,
+            rows[2].trim_end(),
+            body1
+        );
+    }
+
+    #[test]
+    fn tree_three_level_nesting_rendered() {
+        let mut tree = SpanTree::new()
+            .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
+
+        let root = SpanTreeEntry::new(
+            "root",
+            vec![vec![Span::raw("  "), Span::raw("root")]],
+        );
+        let child = SpanTreeEntry::new(
+            "child",
+            vec![vec![
+                Span::raw("  "),
+                Span::styled(
+                    "├─ ".to_string(),
+                    Style::default().fg(Color::DarkGray),
+                ),
+                Span::raw("child"),
+            ]],
+        );
+        let grandchild = SpanTreeEntry::new(
+            "grandchild",
+            vec![
+                vec![
+                    Span::raw("  "),
+                    Span::styled(
+                        "│  └─ ".to_string(),
+                        Style::default().fg(Color::DarkGray),
+                    ),
+                    Span::raw("grandchild header"),
+                ],
+                vec![
+                    Span::raw("  "),
+                    Span::styled(
+                        "│     ├─ ".to_string(),
+                        Style::default().fg(Color::DarkGray),
+                    ),
+                    Span::raw("grandchild detail1"),
+                ],
+                vec![
+                    Span::raw("  "),
+                    Span::styled(
+                        "│     └─ ".to_string(),
+                        Style::default().fg(Color::DarkGray),
+                    ),
+                    Span::raw("grandchild detail2"),
+                ],
+            ],
+        );
+
+        tree.set_entries(vec![root, child, grandchild]);
+        tree.set_selected("grandchild");
+
+        let rows = render_to_lines(&mut tree, 60, 10);
+
+        assert!(rows[2].contains("▸"), "selected header should have cursor: {:?}", rows[2]);
+        assert!(
+            rows[2].contains("│  └─"),
+            "grandchild should have │  └─ prefix: {:?}",
+            rows[2]
+        );
+        assert!(
+            rows[3].contains("│     ├─"),
+            "detail1 should have │     ├─ prefix: {:?}",
+            rows[3]
+        );
+        assert!(
+            rows[4].contains("│     └─"),
+            "detail2 should have │     └─ prefix: {:?}",
+            rows[4]
+        );
+    }
+
+    #[test]
+    fn tree_entry_with_single_char_placeholder_alignment() {
+        let mut tree = SpanTree::new();
+
+        let entry = SpanTreeEntry::new(
+            "a",
+            vec![
+                vec![
+                    Span::raw(" "),
+                    Span::styled("└─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("header"),
+                ],
+                vec![
+                    Span::raw(" "),
+                    Span::styled("   ├─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("detail"),
+                ],
+            ],
+        );
+        tree.set_entries(vec![entry]);
+        tree.set_selected("a");
+
+        let rows = render_to_lines(&mut tree, 40, 5);
+        assert!(rows[0].contains("▸"), "header has cursor: {:?}", rows[0]);
+        assert!(
+            rows[1].contains("├─"),
+            "detail has connector preserved: {:?}",
+            rows[1]
+        );
+    }
+
+    #[test]
+    fn tree_non_selected_entry_body_gets_blank_cursor() {
+        let mut tree = SpanTree::new()
+            .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
+
+        let entry = build_timeline_entry(
+            "a",
+            "└─ ",
+            "   ",
+            "#001 agent",
+            &["status line", "tool info"],
+        );
+        tree.set_entries(vec![entry]);
+
+        let rows = render_to_lines(&mut tree, 60, 5);
+
+        assert!(
+            !rows[0].contains("▸"),
+            "non-selected header should use blank: {:?}",
+            rows[0]
+        );
+        assert!(
+            rows[1].contains("├─"),
+            "body1 should have ├─: {:?}",
+            rows[1]
+        );
+        assert!(
+            rows[2].contains("└─"),
+            "body2 should have └─: {:?}",
+            rows[2]
+        );
+    }
+
+    #[test]
+    fn tree_multiple_siblings_each_with_continuation() {
+        let mut tree = SpanTree::new()
+            .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
+
+        let sib1 = build_timeline_entry(
+            "s1",
+            "├─ ",
+            "│  ",
+            "sibling1",
+            &["s1-detail"],
+        );
+        let sib2 = build_timeline_entry(
+            "s2",
+            "└─ ",
+            "   ",
+            "sibling2",
+            &["s2-detail1", "s2-detail2"],
+        );
+        tree.set_entries(vec![sib1, sib2]);
+        tree.set_selected("s1");
+
+        let rows = render_to_lines(&mut tree, 60, 10);
+
+        assert!(rows[0].contains("▸") && rows[0].contains("├─"), "selected s1: {:?}", rows[0]);
+
+        assert!(rows[1].contains("│") && rows[1].contains("└─"), "s1 detail: {:?}", rows[1]);
+
+        assert!(rows[2].contains("└─"), "non-selected s2: {:?}", rows[2]);
+        assert!(!rows[2].contains("▸"), "non-selected should not have cursor: {:?}", rows[2]);
+
+        assert!(rows[3].contains("├─"), "s2 detail1: {:?}", rows[3]);
+        assert!(rows[4].contains("└─"), "s2 detail2: {:?}", rows[4]);
+    }
+}
