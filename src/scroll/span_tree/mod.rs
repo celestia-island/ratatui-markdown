@@ -2086,16 +2086,16 @@ mod render_tests {
         let child_mid = SpanTreeEntry::new("child-mid", vec![
             vec![
                 Span::raw("  "),
-                Span::styled("  ├─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                Span::styled("├─ ".to_string(), Style::default().fg(Color::DarkGray)),
                 Span::styled("#demiurge.001 active".to_string(), Style::default().fg(Color::Cyan)),
             ],
             vec![
-                Span::raw("│  "),
+                Span::raw("  "),
                 Span::styled("│  ├─ ".to_string(), Style::default().fg(Color::DarkGray)),
                 Span::raw("thinking..."),
             ],
             vec![
-                Span::raw("│  "),
+                Span::raw("  "),
                 Span::styled("│  └─ ".to_string(), Style::default().fg(Color::DarkGray)),
                 Span::raw("hubris::task_decompose"),
             ],
@@ -2103,17 +2103,17 @@ mod render_tests {
         let child_last = SpanTreeEntry::new("child-last", vec![
             vec![
                 Span::raw("  "),
-                Span::styled("  └─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                Span::styled("└─ ".to_string(), Style::default().fg(Color::DarkGray)),
                 Span::styled("#demiurge.002 idle".to_string(), Style::default().fg(Color::Cyan)),
             ],
             vec![
-                Span::raw("    "),
-                Span::styled("    ├─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                Span::raw("  "),
+                Span::styled("   └─ ".to_string(), Style::default().fg(Color::DarkGray)),
                 Span::raw("streaming..."),
             ],
             vec![
-                Span::raw("    "),
-                Span::styled("    └─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                Span::raw("  "),
+                Span::styled("   └─ ".to_string(), Style::default().fg(Color::DarkGray)),
                 Span::raw("status line"),
             ],
         ]);
