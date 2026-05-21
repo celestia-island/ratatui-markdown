@@ -32,6 +32,26 @@ impl SpanTreeEntry {
     }
 }
 
+/// A scrollable list of [`SpanTreeEntry`] items with cursor-mode navigation.
+///
+/// # Span Layout Invariant
+///
+/// The span at index `cursor_column` (default 0) in every line of every entry
+/// is **owned by the cursor mechanism**. It MUST contain only whitespace
+/// (spaces) so that [`apply_cursor`](crate::scroll::span_tree::render) can
+/// safely replace it with `cursor_span` or `blank_cursor_span` without
+/// destroying tree-structure characters like `│`, `├`, `└`.
+///
+/// Correct pattern:
+/// ```text
+/// header: ["  ", "├─ ", "label"]       ← span[0] = pure spaces
+/// body:   ["  ", "│  ├─ ", "detail"]   ← span[0] = pure spaces, │ in span[1]
+/// ```
+///
+/// Wrong pattern (will cause visual bugs):
+/// ```text
+/// body: ["│  ", "├─ ", "detail"]       ← span[0] contains │ ← BREAKS!
+/// ```
 pub struct SpanTree {
     entries: Vec<SpanTreeEntry>,
     selected_id: Option<String>,
@@ -1593,6 +1613,67 @@ mod render_tests {
     }
 
     #[test]
+    fn cursor_column_span_must_be_pure_spaces_invariant() {
+        let tree = SpanTree::new()
+            .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
+        let col = tree.cursor_column;
+
+        let entries = vec![
+            SpanTreeEntry::new("root", vec![vec![
+                Span::raw("  "),
+                Span::styled("#root label".to_string(), Style::default().fg(Color::Cyan)),
+            ]]),
+            SpanTreeEntry::new("child-mid", vec![
+                vec![
+                    Span::raw("  "),
+                    Span::styled("├─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("header"),
+                ],
+                vec![
+                    Span::raw("  "),
+                    Span::styled("│  ├─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("detail1"),
+                ],
+                vec![
+                    Span::raw("  "),
+                    Span::styled("│  └─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("detail2"),
+                ],
+            ]),
+            SpanTreeEntry::new("child-last", vec![
+                vec![
+                    Span::raw("  "),
+                    Span::styled("└─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("header"),
+                ],
+                vec![
+                    Span::raw("  "),
+                    Span::styled("   └─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("detail"),
+                ],
+            ]),
+        ];
+
+        for entry in &entries {
+            for (li, line) in entry.lines.iter().enumerate() {
+                assert!(
+                    col < line.len(),
+                    "entry {:?} line {} has {} spans, cursor_column={} out of bounds",
+                    entry.id, li, line.len(), col
+                );
+                let span_content = &line[col].content;
+                let is_pure_space = span_content.chars().all(|c| c == ' ');
+                assert!(
+                    is_pure_space,
+                    "INVARIANT VIOLATION: entry {:?} line {} span[{}] = {:?} — \
+                     cursor_column span must be pure whitespace, not structural chars",
+                    entry.id, li, col, span_content
+                );
+            }
+        }
+    }
+
+    #[test]
     fn scroll_navigate_changes_selection_and_renders_correctly() {
         let mut tree = SpanTree::new()
             .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
@@ -1830,13 +1911,13 @@ mod render_tests {
                     Span::raw("child header"),
                 ],
                 vec![
-                    Span::raw("│  "),
-                    Span::styled("├─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("  "),
+                    Span::styled("│  ├─ ".to_string(), Style::default().fg(Color::DarkGray)),
                     Span::raw("child detail1"),
                 ],
                 vec![
-                    Span::raw("│  "),
-                    Span::styled("└─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("  "),
+                    Span::styled("│  └─ ".to_string(), Style::default().fg(Color::DarkGray)),
                     Span::raw("child detail2"),
                 ],
             ],
@@ -1925,13 +2006,13 @@ mod render_tests {
                     Span::raw("#demiurge.001 hubris ✓"),
                 ],
                 vec![
-                    Span::raw("│  "),
-                    Span::styled("├─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("  "),
+                    Span::styled("│  ├─ ".to_string(), Style::default().fg(Color::DarkGray)),
                     Span::raw("…thinking about task"),
                 ],
                 vec![
-                    Span::raw("│  "),
-                    Span::styled("└─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("  "),
+                    Span::styled("│  └─ ".to_string(), Style::default().fg(Color::DarkGray)),
                     Span::raw("hubris::task_decompose [exec]"),
                 ],
             ],
@@ -2004,8 +2085,8 @@ mod render_tests {
                     Span::raw("#demiurge.001 active"),
                 ],
                 vec![
-                    Span::raw("│  "),
-                    Span::styled("└─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("  "),
+                    Span::styled("│  └─ ".to_string(), Style::default().fg(Color::DarkGray)),
                     Span::raw("status line"),
                 ],
             ],

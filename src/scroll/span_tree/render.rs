@@ -8,6 +8,9 @@ use ratatui::{
 use super::{CursorLineMode, SpanTree};
 use crate::{scroll::render_arrow_scrollbar, theme::RichTextTheme};
 
+/// Pad `replacement` span with trailing spaces so its display width matches
+/// `original`. This prevents the cursor/blank replacement from collapsing
+/// indentation when `spans[cursor_column]` is wider than the cursor glyph.
 fn width_preserving_replacement(original: &Span<'_>, replacement: Span<'static>) -> Span<'static> {
     let original_w = original.width();
     let replacement_w = replacement.width();
@@ -22,6 +25,13 @@ fn width_preserving_replacement(original: &Span<'_>, replacement: Span<'static>)
     }
 }
 
+/// Apply cursor highlighting to a line's spans.
+///
+/// # Invariant
+///
+/// `spans[cursor_column]` MUST contain only whitespace characters (spaces).
+/// Tree-structure characters such as `│`, `├`, `└` belong in spans AFTER
+/// `cursor_column` so they are never overwritten by cursor/blank replacement.
 fn apply_cursor(
     spans: &mut Vec<Span<'static>>,
     tree: &SpanTree,
