@@ -74,14 +74,14 @@
 
 ```toml
 [dependencies]
-ratatui-markdown = "0.2"
+ratatui-markdown = "0.3"
 ```
 
 For the full feature set (enabled by default):
 
 ```toml
 [dependencies]
-ratatui-markdown = { version = "0.2", features = ["preview"] }
+ratatui-markdown = { version = "0.3", features = ["preview"] }
 ```
 
 Individual features can be enabled selectively:

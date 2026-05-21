@@ -94,7 +94,7 @@ tree-sitter 기반 코드 블록 구문 강조:
 
 ```toml
 [dependencies]
-ratatui-markdown = "0.2"
+ratatui-markdown = "0.3"
 ```
 
 ### 예제
@@ -122,7 +122,7 @@ cargo run --example tree_list
 
 ```toml
 [dependencies]
-ratatui-markdown = { version = "0.2", default-features = false, features = ["markdown"] }
+ratatui-markdown = { version = "0.3", default-features = false, features = ["markdown"] }
 ```
 
 | 기능                  | 의존성                             | 설명                                   | 기본값 |

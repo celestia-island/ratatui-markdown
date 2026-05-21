@@ -94,7 +94,7 @@ ratatui-markdown 是一個功能豐富的終端使用者介面渲染庫，基於
 
 ```toml
 [dependencies]
-ratatui-markdown = "0.2"
+ratatui-markdown = "0.3"
 ```
 
 ### 範例
@@ -122,7 +122,7 @@ cargo run --example tree_list
 
 ```toml
 [dependencies]
-ratatui-markdown = { version = "0.2", default-features = false, features = ["markdown"] }
+ratatui-markdown = { version = "0.3", default-features = false, features = ["markdown"] }
 ```
 
 | 功能                | 依賴                               | 描述                               | 預設 |

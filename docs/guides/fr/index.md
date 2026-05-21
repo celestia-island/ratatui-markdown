@@ -94,7 +94,7 @@ Le widget de haut niveau qui intègre tout :
 
 ```toml
 [dependencies]
-ratatui-markdown = "0.2"
+ratatui-markdown = "0.3"
 ```
 
 ### Exemples
@@ -122,7 +122,7 @@ Toutes les fonctionnalités sont activées par défaut. Désactivez les fonction
 
 ```toml
 [dependencies]
-ratatui-markdown = { version = "0.2", default-features = false, features = ["markdown"] }
+ratatui-markdown = { version = "0.3", default-features = false, features = ["markdown"] }
 ```
 
 | Fonctionnalité       | Dépend de                           | Description                                     | Défaut |

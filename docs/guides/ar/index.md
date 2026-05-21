@@ -94,7 +94,7 @@ ratatui-markdown هي مكتبة عرض غنية بالميزات لواجهات
 
 ```toml
 [dependencies]
-ratatui-markdown = "0.2"
+ratatui-markdown = "0.3"
 ```
 
 ### أمثلة
@@ -122,7 +122,7 @@ cargo run --example tree_list
 
 ```toml
 [dependencies]
-ratatui-markdown = { version = "0.2", default-features = false, features = ["markdown"] }
+ratatui-markdown = { version = "0.3", default-features = false, features = ["markdown"] }
 ```
 
 | الميزة                | التبعيات                            | الوصف                                            | افتراضي |
