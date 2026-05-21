@@ -8,6 +8,20 @@ use ratatui::{
 use super::{CursorLineMode, SpanTree};
 use crate::{scroll::render_arrow_scrollbar, theme::RichTextTheme};
 
+fn width_preserving_replacement(original: &Span<'_>, replacement: Span<'static>) -> Span<'static> {
+    let original_w = original.width();
+    let replacement_w = replacement.width();
+    if replacement_w < original_w {
+        let padding = " ".repeat(original_w - replacement_w);
+        Span::styled(
+            format!("{}{}", replacement.content, padding),
+            replacement.style,
+        )
+    } else {
+        replacement
+    }
+}
+
 fn apply_cursor(
     spans: &mut Vec<Span<'static>>,
     tree: &SpanTree,
@@ -25,17 +39,20 @@ fn apply_cursor(
         CursorLineMode::AllLines => true,
     };
 
+    let original = spans[col].clone();
+
     if is_selected {
-        if is_cursor_line {
-            spans[col] = tree.cursor_span.clone();
+        let replacement = if is_cursor_line {
+            tree.cursor_span.clone()
         } else {
-            spans[col] = tree.blank_cursor_span.clone();
-        }
+            tree.blank_cursor_span.clone()
+        };
+        spans[col] = width_preserving_replacement(&original, replacement);
         for span in spans {
             span.style = span.style.bg(highlight_bg);
         }
     } else {
-        spans[col] = tree.blank_cursor_span.clone();
+        spans[col] = width_preserving_replacement(&original, tree.blank_cursor_span.clone());
     }
 }
 

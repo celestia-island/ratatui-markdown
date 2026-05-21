@@ -1678,4 +1678,450 @@ mod render_tests {
             );
         }
     }
+
+    #[test]
+    fn width_preserving_body_line_indent_not_eaten_by_cursor() {
+        let mut tree = SpanTree::new()
+            .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
+
+        let entry = SpanTreeEntry::new(
+            "a",
+            vec![
+                vec![
+                    Span::raw("  "),
+                    Span::styled("└─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("#agent header"),
+                ],
+                vec![
+                    Span::raw("   "),
+                    Span::styled("├─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("detail line"),
+                ],
+                vec![
+                    Span::raw("   "),
+                    Span::styled("└─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("last detail"),
+                ],
+            ],
+        );
+        tree.set_entries(vec![entry]);
+        tree.set_selected("a");
+
+        let rows = render_to_lines(&mut tree, 60, 4);
+
+        assert!(
+            rows[0].contains("▸"),
+            "selected header should have cursor: {:?}",
+            rows[0]
+        );
+
+        let body1_connector_col = rows[1].find('├').unwrap_or(0);
+        let body2_connector_col = rows[2].find('└').unwrap_or(0);
+        assert_eq!(
+            body1_connector_col, body2_connector_col,
+            "body lines should have connectors at same column: body1={:?} body2={:?}",
+            rows[1].trim_end(),
+            rows[2].trim_end()
+        );
+
+        let body1_trimmed = rows[1].trim_end();
+        let body2_trimmed = rows[2].trim_end();
+        assert!(
+            body1_trimmed.contains("detail line"),
+            "body1 should contain detail text: {:?}",
+            body1_trimmed
+        );
+        assert!(
+            body2_trimmed.contains("last detail"),
+            "body2 should contain detail text: {:?}",
+            body2_trimmed
+        );
+    }
+
+    #[test]
+    fn width_preserving_non_selected_body_indent_maintained() {
+        let mut tree = SpanTree::new()
+            .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
+
+        let entry_a = SpanTreeEntry::new(
+            "a",
+            vec![
+                vec![
+                    Span::raw("  "),
+                    Span::styled("├─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("header-a"),
+                ],
+            ],
+        );
+        let entry_b = SpanTreeEntry::new(
+            "b",
+            vec![
+                vec![
+                    Span::raw("  "),
+                    Span::styled("└─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("header-b"),
+                ],
+                vec![
+                    Span::raw("   "),
+                    Span::styled("├─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("detail-b1"),
+                ],
+                vec![
+                    Span::raw("   "),
+                    Span::styled("└─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("detail-b2"),
+                ],
+            ],
+        );
+        tree.set_entries(vec![entry_a, entry_b]);
+        tree.set_selected("a");
+
+        let rows = render_to_lines(&mut tree, 60, 10);
+
+        assert!(
+            rows[0].contains("▸") && rows[0].contains("├─"),
+            "selected a header: {:?}",
+            rows[0]
+        );
+
+        let b_body1 = rows[2].trim_end();
+        let b_body2 = rows[3].trim_end();
+        assert!(
+            b_body1.contains("├─"),
+            "non-selected b body1 should have connector: {:?}",
+            b_body1
+        );
+        assert!(
+            b_body2.contains("└─"),
+            "non-selected b body2 should have connector: {:?}",
+            b_body2
+        );
+
+        let header_connector_col = rows[1].find('└').unwrap_or(0);
+        let body1_connector_col = rows[2].find('├').unwrap_or(0);
+        assert!(
+            body1_connector_col > header_connector_col,
+            "body connector (col {}) should be right of header connector (col {})\n  header: {:?}\n  body: {:?}",
+            body1_connector_col,
+            header_connector_col,
+            rows[1].trim_end(),
+            b_body1
+        );
+    }
+
+    #[test]
+    fn width_preserving_different_first_span_widths_across_entries() {
+        let mut tree = SpanTree::new()
+            .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
+
+        let root = SpanTreeEntry::new(
+            "root",
+            vec![vec![
+                Span::raw("  "),
+                Span::raw("#demiurge root"),
+            ]],
+        );
+        let child = SpanTreeEntry::new(
+            "child",
+            vec![
+                vec![
+                    Span::raw("  "),
+                    Span::styled("├─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("child header"),
+                ],
+                vec![
+                    Span::raw("│  "),
+                    Span::styled("├─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("child detail1"),
+                ],
+                vec![
+                    Span::raw("│  "),
+                    Span::styled("└─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("child detail2"),
+                ],
+            ],
+        );
+        tree.set_entries(vec![root, child]);
+        tree.set_selected("child");
+
+        let rows = render_to_lines(&mut tree, 60, 10);
+
+        assert!(
+            !rows[0].contains("▸"),
+            "non-selected root should not show cursor: {:?}",
+            rows[0]
+        );
+        assert!(
+            rows[1].contains("▸") && rows[1].contains("├─"),
+            "selected child header should have cursor and connector: {:?}",
+            rows[1]
+        );
+
+        let body1 = rows[2].trim_end();
+        let body2 = rows[3].trim_end();
+        assert!(
+            body1.contains("├─"),
+            "body1 should have connector: {:?}",
+            body1
+        );
+        assert!(
+            body2.contains("└─"),
+            "body2 should have connector: {:?}",
+            body2
+        );
+
+        let body1_detail_col = rows[2].find("child detail1").unwrap_or(0);
+        let body2_detail_col = rows[3].find("child detail2").unwrap_or(0);
+        assert_eq!(
+            body1_detail_col, body2_detail_col,
+            "detail text should be aligned across body lines: body1={:?} body2={:?}",
+            body1, body2
+        );
+
+        let header_str = rows[1].trim_end();
+        let body1_str = rows[2].trim_end();
+        assert!(
+            header_str.contains("├─"),
+            "header should have connector: {:?}",
+            header_str
+        );
+        assert!(
+            body1_str.contains("├─"),
+            "body should have connector: {:?}",
+            body1_str
+        );
+
+        let header_display_w: usize = header_str
+            .split("├─")
+            .next()
+            .map(|s| unicode_width::UnicodeWidthStr::width(s))
+            .unwrap_or(0);
+        let body_display_w: usize = body1_str
+            .split("├─")
+            .next()
+            .map(|s| unicode_width::UnicodeWidthStr::width(s))
+            .unwrap_or(0);
+        assert!(
+            body_display_w > header_display_w,
+            "body connector (display col {}) should be right of header connector (display col {})\n  header: {:?}\n  body: {:?}",
+            body_display_w,
+            header_display_w,
+            header_str,
+            body1_str
+        );
+    }
+
+    #[test]
+    fn sidebar_pattern_body_first_span_wider_than_header_preserves_indent() {
+        let mut tree = SpanTree::new()
+            .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
+
+        let entry = SpanTreeEntry::new(
+            "agent",
+            vec![
+                vec![
+                    Span::raw("  "),
+                    Span::styled("├─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("#demiurge.001 hubris ✓"),
+                ],
+                vec![
+                    Span::raw("│  "),
+                    Span::styled("├─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("…thinking about task"),
+                ],
+                vec![
+                    Span::raw("│  "),
+                    Span::styled("└─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("hubris::task_decompose [exec]"),
+                ],
+            ],
+        );
+        tree.set_entries(vec![entry]);
+        tree.set_selected("agent");
+
+        let rows = render_to_lines(&mut tree, 70, 6);
+
+        let header = rows[0].trim_end();
+        assert!(
+            header.contains("▸") && header.contains("├─"),
+            "selected header should have cursor + ├─: {:?}",
+            header
+        );
+
+        let body0 = rows[1].trim_end();
+        let body1 = rows[2].trim_end();
+
+        assert!(
+            body0.contains("├─"),
+            "body0 should have ├─ connector: {:?}",
+            body0
+        );
+        assert!(
+            body1.contains("└─"),
+            "body1 should have └─ connector: {:?}",
+            body1
+        );
+
+        let header_text_col: usize = header
+            .split("#demiurge")
+            .next()
+            .map(|s| unicode_width::UnicodeWidthStr::width(s))
+            .unwrap_or(0);
+        let body0_text_col: usize = body0
+            .split("…thinking")
+            .next()
+            .map(|s| unicode_width::UnicodeWidthStr::width(s))
+            .unwrap_or(0);
+        let body1_text_col: usize = body1
+            .split("hubris::task_decompose")
+            .next()
+            .map(|s| unicode_width::UnicodeWidthStr::width(s))
+            .unwrap_or(0);
+
+        assert_eq!(
+            body0_text_col, body1_text_col,
+            "body detail text must be aligned:\n  body0={:?}\n  body1={:?}",
+            body0, body1
+        );
+        assert!(
+            body0_text_col >= header_text_col,
+            "body text (col {}) must not be left of header text (col {}):\n  header={:?}\n  body0={:?}",
+            body0_text_col, header_text_col, header, body0
+        );
+    }
+
+    #[test]
+    fn sidebar_pattern_non_selected_sibling_maintains_tree_structure() {
+        let mut tree = SpanTree::new()
+            .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
+
+        let sibling_a = SpanTreeEntry::new(
+            "a",
+            vec![
+                vec![
+                    Span::raw("  "),
+                    Span::styled("├─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("#demiurge.001 active"),
+                ],
+                vec![
+                    Span::raw("│  "),
+                    Span::styled("└─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("status line"),
+                ],
+            ],
+        );
+        let sibling_b = SpanTreeEntry::new(
+            "b",
+            vec![
+                vec![
+                    Span::raw("  "),
+                    Span::styled("└─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("#demiurge.002 idle"),
+                ],
+                vec![
+                    Span::raw("   "),
+                    Span::styled("└─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                    Span::raw("no status"),
+                ],
+            ],
+        );
+
+        tree.set_entries(vec![sibling_a, sibling_b]);
+        tree.set_selected("a");
+
+        let rows = render_to_lines(&mut tree, 70, 6);
+
+        let a_header = rows[0].trim_end();
+        let a_body = rows[1].trim_end();
+        let b_header = rows[2].trim_end();
+        let b_body = rows[3].trim_end();
+
+        assert!(
+            a_header.contains("▸") && a_header.contains("├─"),
+            "selected a header: {:?}",
+            a_header
+        );
+        assert!(
+            a_body.contains("└─"),
+            "selected a body with connector preserved: {:?}",
+            a_body
+        );
+        assert!(
+            !b_header.contains("▸") && b_header.contains("└─"),
+            "non-selected b header without cursor: {:?}",
+            b_header
+        );
+        assert!(
+            b_body.contains("└─"),
+            "non-selected b body with └─: {:?}",
+            b_body
+        );
+
+        let a_connector_col: usize = a_header
+            .split("├─")
+            .next()
+            .map(|s| unicode_width::UnicodeWidthStr::width(s))
+            .unwrap_or(0);
+        let b_connector_col: usize = b_header
+            .split("└─")
+            .next()
+            .map(|s| unicode_width::UnicodeWidthStr::width(s))
+            .unwrap_or(0);
+        assert_eq!(
+            a_connector_col, b_connector_col,
+            "sibling headers must share same connector column:\n  a={:?}\n  b={:?}",
+            a_header, b_header
+        );
+    }
+
+    #[test]
+    fn debug_dump_tree_render_output() {
+        let mut tree = SpanTree::new()
+            .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "));
+
+        let root = SpanTreeEntry::new("root", vec![vec![
+            Span::raw("  "),
+            Span::styled("#demiurge root".to_string(), Style::default().fg(Color::Cyan)),
+        ]]);
+        let child_mid = SpanTreeEntry::new("child-mid", vec![
+            vec![
+                Span::raw("  "),
+                Span::styled("  ├─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                Span::styled("#demiurge.001 active".to_string(), Style::default().fg(Color::Cyan)),
+            ],
+            vec![
+                Span::raw("│  "),
+                Span::styled("│  ├─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                Span::raw("thinking..."),
+            ],
+            vec![
+                Span::raw("│  "),
+                Span::styled("│  └─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                Span::raw("hubris::task_decompose"),
+            ],
+        ]);
+        let child_last = SpanTreeEntry::new("child-last", vec![
+            vec![
+                Span::raw("  "),
+                Span::styled("  └─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                Span::styled("#demiurge.002 idle".to_string(), Style::default().fg(Color::Cyan)),
+            ],
+            vec![
+                Span::raw("    "),
+                Span::styled("    ├─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                Span::raw("streaming..."),
+            ],
+            vec![
+                Span::raw("    "),
+                Span::styled("    └─ ".to_string(), Style::default().fg(Color::DarkGray)),
+                Span::raw("status line"),
+            ],
+        ]);
+        tree.set_entries(vec![root, child_mid, child_last]);
+        tree.set_selected("child-mid");
+        let rows = render_to_lines(&mut tree, 70, 10);
+        for (i, r) in rows.iter().enumerate() {
+            eprintln!("ROW[{:02}]: |{}|", i, r.trim_end());
+        }
+    }
 }
