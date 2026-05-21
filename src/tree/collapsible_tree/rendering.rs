@@ -29,7 +29,7 @@ impl CollapsibleTree {
                         prefix,
                         indent_span,
                         Span::styled("▶ ", Style::default().fg(key_color)),
-                        Span::styled(label.clone(), Style::default().fg(key_color)),
+                        Span::styled(label.replace('\t', "    "), Style::default().fg(key_color)),
                         Span::styled(format!(" {}", count_str), Style::default().fg(muted)),
                     ]),
                     EntryKind::Expanded { label, count_str } => Line::from(vec![
@@ -39,7 +39,7 @@ impl CollapsibleTree {
                             format!("{} ", TRIANGLE_DOWN),
                             Style::default().fg(key_color),
                         ),
-                        Span::styled(label.clone(), Style::default().fg(key_color)),
+                        Span::styled(label.replace('\t', "    "), Style::default().fg(key_color)),
                         Span::styled(format!(" {}", count_str), Style::default().fg(muted)),
                     ]),
                     EntryKind::Leaf {
@@ -63,7 +63,7 @@ impl CollapsibleTree {
                             prefix,
                             indent_span,
                             Span::styled(
-                                format!("{}{}{}", key_prefix, key, separator),
+                                format!("{}{}{}", key_prefix, key.replace('\t', "    "), separator),
                                 Style::default().fg(key_color),
                             ),
                             Span::styled(truncated, Style::default().fg(val_color)),
@@ -143,6 +143,7 @@ fn build_indent(is_last_stack: &[bool], depth: usize) -> String {
 }
 
 fn truncate_value(value: &str, total_width: usize, depth: usize) -> String {
+    let value = value.replace('\t', "    ");
     let indent_len = depth * 3 + 4;
     let max_len = total_width.saturating_sub(indent_len + 4);
     let chars: Vec<char> = value.chars().collect();
@@ -150,6 +151,6 @@ fn truncate_value(value: &str, total_width: usize, depth: usize) -> String {
         let truncated: String = chars.into_iter().take(max_len.saturating_sub(3)).collect();
         format!("{}...", truncated)
     } else {
-        value.to_string()
+        value
     }
 }

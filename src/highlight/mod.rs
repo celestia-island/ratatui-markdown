@@ -38,6 +38,7 @@ pub fn highlight_to_lines(
     border_style: Style,
     max_width: usize,
 ) -> Vec<Line<'static>> {
-    let segments = highlighter.highlight(lang, code);
-    segment::segments_to_lines(code, &segments, prefix, border_style, max_width)
+    let code = code.replace('\t', "    ");
+    let segments = highlighter.highlight(lang, &code);
+    segment::segments_to_lines(&code, &segments, prefix, border_style, max_width)
 }

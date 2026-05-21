@@ -240,14 +240,17 @@ impl TextInput {
                     theme,
                 );
 
+                let (cursor_line_idx_raw, cursor_col_raw) =
+                    edit_render::char_offset_to_line_col(&self.text, self.cursor_char_idx);
+
                 let cursor_line_idx = if self.text.is_empty() {
                     0
                 } else {
-                    edit_render::char_offset_to_line(&self.text, self.cursor_char_idx)
+                    cursor_line_idx_raw
                 };
 
-                let (_, cursor_col) =
-                    edit_render::char_offset_to_line_col(&self.text, self.cursor_char_idx);
+                let raw_line = self.text.split('\n').nth(cursor_line_idx).unwrap_or("");
+                let cursor_col = edit_render::expanded_display_col(raw_line, cursor_col_raw);
 
                 let blink_visible = self
                     .blink_controller

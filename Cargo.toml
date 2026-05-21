@@ -1,6 +1,6 @@
 [package]
 name = "ratatui-markdown"
-version = "0.3.4"
+version = "0.3.5"
 edition = "2021"
 rust-version = "1.74"
 authors = ["langyo <langyo.china@gmail.com>"]

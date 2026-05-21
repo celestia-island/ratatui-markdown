@@ -6,9 +6,10 @@ use ratatui::{
 use crate::theme::RichTextTheme;
 
 pub fn parse_inline_formatting(text: &str, theme: &impl RichTextTheme) -> Vec<Span<'static>> {
+    let expanded = text.replace('\t', "    ");
     let mut spans: Vec<Span<'static>> = Vec::new();
     let mut current = String::new();
-    let chars: Vec<char> = text.chars().collect();
+    let chars: Vec<char> = expanded.chars().collect();
     let len = chars.len();
     let mut i = 0;
 

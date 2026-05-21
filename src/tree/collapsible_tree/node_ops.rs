@@ -296,10 +296,13 @@ impl CollapsibleTree {
 
 pub(crate) fn format_primitive(value: &serde_json::Value) -> (String, ValueType) {
     match value {
-        serde_json::Value::String(s) => (format!("\"{}\"", s), ValueType::String),
+        serde_json::Value::String(s) => (
+            format!("\"{}\"", s.replace('\t', "    ")),
+            ValueType::String,
+        ),
         serde_json::Value::Number(n) => (n.to_string(), ValueType::Number),
         serde_json::Value::Bool(b) => (b.to_string(), ValueType::Boolean),
-        serde_json::Value::Null => ("null".to_string(), ValueType::Null),
-        _ => (value.to_string(), ValueType::String),
+        serde_json::Value::Null => ("null".to_string(), ValueType::String),
+        _ => (value.to_string().replace('\t', "    "), ValueType::String),
     }
 }

@@ -31,7 +31,7 @@ pub fn segments_to_lines(
             .collect();
 
         let mut wrapped = wrap_line(
-            raw_line,
+            raw_line.replace('\t', "    ").as_str(),
             &line_segs,
             prefix,
             prefix_width,
