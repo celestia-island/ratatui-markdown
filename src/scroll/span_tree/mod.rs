@@ -833,7 +833,7 @@ mod render_tests {
         );
 
         let header_connector_col = rows[2].find('└').unwrap_or(0);
-        let body_connector_col = body1.find(|c: char| c == '├' || c == '│').unwrap_or(0);
+        let body_connector_col = body1.find(['├', '│']).unwrap_or(0);
         assert!(
             body_connector_col > header_connector_col,
             "body connector (col {}) should be right of header connector (col {})\n  header: {:?}\n  body1: {:?}",
@@ -1521,8 +1521,8 @@ mod render_tests {
             first
         );
 
-        for i in 1..=3 {
-            let body = rows[i].trim_end();
+        for (i, row) in rows.iter().enumerate().skip(1).take(3) {
+            let body = row.trim_end();
             assert!(
                 body.contains("├─") || body.contains("└─"),
                 "e2 body line {} should have connector: {:?}",
@@ -1548,8 +1548,8 @@ mod render_tests {
             "header should have cursor: {:?}",
             rows[0]
         );
-        for i in 1..10 {
-            let trimmed = rows[i].trim_end();
+        for (i, row) in rows.iter().enumerate().skip(1).take(9) {
+            let trimmed = row.trim_end();
             assert!(
                 trimmed.contains("├─") || trimmed.contains("└─"),
                 "detail {} should have connector: {:?}",
