@@ -56,6 +56,7 @@ fn default_image_fallback(alt: &str, path: &str) -> Line<'static> {
     } else {
         alt.to_string()
     };
+    let label = label.replace('\t', "    ");
     Line::from(Span::styled(
         format!("[image: {label}]"),
         Style::default().italic().fg(Color::Gray),
@@ -233,7 +234,7 @@ impl MarkdownRenderer {
                     .fg(theme.get_primary_color())
                     .add_modifier(Modifier::BOLD | Modifier::UNDERLINED);
                 if parsed.is_empty() {
-                    lines.push(Line::from(Span::styled(text.clone(), style)));
+                    lines.push(Line::from(Span::styled(text.replace('\t', "    "), style)));
                 } else {
                     let styled: Vec<Span<'static>> = parsed
                         .into_iter()
@@ -257,7 +258,7 @@ impl MarkdownRenderer {
                     .fg(theme.get_text_color())
                     .add_modifier(Modifier::BOLD);
                 if parsed.is_empty() {
-                    lines.push(Line::from(Span::styled(text.clone(), style)));
+                    lines.push(Line::from(Span::styled(text.replace('\t', "    "), style)));
                 } else {
                     let styled: Vec<Span<'static>> = parsed
                         .into_iter()
@@ -281,7 +282,7 @@ impl MarkdownRenderer {
                     .fg(theme.get_secondary_color())
                     .add_modifier(Modifier::BOLD);
                 if parsed.is_empty() {
-                    lines.push(Line::from(Span::styled(text.clone(), style)));
+                    lines.push(Line::from(Span::styled(text.replace('\t', "    "), style)));
                 } else {
                     let styled: Vec<Span<'static>> = parsed
                         .into_iter()
@@ -421,6 +422,7 @@ impl MarkdownRenderer {
                         return;
                     }
                 }
+                let code = code.replace('\t', "    ");
                 lines.push(Line::from(Span::styled(
                     format!("`{}`", code),
                     Style::default().fg(theme.get_accent_yellow()),
