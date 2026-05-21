@@ -250,8 +250,7 @@ impl TextInput {
                 };
 
                 let raw_line = self.text.split('\n').nth(cursor_line_idx).unwrap_or("");
-                let cursor_col =
-                    edit_render::expanded_display_col(raw_line, cursor_col_raw);
+                let cursor_col = edit_render::expanded_display_col(raw_line, cursor_col_raw);
 
                 let blink_visible = self
                     .blink_controller

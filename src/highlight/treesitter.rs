@@ -2,12 +2,11 @@ use std::sync::Mutex;
 
 use tree_sitter_highlight::Highlighter;
 
-use crate::theme::CodeColors;
-
 use super::{
     config::{highlight_to_style, HIGHLIGHT_NAMES},
     CodeHighlighter, StyleSegment,
 };
+use crate::theme::CodeColors;
 
 struct LangEntry {
     language: tree_sitter::Language,

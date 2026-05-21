@@ -62,10 +62,10 @@ impl CollapsibleTree {
                         Line::from(vec![
                             prefix,
                             indent_span,
-                        Span::styled(
-                            format!("{}{}{}", key_prefix, key.replace('\t', "    "), separator),
-                            Style::default().fg(key_color),
-                        ),
+                            Span::styled(
+                                format!("{}{}{}", key_prefix, key.replace('\t', "    "), separator),
+                                Style::default().fg(key_color),
+                            ),
                             Span::styled(truncated, Style::default().fg(val_color)),
                         ])
                     }

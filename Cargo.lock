@@ -1100,7 +1100,7 @@ dependencies = [
 
 [[package]]
 name = "ratatui-markdown"
-version = "0.3.4"
+version = "0.3.5"
 dependencies = [
  "anyhow",
  "crossterm",
@@ -2467,6 +2467,14 @@ dependencies = [
 ]
 
 [[patch.unused]]
+name = "aoba"
+version = "0.1.2"
+
+[[patch.unused]]
+name = "kirino"
+version = "0.2.0"
+
+[[patch.unused]]
 name = "hikari-animation"
 version = "0.2.5"
 
@@ -2485,11 +2493,3 @@ version = "0.2.5"
 [[patch.unused]]
 name = "hikari-theme"
 version = "0.2.5"
-
-[[patch.unused]]
-name = "aoba"
-version = "0.1.2"
-
-[[patch.unused]]
-name = "kirino"
-version = "0.2.0"
