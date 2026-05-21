@@ -73,21 +73,19 @@ fn build_entries(groups: &[AgentGroup]) -> Vec<SpanTreeEntry> {
                 ]);
             } else {
                 let conn = if g.is_last_child { BRANCH_END_SP } else { BRANCH_MID_SP };
-                let indented_conn = format!("  {}", conn);
                 lines.push(vec![
                     Span::raw("  "),
-                    Span::styled(indented_conn, Style::default().fg(muted)),
+                    Span::styled(conn.to_string(), Style::default().fg(muted)),
                     Span::styled(g.label.clone(), Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
                 ]);
 
-                let cont = if g.is_last_child { "    " } else { &*format!("{}  ", VLINE) };
+                let stem = if g.is_last_child { "   " } else { &*format!("{}  ", VLINE) };
                 let n = g.details.len();
                 for (di, detail) in g.details.iter().enumerate() {
                     let dc = if di == n - 1 { BRANCH_END_SP } else { BRANCH_MID_SP };
-                    let indented_detail_conn = format!("{}{}", cont, dc);
                     lines.push(vec![
-                        Span::raw(cont.to_string()),
-                        Span::styled(indented_detail_conn, Style::default().fg(muted)),
+                        Span::raw("  "),
+                        Span::styled(format!("{}{}", stem, dc), Style::default().fg(muted)),
                         Span::styled(detail.clone(), Style::default().fg(Color::White)),
                     ]);
                 }

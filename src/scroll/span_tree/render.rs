@@ -42,12 +42,9 @@ fn apply_cursor(
     let original = spans[col].clone();
 
     if is_selected {
-        let replacement = if is_cursor_line {
-            tree.cursor_span.clone()
-        } else {
-            tree.blank_cursor_span.clone()
-        };
-        spans[col] = width_preserving_replacement(&original, replacement);
+        if is_cursor_line {
+            spans[col] = width_preserving_replacement(&original, tree.cursor_span.clone());
+        }
         for span in spans {
             span.style = span.style.bg(highlight_bg);
         }
