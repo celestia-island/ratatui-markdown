@@ -1,219 +1,168 @@
 #[path = "utils/mod.rs"]
 mod common;
 
-use common::{
-    draw_frame, lorem, poll_and_handle, restore_terminal, setup_terminal, AppState, Theme,
+use common::{restore_terminal, setup_terminal, Theme};
+use ratatui::{
+    crossterm::event::{self, Event, KeyCode, KeyEventKind},
+    layout::Rect,
+    style::{Color, Modifier, Style},
+    text::Span,
+    widgets::{Block, Borders, Padding, Paragraph},
+    Frame,
 };
 use ratatui_markdown::{
-    constants::{BRANCH_END_SP, BRANCH_FIRST_SP, BRANCH_MID_SP, VLINE},
-    markdown::{MarkdownRenderer, RenderHooks},
+    constants::{BRANCH_END_SP, BRANCH_MID_SP, VLINE},
+    scroll::{CursorLineMode, SpanTree, SpanTreeEntry},
 };
 
-struct TreeListHooks;
-
-impl RenderHooks for TreeListHooks {
-    fn list_item_marker(
-        &self,
-        indent: u8,
-        is_last_in_group: bool,
-        ancestors_are_last: &[bool],
-        index_in_group: usize,
-    ) -> Option<String> {
-        let unit: usize = Self::tree_indent_unit(self).unwrap_or(3);
-        let connector = if is_last_in_group {
-            BRANCH_END_SP
-        } else if indent == 0 && index_in_group == 0 {
-            BRANCH_FIRST_SP
-        } else {
-            BRANCH_MID_SP
-        };
-        if indent == 0 {
-            return Some(connector.to_string());
-        }
-        let mut prefix = String::new();
-        for (i, &is_last_anc) in ancestors_are_last.iter().enumerate() {
-            if i >= indent as usize {
-                break;
-            }
-            if is_last_anc {
-                for _ in 0..unit {
-                    prefix.push(' ');
-                }
-            } else {
-                prefix.push_str(VLINE);
-                for _ in 1..unit {
-                    prefix.push(' ');
-                }
-            }
-        }
-        if indent as usize > ancestors_are_last.len() {
-            let extra = indent as usize - ancestors_are_last.len();
-            for _ in 0..unit * extra {
-                prefix.push(' ');
-            }
-        }
-        Some(format!("{prefix}{connector}"))
-    }
-
-    fn tree_indent_unit(&self) -> Option<usize> {
-        Some(3)
-    }
-
-    fn tree_continuation_prefix(&self, indent: u8, ancestors_are_last: &[bool]) -> Option<String> {
-        let unit: usize = Self::tree_indent_unit(self).unwrap_or(3);
-        let mut prefix = String::new();
-        for (i, &is_last_anc) in ancestors_are_last.iter().enumerate() {
-            if i >= indent as usize {
-                break;
-            }
-            if is_last_anc {
-                for _ in 0..unit {
-                    prefix.push(' ');
-                }
-            } else {
-                prefix.push_str(VLINE);
-                for _ in 1..unit {
-                    prefix.push(' ');
-                }
-            }
-        }
-        for _ in 0..unit {
-            prefix.push(' ');
-        }
-        Some(prefix)
-    }
+struct AgentGroup {
+    id: String,
+    label: String,
+    is_root: bool,
+    is_last_child: bool,
+    details: Vec<String>,
 }
 
-fn capitalize(s: &str) -> String {
-    let mut c = s.chars();
-    match c.next() {
-        None => String::new(),
-        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-    }
+struct App {
+    span_tree: SpanTree,
+    groups: Vec<AgentGroup>,
 }
 
-fn take(words: &[String], wi: &mut usize, n: usize) -> String {
-    let end = (*wi + n).min(words.len());
-    let phrase: Vec<&str> = words[*wi..end].iter().map(|s| s.as_str()).collect();
-    *wi = end;
-    phrase.join(" ")
-}
-
-fn build_list(items: &[(usize, String)], out: &mut String) {
-    for (indent, text) in items {
-        let spaces = "  ".repeat(*indent);
-        out.push_str(&format!("{}- {}\n", spaces, text));
-    }
-}
-
-fn generate_tree_markdown() -> String {
-    let raw = lipsum::lipsum(160);
-    let words: Vec<String> = raw.split_whitespace().map(capitalize).collect();
+fn build_groups() -> Vec<AgentGroup> {
+    let raw = lipsum::lipsum(120);
+    let words: Vec<String> = raw.split_whitespace().map(|w| {
+        let mut c = w.chars();
+        match c.next() {
+            None => String::new(),
+            Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+        }
+    }).collect();
     let mut wi = 0;
+    let mut t = |n: usize| -> String {
+        let end = (wi + n).min(words.len());
+        let phrase: Vec<&str> = words[wi..end].iter().map(|s| s.as_str()).collect();
+        wi = end;
+        phrase.join(" ")
+    };
 
-    let mut t = |n: usize| -> String { take(&words, &mut wi, n) };
+    vec![
+        AgentGroup { id: "r0".into(), label: format!("#demiurge {}", t(5)), is_root: true,  is_last_child: false, details: vec![] },
+        AgentGroup { id: "a0".into(), label: format!("#demiurge.001 {} \u{2713}", t(4)), is_root: false, is_last_child: false, details: vec![format!("\u{2026}{}", t(8)), "{} hubris::task_decompose".into()] },
+        AgentGroup { id: "a1".into(), label: format!("#demiurge.002 {}", t(5)), is_root: false, is_last_child: true,  details: vec![format!("\u{2026}{}", t(6)), "hubris::task_decompose [exec]".into()] },
+        AgentGroup { id: "r1".into(), label: format!("#demiurge {}", t(5)), is_root: true,  is_last_child: false, details: vec![] },
+        AgentGroup { id: "b0".into(), label: format!("#demiurge.003 {}", t(4)), is_root: false, is_last_child: false, details: vec![t(6), format!("\u{2026}{}", t(10)), "hubris::code_review [exec]".into()] },
+        AgentGroup { id: "b1".into(), label: format!("#demiurge.004 {}", t(4)), is_root: false, is_last_child: false, details: vec![t(5)] },
+        AgentGroup { id: "b2".into(), label: format!("#demiurge.005 {}", t(4)), is_root: false, is_last_child: true,  details: vec![t(6), t(8), "hubris::planning [done]".into()] },
+        AgentGroup { id: "r2".into(), label: format!("#demiurge {}", t(5)), is_root: true,  is_last_child: true, details: vec![] },
+        AgentGroup { id: "c0".into(), label: format!("#demiurge.006 {}", t(4)), is_root: false, is_last_child: false, details: vec![t(5)] },
+        AgentGroup { id: "c1".into(), label: format!("#demiurge.007 {}", t(4)), is_root: false, is_last_child: true,  details: vec![t(6), "hubris::analysis [running]".into()] },
+    ]
+}
 
-    let mut md = String::from(
-        "# Tree-Style List Example\n\n\
-         This example demonstrates nested list rendering with tree-style\n\
-         branch connectors using `RenderHooks`.\n\n\
-         ## Project TODO\n\n",
-    );
+fn build_entries(groups: &[AgentGroup]) -> Vec<SpanTreeEntry> {
+    let muted = Color::DarkGray;
+    groups
+        .iter()
+        .map(|g| {
+            let mut lines: Vec<Vec<Span<'static>>> = Vec::new();
 
-    build_list(
-        &[
-            (0, t(8)),
-            (1, t(6)),
-            (1, t(6)),
-            (2, t(5)),
-            (2, t(5)),
-            (2, t(5)),
-            (0, t(8)),
-            (1, t(6)),
-            (2, t(6)),
-            (2, t(6)),
-            (2, t(6)),
-            (1, t(6)),
-            (2, t(6)),
-            (2, t(6)),
-            (2, t(6)),
-            (1, t(6)),
-            (2, t(5)),
-            (2, t(5)),
-            (0, t(6)),
-            (1, t(6)),
-            (1, t(6)),
-            (1, t(6)),
-            (0, t(6)),
-            (1, t(5)),
-            (1, t(5)),
-            (1, t(5)),
-            (0, t(6)),
-            (1, t(5)),
-            (1, t(5)),
-            (1, t(5)),
-            (1, t(5)),
-            (0, t(6)),
-            (1, t(5)),
-            (1, t(5)),
-            (1, t(5)),
-        ],
-        &mut md,
-    );
+            if g.is_root {
+                lines.push(vec![
+                    Span::raw("  "),
+                    Span::styled(g.label.clone(), Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+                ]);
+            } else {
+                let conn = if g.is_last_child { BRANCH_END_SP } else { BRANCH_MID_SP };
+                lines.push(vec![
+                    Span::raw("  "),
+                    Span::styled(conn.to_string(), Style::default().fg(muted)),
+                    Span::styled(g.label.clone(), Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+                ]);
 
-    md.push_str("\n\n");
-    md.push_str(&lorem(60));
-    md.push_str("\n\n## Additional Notes\n\n");
+                let stem = if g.is_last_child { "   " } else { &*format!("{}  ", VLINE) };
+                let n = g.details.len();
+                for (di, detail) in g.details.iter().enumerate() {
+                    let dc = if di == n - 1 { BRANCH_END_SP } else { BRANCH_MID_SP };
+                    lines.push(vec![
+                        Span::raw("  "),
+                        Span::styled(format!("{}{}", stem, dc), Style::default().fg(muted)),
+                        Span::styled(detail.clone(), Style::default().fg(Color::White)),
+                    ]);
+                }
+            }
 
-    let mut wi2 = 0;
-    let mut t2 = |n: usize| -> String { take(&words, &mut wi2, n) };
+            SpanTreeEntry::new(g.id.clone(), lines)
+        })
+        .collect()
+}
 
-    build_list(
-        &[
-            (0, t2(8)),
-            (1, t2(6)),
-            (1, t2(6)),
-            (1, t2(6)),
-            (0, t2(8)),
-            (1, t2(6)),
-            (1, t2(6)),
-            (0, t2(8)),
-            (1, t2(5)),
-            (1, t2(5)),
-        ],
-        &mut md,
-    );
+fn run(
+    terminal: &mut ratatui::Terminal<ratatui::backend::CrosstermBackend<std::io::Stdout>>,
+) -> anyhow::Result<()> {
+    let groups = build_groups();
+    let entries = build_entries(&groups);
 
-    md.push('\n');
-    md.push_str(&lorem(150));
-    md
+    let mut span_tree = SpanTree::new()
+        .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "))
+        .with_cursor_line_mode(CursorLineMode::HeaderOnly);
+
+    span_tree.set_entries(entries);
+    if !groups.is_empty() { span_tree.set_selected_index(0); }
+
+    let mut app = App { span_tree, groups };
+
+    loop {
+        terminal.draw(|f| draw(f, &mut app))?;
+        if event::poll(std::time::Duration::from_millis(100))? {
+            let Event::Key(key) = event::read()? else { continue; };
+            if key.kind != KeyEventKind::Press { continue; }
+            match key.code {
+                KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
+                KeyCode::Up | KeyCode::Char('k') => app.span_tree.navigate_up(),
+                KeyCode::Down | KeyCode::Char('j') => app.span_tree.navigate_down(),
+                KeyCode::Home => app.span_tree.navigate_to_first(),
+                KeyCode::End => app.span_tree.navigate_to_last(),
+                KeyCode::Char('c') => {
+                    app.span_tree = SpanTree::new()
+                        .with_cursor_style(Span::styled("▸ ", Style::default()), Span::raw("  "))
+                        .with_cursor_line_mode(match app.span_tree.cursor_line_mode() {
+                            CursorLineMode::HeaderOnly => CursorLineMode::AllLines,
+                            CursorLineMode::AllLines => CursorLineMode::HeaderOnly,
+                        });
+                    app.span_tree.set_entries(build_entries(&app.groups));
+                    if !app.groups.is_empty() { app.span_tree.set_selected_index(0); }
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+fn draw(f: &mut Frame, app: &mut App) {
+    let area = f.area();
+    let mode_label = match app.span_tree.cursor_line_mode() {
+        CursorLineMode::HeaderOnly => "HeaderOnly",
+        CursorLineMode::AllLines => "AllLines",
+    };
+    let title = format!(" Tree-Style List w/ Cursor ({}) ", mode_label);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(title)
+        .border_style(Style::default().fg(Color::Cyan))
+        .padding(Padding::new(1, 1, 0, 0));
+    let inner = block.inner(area);
+    f.render_widget(block, area);
+    app.span_tree.render(f, inner, area, &Theme);
+
+    let status = " \u{2191}\u{2193}/jk navigate \u{00b7} Home/End \u{00b7} c:cursor mode \u{00b7} q quit ";
+    let sa = Rect::new(area.x, area.height.saturating_sub(1), area.width, 1);
+    f.render_widget(Paragraph::new(Span::styled(status, Style::default().fg(Color::DarkGray))), sa);
 }
 
 fn main() -> anyhow::Result<()> {
     let mut terminal = setup_terminal()?;
-
-    let md = generate_tree_markdown();
-    let theme = Theme;
-    let renderer = MarkdownRenderer::new(76).with_render_hooks(Box::new(TreeListHooks));
-    let blocks = renderer.parse(&md);
-    let lines = renderer.render(&blocks, &theme);
-    let mut state = AppState::new(lines.len());
-
-    loop {
-        terminal.draw(|f| {
-            draw_frame(
-                f,
-                "Tree-Style List",
-                &lines,
-                &mut state,
-                "\u{2191}\u{2193}/jk scroll \u{00b7} PgUp/PgDn \u{00b7} Home/End \u{00b7} q quit",
-            );
-        })?;
-        if poll_and_handle(&mut state)? {
-            break;
-        }
-    }
-
+    let result = run(&mut terminal);
     restore_terminal(&mut terminal)?;
-    Ok(())
+    result
 }
