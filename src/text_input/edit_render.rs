@@ -79,6 +79,21 @@ pub(in crate::text_input) fn char_offset_to_line_col(
     (num_lines, last_line_len)
 }
 
+pub(in crate::text_input) fn expanded_display_col(raw_line: &str, raw_col: usize) -> usize {
+    let mut display_col = 0usize;
+    for (i, ch) in raw_line.chars().enumerate() {
+        if i >= raw_col {
+            break;
+        }
+        if ch == '\t' {
+            display_col += 4;
+        } else {
+            display_col += 1;
+        }
+    }
+    display_col
+}
+
 pub(in crate::text_input) fn line_col_to_char_offset(
     text: &str,
     line_idx: usize,
@@ -95,8 +110,9 @@ pub(in crate::text_input) fn line_col_to_char_offset(
 }
 
 fn style_source_spans(text: &str, theme: &impl RichTextTheme) -> Vec<Span<'static>> {
+    let expanded = text.replace('\t', "    ");
     let mut spans: Vec<Span<'static>> = Vec::new();
-    let chars: Vec<char> = text.chars().collect();
+    let chars: Vec<char> = expanded.chars().collect();
     let len = chars.len();
     let mut i = 0;
     let mut current = String::new();
@@ -583,5 +599,30 @@ mod tests {
     fn link_styled() {
         let spans = style_source_spans("[text](url)", &theme());
         assert!(spans.len() >= 5);
+    }
+
+    #[test]
+    fn tab_expanded_to_spaces_in_style_source_spans() {
+        let spans = style_source_spans("\thello", &theme());
+        let content: String = spans.iter().map(|s| s.content.clone()).collect();
+        assert!(
+            !content.contains('\t'),
+            "tab should be expanded to spaces: {:?}",
+            content
+        );
+        assert!(
+            content.starts_with("    "),
+            "tab should expand to 4 spaces: {:?}",
+            content
+        );
+    }
+
+    #[test]
+    fn expanded_display_col_with_tabs() {
+        assert_eq!(expanded_display_col("abc", 3), 3);
+        assert_eq!(expanded_display_col("\tbc", 1), 4);
+        assert_eq!(expanded_display_col("\t\tc", 2), 8);
+        assert_eq!(expanded_display_col("a\tc", 2), 5);
+        assert_eq!(expanded_display_col("", 0), 0);
     }
 }
