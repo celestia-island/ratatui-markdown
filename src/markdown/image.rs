@@ -82,6 +82,7 @@ pub trait ImageResolver {
         } else {
             alt.to_string()
         };
+        let label = label.replace('\t', "    ");
         Span::styled(
             format!("[image: {label}]"),
             Style::default().italic().fg(Color::Gray),
