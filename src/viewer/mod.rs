@@ -7,6 +7,7 @@ use ratatui::{
     },
     Frame,
 };
+use unicode_width::UnicodeWidthChar;
 
 use crate::{markdown::MarkdownRenderer, theme::RichTextTheme};
 
@@ -119,33 +120,50 @@ impl MarkdownViewer {
         let inner_w = inner.width as usize;
         self.clamp_scroll();
 
+        let need_scrollbar = self.doc_h > self.content_h && self.content_h > 0;
+        let content_w = if need_scrollbar {
+            inner_w.saturating_sub(1)
+        } else {
+            inner_w
+        };
+
         let scroll = self.scroll as usize;
         let visible = self.content_h as usize;
-        let blank = Line::from(Span::raw(" ".repeat(inner_w)));
+        let blank = Line::from(Span::raw(" ".repeat(content_w)));
         let mut padded: Vec<Line<'static>> = Vec::with_capacity(visible);
 
         for i in scroll..scroll.saturating_add(visible).min(self.lines.len()) {
             let spans = self.lines[i].spans.clone();
             let used: usize = spans.iter().map(|s| s.width()).sum();
-            if used < inner_w {
+            if used < content_w {
                 let mut s = spans;
-                s.push(Span::raw(" ".repeat(inner_w - used)));
+                s.push(Span::raw(" ".repeat(content_w - used)));
                 padded.push(Line::from(s));
-            } else if used > inner_w {
+            } else if used > content_w {
                 let mut taken = 0usize;
                 let mut short: Vec<Span<'static>> = Vec::new();
                 for sp in spans {
                     let sp_w = sp.width();
-                    if taken + sp_w > inner_w {
-                        let keep = inner_w - taken;
-                        let chop: String = sp.content.chars().take(keep).collect();
+                    if taken + sp_w > content_w {
+                        let keep = content_w.saturating_sub(taken);
+                        let mut chop = String::new();
+                        let mut chop_w = 0usize;
+                        for ch in sp.content.chars() {
+                            let cw = UnicodeWidthChar::width(ch).unwrap_or(0);
+                            if chop_w + cw > keep {
+                                break;
+                            }
+                            chop.push(ch);
+                            chop_w += cw;
+                        }
                         short.push(Span::styled(chop, sp.style));
+                        taken += chop_w;
                         break;
                     }
                     taken += sp_w;
                     short.push(sp);
                 }
-                while taken < inner_w {
+                while taken < content_w {
                     short.push(Span::raw(" "));
                     taken += 1;
                 }
@@ -161,8 +179,8 @@ impl MarkdownViewer {
         f.render_widget(block, block_area);
         f.render_widget(Paragraph::new(padded), inner);
 
-        if self.doc_h > self.content_h && self.content_h > 0 {
-            let sb_col = block_area.x + block_area.width.saturating_sub(1);
+        if need_scrollbar {
+            let sb_col = inner.x + inner.width.saturating_sub(1);
             let sb_area = Rect::new(sb_col, inner.y, 1, self.content_h);
             let content_len = self.doc_h.saturating_sub(self.content_h).saturating_add(1);
             let sb = Scrollbar::default()
