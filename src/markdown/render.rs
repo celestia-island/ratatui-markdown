@@ -8,6 +8,7 @@ use ratatui::{
 use super::image::{ImageResolver, MarkdownRenderOutput};
 use super::{
     inline::parse_inline_formatting,
+    text::string_width,
     types::{MarkdownBlock, TextToken},
     MarkdownRenderer,
 };
@@ -445,7 +446,7 @@ impl MarkdownRenderer {
                                 lines.push(cline);
                             }
                         } else {
-                            let marker_width = Self::string_width(&marker_str);
+                            let marker_width = string_width(&marker_str);
                             let cont_indent = h
                                 .tree_continuation_prefix(*indent, &ancestors_are_last)
                                 .unwrap_or_else(|| " ".repeat(marker_width));
@@ -680,7 +681,7 @@ impl MarkdownRenderer {
             MarkdownRenderer::tokenize(text)
                 .into_iter()
                 .filter_map(|t| match t {
-                    TextToken::Word(w) => Some(MarkdownRenderer::string_width(&w)),
+                    TextToken::Word(w) => Some(string_width(&w)),
                     _ => None,
                 })
                 .max()
@@ -688,7 +689,7 @@ impl MarkdownRenderer {
         }
 
         let header_widths: Vec<usize> = (0..col_count)
-            .map(|c| headers.get(c).map(|h| Self::string_width(h)).unwrap_or(0))
+            .map(|c| headers.get(c).map(|h| string_width(h)).unwrap_or(0))
             .collect();
 
         let min_widths: Vec<usize> = (0..col_count)
@@ -710,7 +711,7 @@ impl MarkdownRenderer {
                 let rw = rows
                     .iter()
                     .filter_map(|r| r.get(c))
-                    .map(|cell| Self::string_width(cell))
+                    .map(|cell| string_width(cell))
                     .max()
                     .unwrap_or(0);
                 hw.max(rw)
@@ -935,7 +936,7 @@ impl MarkdownRenderer {
                         pending_space = true;
                     }
                     TextToken::Word(word) => {
-                        let word_w = Self::string_width(&word);
+                        let word_w = string_width(&word);
                         let space_w: usize = if pending_space && current_width > 0 {
                             1
                         } else {
@@ -968,7 +969,7 @@ impl MarkdownRenderer {
                             let mut char_w = 0;
                             let mut chunk = String::new();
                             for ch in chars.drain(..) {
-                                let cw = Self::string_width(&ch.to_string());
+                                let cw = string_width(&ch.to_string());
                                 if char_w + cw > max_w && !chunk.is_empty() {
                                     current_line.push(Span::styled(chunk, style));
                                     lines.push(std::mem::take(&mut current_line));
@@ -1019,7 +1020,7 @@ impl MarkdownRenderer {
             let cell_spans_ref = cell_spans.get(i).map(|v| v.as_slice()).unwrap_or(&[]);
             let total_cell_w: usize = cell_spans_ref
                 .iter()
-                .map(|s| Self::string_width(&s.content))
+                .map(|s| string_width(&s.content))
                 .sum();
             let inner_w = width.saturating_sub(2);
 

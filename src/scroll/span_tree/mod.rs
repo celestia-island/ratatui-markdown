@@ -1975,12 +1975,12 @@ mod render_tests {
         let header_display_w: usize = header_str
             .split("├─")
             .next()
-            .map(|s| unicode_width::UnicodeWidthStr::width(s))
+            .map(unicode_width::UnicodeWidthStr::width)
             .unwrap_or(0);
         let body_display_w: usize = body1_str
             .split("├─")
             .next()
-            .map(|s| unicode_width::UnicodeWidthStr::width(s))
+            .map(unicode_width::UnicodeWidthStr::width)
             .unwrap_or(0);
         assert!(
             body_display_w > header_display_w,
@@ -2046,17 +2046,17 @@ mod render_tests {
         let header_text_col: usize = header
             .split("#demiurge")
             .next()
-            .map(|s| unicode_width::UnicodeWidthStr::width(s))
+            .map(unicode_width::UnicodeWidthStr::width)
             .unwrap_or(0);
         let body0_text_col: usize = body0
             .split("…thinking")
             .next()
-            .map(|s| unicode_width::UnicodeWidthStr::width(s))
+            .map(unicode_width::UnicodeWidthStr::width)
             .unwrap_or(0);
         let body1_text_col: usize = body1
             .split("hubris::task_decompose")
             .next()
-            .map(|s| unicode_width::UnicodeWidthStr::width(s))
+            .map(unicode_width::UnicodeWidthStr::width)
             .unwrap_or(0);
 
         assert_eq!(
@@ -2141,12 +2141,12 @@ mod render_tests {
         let a_connector_col: usize = a_header
             .split("├─")
             .next()
-            .map(|s| unicode_width::UnicodeWidthStr::width(s))
+            .map(unicode_width::UnicodeWidthStr::width)
             .unwrap_or(0);
         let b_connector_col: usize = b_header
             .split("└─")
             .next()
-            .map(|s| unicode_width::UnicodeWidthStr::width(s))
+            .map(unicode_width::UnicodeWidthStr::width)
             .unwrap_or(0);
         assert_eq!(
             a_connector_col, b_connector_col,

@@ -4,6 +4,14 @@ use unicode_width::UnicodeWidthChar;
 use super::{inline::parse_inline_formatting, types::TextToken, MarkdownRenderer};
 use crate::theme::RichTextTheme;
 
+pub(crate) fn display_width(c: char) -> usize {
+    UnicodeWidthChar::width(c).unwrap_or(0)
+}
+
+pub(crate) fn string_width(s: &str) -> usize {
+    s.chars().map(display_width).sum()
+}
+
 impl MarkdownRenderer {
     pub fn wrap_text_with_inline_formatting(
         &self,
@@ -44,7 +52,7 @@ impl MarkdownRenderer {
                         pending_space = true;
                     }
                     TextToken::Word(word) => {
-                        let word_w = Self::string_width(&word);
+                        let word_w = string_width(&word);
                         let space_w: usize = if pending_space && current_width > 0 {
                             1
                         } else {
@@ -75,7 +83,7 @@ impl MarkdownRenderer {
                             let mut buf = String::new();
                             let mut buf_w = 0usize;
                             for ch in word.chars() {
-                                let cw = Self::display_width(ch);
+                                let cw = display_width(ch);
                                 if current_width + buf_w + cw > self.max_width
                                     && (current_width > 0 || buf_w > 0)
                                 {
@@ -137,7 +145,7 @@ impl MarkdownRenderer {
                     pending_space = true;
                 }
                 TextToken::Word(word) => {
-                    let word_width = Self::string_width(&word);
+                    let word_width = string_width(&word);
                     let space_width = if pending_space { 1 } else { 0 };
                     let total_width = word_width + space_width;
 
@@ -164,7 +172,7 @@ impl MarkdownRenderer {
 
                     if word_width > self.max_width {
                         for ch in word.chars() {
-                            let ch_width = Self::display_width(ch);
+                            let ch_width = display_width(ch);
                             if current_width + ch_width > self.max_width && !current_line.is_empty()
                             {
                                 lines.push(Self::trim_line_end(&current_line));
@@ -235,14 +243,6 @@ impl MarkdownRenderer {
         }
 
         tokens
-    }
-
-    pub(crate) fn display_width(c: char) -> usize {
-        UnicodeWidthChar::width(c).unwrap_or(0)
-    }
-
-    pub(crate) fn string_width(s: &str) -> usize {
-        s.chars().map(Self::display_width).sum()
     }
 
     fn trim_line_end(line: &str) -> String {

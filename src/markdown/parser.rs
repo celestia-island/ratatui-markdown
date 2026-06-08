@@ -12,6 +12,9 @@ const MD_H1: &str = "# ";
 const MD_LIST_DASH: &str = "- ";
 const MD_LIST_STAR: &str = "* ";
 const MD_LIST_PLUS: &str = "+ ";
+const MAX_ORDERED_LIST_PREFIX_DIGITS: usize = 4;
+const LIST_INDENT_WIDTH: usize = 2;
+const MAX_BLOCKQUOTE_DEPTH: u8 = 16;
 
 fn parse_image_syntax(text: &str) -> Option<(String, String)> {
     let trimmed = text.trim();
@@ -41,16 +44,17 @@ fn is_line_only_image(text: &str) -> bool {
     if !trimmed.starts_with('!') {
         return false;
     }
-    if let Some(close_bracket) = trimmed.find(']') {
-        let rest = &trimmed[close_bracket + 1..];
-        if rest.starts_with('(') {
-            if let Some(close_paren) = rest.find(')') {
-                let after = rest[close_paren + 1..].trim();
-                return after.is_empty();
-            }
-        }
+    let Some(close_bracket) = trimmed.find(']') else {
+        return false;
+    };
+    let rest = &trimmed[close_bracket + 1..];
+    if !rest.starts_with('(') {
+        return false;
     }
-    false
+    let Some(close_paren) = rest.find(')') else {
+        return false;
+    };
+    rest[close_paren + 1..].trim().is_empty()
 }
 
 impl MarkdownRenderer {
@@ -77,6 +81,18 @@ impl MarkdownRenderer {
             }
         }
         (blocks, resolved)
+    }
+
+    fn flush_pending(
+        table_buffer: &mut Vec<String>,
+        blocks: &mut Vec<MarkdownBlock>,
+        paragraph_lines: &mut Vec<String>,
+    ) {
+        Self::flush_table(table_buffer, blocks, paragraph_lines);
+        if !paragraph_lines.is_empty() {
+            blocks.push(MarkdownBlock::Paragraph(paragraph_lines.clone()));
+            paragraph_lines.clear();
+        }
     }
 
     fn parse_inner(
@@ -111,7 +127,7 @@ impl MarkdownRenderer {
             }
 
             if line.trim().starts_with(MD_FENCE) {
-                Self::flush_table(&mut table_buffer, &mut blocks, &mut paragraph_lines);
+                Self::flush_pending(&mut table_buffer, &mut blocks, &mut paragraph_lines);
                 in_code_block = true;
                 code_lang = line.trim().chars().skip(3).collect::<String>();
                 continue;
@@ -120,21 +136,13 @@ impl MarkdownRenderer {
             let trimmed = line.trim();
 
             if trimmed.is_empty() {
-                Self::flush_table(&mut table_buffer, &mut blocks, &mut paragraph_lines);
-                if !paragraph_lines.is_empty() {
-                    blocks.push(MarkdownBlock::Paragraph(paragraph_lines.clone()));
-                    paragraph_lines.clear();
-                }
+                Self::flush_pending(&mut table_buffer, &mut blocks, &mut paragraph_lines);
                 blocks.push(MarkdownBlock::BlankLine);
                 continue;
             }
 
             if is_line_only_image(trimmed) {
-                Self::flush_table(&mut table_buffer, &mut blocks, &mut paragraph_lines);
-                if !paragraph_lines.is_empty() {
-                    blocks.push(MarkdownBlock::Paragraph(paragraph_lines.clone()));
-                    paragraph_lines.clear();
-                }
+                Self::flush_pending(&mut table_buffer, &mut blocks, &mut paragraph_lines);
                 if let Some((alt, path)) = parse_image_syntax(trimmed) {
                     blocks.push(MarkdownBlock::Image { alt, path });
                 }
@@ -145,54 +153,34 @@ impl MarkdownRenderer {
                 || trimmed.starts_with(MD_HRULE_STAR)
                 || trimmed.starts_with(MD_HRULE_UNDERSCORE)
             {
-                Self::flush_table(&mut table_buffer, &mut blocks, &mut paragraph_lines);
-                if !paragraph_lines.is_empty() {
-                    blocks.push(MarkdownBlock::Paragraph(paragraph_lines.clone()));
-                    paragraph_lines.clear();
-                }
+                Self::flush_pending(&mut table_buffer, &mut blocks, &mut paragraph_lines);
                 blocks.push(MarkdownBlock::HorizontalRule);
                 continue;
             }
 
             if line.starts_with(MD_H3) {
-                Self::flush_table(&mut table_buffer, &mut blocks, &mut paragraph_lines);
-                if !paragraph_lines.is_empty() {
-                    blocks.push(MarkdownBlock::Paragraph(paragraph_lines.clone()));
-                    paragraph_lines.clear();
-                }
+                Self::flush_pending(&mut table_buffer, &mut blocks, &mut paragraph_lines);
                 let text = trimmed.chars().skip(4).collect::<String>();
                 blocks.push(MarkdownBlock::Heading3(text));
                 continue;
             }
 
             if line.starts_with(MD_H2) {
-                Self::flush_table(&mut table_buffer, &mut blocks, &mut paragraph_lines);
-                if !paragraph_lines.is_empty() {
-                    blocks.push(MarkdownBlock::Paragraph(paragraph_lines.clone()));
-                    paragraph_lines.clear();
-                }
+                Self::flush_pending(&mut table_buffer, &mut blocks, &mut paragraph_lines);
                 let text = trimmed.chars().skip(3).collect::<String>();
                 blocks.push(MarkdownBlock::Heading2(text));
                 continue;
             }
 
             if line.starts_with(MD_H1) {
-                Self::flush_table(&mut table_buffer, &mut blocks, &mut paragraph_lines);
-                if !paragraph_lines.is_empty() {
-                    blocks.push(MarkdownBlock::Paragraph(paragraph_lines.clone()));
-                    paragraph_lines.clear();
-                }
+                Self::flush_pending(&mut table_buffer, &mut blocks, &mut paragraph_lines);
                 let text = trimmed.chars().skip(2).collect::<String>();
                 blocks.push(MarkdownBlock::Heading1(text));
                 continue;
             }
 
             if trimmed.starts_with('>') {
-                Self::flush_table(&mut table_buffer, &mut blocks, &mut paragraph_lines);
-                if !paragraph_lines.is_empty() {
-                    blocks.push(MarkdownBlock::Paragraph(paragraph_lines.clone()));
-                    paragraph_lines.clear();
-                }
+                Self::flush_pending(&mut table_buffer, &mut blocks, &mut paragraph_lines);
                 let mut bq_lines: Vec<String> = Vec::new();
                 bq_lines.push(trimmed.to_string());
 
@@ -222,11 +210,7 @@ impl MarkdownRenderer {
                     || after_marker_trimmed.starts_with("[x] ")
                     || after_marker_trimmed.starts_with("[X] ")
                 {
-                    Self::flush_table(&mut table_buffer, &mut blocks, &mut paragraph_lines);
-                    if !paragraph_lines.is_empty() {
-                        blocks.push(MarkdownBlock::Paragraph(paragraph_lines.clone()));
-                        paragraph_lines.clear();
-                    }
+                    Self::flush_pending(&mut table_buffer, &mut blocks, &mut paragraph_lines);
                     let checked = after_marker_trimmed.starts_with("[x] ")
                         || after_marker_trimmed.starts_with("[X] ");
                     let text = after_marker_trimmed.chars().skip(4).collect::<String>();
@@ -238,11 +222,7 @@ impl MarkdownRenderer {
                     continue;
                 }
 
-                Self::flush_table(&mut table_buffer, &mut blocks, &mut paragraph_lines);
-                if !paragraph_lines.is_empty() {
-                    blocks.push(MarkdownBlock::Paragraph(paragraph_lines.clone()));
-                    paragraph_lines.clear();
-                }
+                Self::flush_pending(&mut table_buffer, &mut blocks, &mut paragraph_lines);
                 let content = trimmed.chars().skip(2).collect::<String>();
                 blocks.push(MarkdownBlock::ListItem(content, list_indent));
                 continue;
@@ -250,12 +230,8 @@ impl MarkdownRenderer {
 
             if let Some(pos) = trimmed.find(". ") {
                 let prefix = &trimmed[..pos];
-                if pos > 0 && pos < 5 && prefix.parse::<u32>().is_ok() {
-                    Self::flush_table(&mut table_buffer, &mut blocks, &mut paragraph_lines);
-                    if !paragraph_lines.is_empty() {
-                        blocks.push(MarkdownBlock::Paragraph(paragraph_lines.clone()));
-                        paragraph_lines.clear();
-                    }
+                if pos > 0 && pos <= MAX_ORDERED_LIST_PREFIX_DIGITS && prefix.parse::<u32>().is_ok() {
+                    Self::flush_pending(&mut table_buffer, &mut blocks, &mut paragraph_lines);
                     let content = trimmed[pos + 2..].to_string();
                     blocks.push(MarkdownBlock::ListItem(content, list_indent));
                     continue;
@@ -296,10 +272,11 @@ impl MarkdownRenderer {
 
         for line in lines {
             let (level, content) = Self::strip_blockquote_prefix(line);
-            if level > max_level {
-                max_level = level;
+            let capped = level.min(MAX_BLOCKQUOTE_DEPTH);
+            if capped > max_level {
+                max_level = capped;
             }
-            inner_lines.push((level, content));
+            inner_lines.push((capped, content));
         }
 
         if max_level == 1 {
@@ -312,7 +289,7 @@ impl MarkdownRenderer {
             };
         }
 
-        let children = Self::parse_nested_blockquote(&inner_lines, 1);
+        let children = Self::parse_nested_blockquote(&inner_lines, 1, 0);
         MarkdownBlock::Blockquote {
             level: 1,
             children,
@@ -329,7 +306,7 @@ impl MarkdownRenderer {
 
         while i < chars.len() {
             if chars[i] == '>' {
-                level += 1;
+                level = level.saturating_add(1);
                 i += 1;
                 if i < chars.len() && chars[i] == ' ' {
                     i += 1;
@@ -343,7 +320,20 @@ impl MarkdownRenderer {
         (level, content)
     }
 
-    fn parse_nested_blockquote(lines: &[(u8, String)], current_level: u8) -> Vec<MarkdownBlock> {
+    fn parse_nested_blockquote(
+        lines: &[(u8, String)],
+        current_level: u8,
+        depth: u8,
+    ) -> Vec<MarkdownBlock> {
+        if depth >= MAX_BLOCKQUOTE_DEPTH {
+            let contents: Vec<String> = lines
+                .iter()
+                .map(|(_, c)| c.clone())
+                .filter(|c| !c.is_empty())
+                .collect();
+            return vec![MarkdownBlock::Paragraph(contents)];
+        }
+
         let mut children = Vec::new();
         let mut group: Vec<(u8, String)> = Vec::new();
 
@@ -352,7 +342,8 @@ impl MarkdownRenderer {
                 group.push((*level, content.clone()));
             } else {
                 if !group.is_empty() {
-                    let inner = Self::parse_nested_blockquote_inner(&group, current_level + 1);
+                    let inner =
+                        Self::parse_nested_blockquote_inner(&group, current_level + 1, depth + 1);
                     children.push(inner);
                     group.clear();
                 }
@@ -361,14 +352,33 @@ impl MarkdownRenderer {
         }
 
         if !group.is_empty() {
-            let inner = Self::parse_nested_blockquote_inner(&group, current_level + 1);
+            let inner =
+                Self::parse_nested_blockquote_inner(&group, current_level + 1, depth + 1);
             children.push(inner);
         }
 
         children
     }
 
-    fn parse_nested_blockquote_inner(lines: &[(u8, String)], target_level: u8) -> MarkdownBlock {
+    fn parse_nested_blockquote_inner(
+        lines: &[(u8, String)],
+        target_level: u8,
+        depth: u8,
+    ) -> MarkdownBlock {
+        if depth >= MAX_BLOCKQUOTE_DEPTH {
+            let contents: Vec<String> = lines
+                .iter()
+                .map(|(_, c)| c.clone())
+                .filter(|c| !c.is_empty())
+                .collect();
+            return MarkdownBlock::Blockquote {
+                level: target_level,
+                children: vec![MarkdownBlock::Paragraph(contents)],
+                header_override: None,
+                footer_override: None,
+            };
+        }
+
         let adjusted: Vec<(u8, String)> = lines
             .iter()
             .map(|(level, content)| (*level, content.clone()))
@@ -377,7 +387,7 @@ impl MarkdownRenderer {
         let has_deeper = adjusted.iter().any(|(l, _)| *l > target_level);
 
         if has_deeper {
-            let children = Self::parse_nested_blockquote(&adjusted, target_level);
+            let children = Self::parse_nested_blockquote(&adjusted, target_level, depth + 1);
             MarkdownBlock::Blockquote {
                 level: target_level,
                 children,
@@ -573,6 +583,6 @@ impl MarkdownRenderer {
 
     fn count_list_indent(line: &str) -> u8 {
         let spaces = line.chars().take_while(|&c| c == ' ').count();
-        (spaces / 2).min(255) as u8
+        (spaces / LIST_INDENT_WIDTH).min(255) as u8
     }
 }
