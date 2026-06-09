@@ -136,7 +136,7 @@ impl MarkdownRenderer {
         for token in tokens {
             match token {
                 TextToken::Newline => {
-                    lines.push(Self::trim_line_end(&current_line));
+                    lines.push(Self::trim_line_end(&current_line).to_string());
                     current_line.clear();
                     current_width = 0;
                     pending_space = false;
@@ -158,7 +158,7 @@ impl MarkdownRenderer {
                     };
 
                     if needs_wrap && !current_line.is_empty() {
-                        lines.push(Self::trim_line_end(&current_line));
+                        lines.push(Self::trim_line_end(&current_line).to_string());
                         current_line.clear();
                         current_width = 0;
                         pending_space = false;
@@ -175,7 +175,7 @@ impl MarkdownRenderer {
                             let ch_width = display_width(ch);
                             if current_width + ch_width > self.max_width && !current_line.is_empty()
                             {
-                                lines.push(Self::trim_line_end(&current_line));
+                                lines.push(Self::trim_line_end(&current_line).to_string());
                                 current_line.clear();
                                 current_width = 0;
                             }
@@ -191,7 +191,7 @@ impl MarkdownRenderer {
         }
 
         if !current_line.is_empty() {
-            lines.push(Self::trim_line_end(&current_line));
+            lines.push(Self::trim_line_end(&current_line).to_string());
         }
 
         if lines.is_empty() {
@@ -245,8 +245,8 @@ impl MarkdownRenderer {
         tokens
     }
 
-    fn trim_line_end(line: &str) -> String {
-        line.trim_end_matches(char::is_whitespace).to_string()
+    fn trim_line_end(line: &str) -> &str {
+        line.trim_end_matches(char::is_whitespace)
     }
 
     fn is_cjk(c: char) -> bool {

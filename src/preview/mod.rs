@@ -1,5 +1,3 @@
-use std::boxed::Box;
-
 use ratatui::{
     layout::Rect,
     style::{Modifier, Style},

@@ -3,9 +3,6 @@ use super::image::ImageResolver;
 use super::{types::MarkdownBlock, MarkdownRenderer};
 
 const MD_FENCE: &str = "```";
-const MD_HRULE_DASH: &str = "---";
-const MD_HRULE_STAR: &str = "***";
-const MD_HRULE_UNDERSCORE: &str = "___";
 const MD_H3: &str = "### ";
 const MD_H2: &str = "## ";
 const MD_H1: &str = "# ";
@@ -149,10 +146,7 @@ impl MarkdownRenderer {
                 continue;
             }
 
-            if trimmed.starts_with(MD_HRULE_DASH)
-                || trimmed.starts_with(MD_HRULE_STAR)
-                || trimmed.starts_with(MD_HRULE_UNDERSCORE)
-            {
+            if Self::is_horizontal_rule(trimmed) {
                 Self::flush_pending(&mut table_buffer, &mut blocks, &mut paragraph_lines);
                 blocks.push(MarkdownBlock::HorizontalRule);
                 continue;
@@ -230,7 +224,11 @@ impl MarkdownRenderer {
 
             if let Some(pos) = trimmed.find(". ") {
                 let prefix = &trimmed[..pos];
-                if pos > 0 && pos <= MAX_ORDERED_LIST_PREFIX_DIGITS && prefix.parse::<u32>().is_ok() {
+                if pos > 0
+                    && pos <= MAX_ORDERED_LIST_PREFIX_DIGITS
+                    && prefix.parse::<u32>().is_ok()
+                    && prefix.chars().all(|c| c.is_ascii_digit())
+                {
                     Self::flush_pending(&mut table_buffer, &mut blocks, &mut paragraph_lines);
                     let content = trimmed[pos + 2..].to_string();
                     blocks.push(MarkdownBlock::ListItem(content, list_indent));
@@ -541,7 +539,7 @@ impl MarkdownRenderer {
             }
             return;
         }
-        let sep_pos = separator_idx.unwrap_or(0);
+        let sep_pos = separator_idx.expect("separator_idx was already checked for None/Some(0) above");
         let headers: Vec<String> = if sep_pos > 0 {
             Self::split_table_row(&table_buffer[sep_pos - 1])
         } else {
@@ -584,5 +582,20 @@ impl MarkdownRenderer {
     fn count_list_indent(line: &str) -> u8 {
         let spaces = line.chars().take_while(|&c| c == ' ').count();
         (spaces / LIST_INDENT_WIDTH).min(255) as u8
+    }
+
+    fn is_horizontal_rule(line: &str) -> bool {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.len() < 3 {
+            return false;
+        }
+        let first = trimmed.chars().next().expect("len >= 3 was checked above");
+        if first != '-' && first != '*' && first != '_' {
+            return false;
+        }
+        if !trimmed.chars().all(|c| c == first || c == ' ') {
+            return false;
+        }
+        trimmed.chars().filter(|c| *c == first).count() >= 3
     }
 }

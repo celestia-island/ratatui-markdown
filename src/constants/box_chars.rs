@@ -28,13 +28,6 @@ pub const BD_RND_TL: &str = "\u{256D}";
 pub const BD_RND_BL: &str = "\u{2570}";
 pub const TL_HEADER: &str = "\u{250C}";
 pub const TL_SEP_CHAR: &str = "\u{251C}";
-pub const ARROW_UP: &str = "\u{2191}";
-pub const ARROW_DOWN: &str = "\u{2193}";
-pub const ARROW_SWAP: &str = "\u{21C4}";
-pub const CHECK: &str = "\u{2713}";
-pub const CROSS: &str = "\u{2717}";
-pub const DOT_FILLED: &str = "\u{25CF}";
-pub const HLINE: &str = "\u{2500}";
 
 // ─────────────────────────────────────────────────────────────────────
 // TUI 专用：带空格的行前缀组合（ratatui rendering 使用）

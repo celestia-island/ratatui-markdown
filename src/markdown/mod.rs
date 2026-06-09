@@ -11,8 +11,6 @@ mod tests;
 mod text;
 mod types;
 
-use std::boxed::Box;
-
 pub use hooks::RenderHooks;
 #[cfg(feature = "image")]
 pub use image::{CropRect, ImagePlacement, ImageResolver, MarkdownRenderOutput, NoopImageResolver};

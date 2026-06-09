@@ -536,10 +536,8 @@ fn rasterize_segment(
 }
 
 // ── Box-drawing named constants (T/C junctions) ───────────────────
-#[allow(dead_code)]
 const TEE_UP: char = '┴'; // U+2534  connects up+left+right (no down stem)
 const TEE_DOWN: char = '┬'; // U+252C  connects down+left+right (no up stem)
-#[allow(dead_code)]
 const TEE_LEFT: char = '┤'; // U+2524  tee pointing left (reserved for RightLeft)
 const TEE_RIGHT: char = '├'; // U+251C  tee pointing right (up+down+left)
 const CROSS: char = '┼'; // U+253C  four-way junction

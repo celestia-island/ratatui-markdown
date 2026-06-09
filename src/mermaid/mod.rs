@@ -142,8 +142,6 @@ fn parse_state_diagram(source: &str) -> Option<MermaidDiagram> {
                 continue;
             }
 
-            let label_text = None;
-
             let (from_id, from_label, from_shape) = if from_raw == "[*]" {
                 ("__start__".to_string(), "●".to_string(), NodeShape::Circle)
             } else {
@@ -186,7 +184,7 @@ fn parse_state_diagram(source: &str) -> Option<MermaidDiagram> {
             edges.push(MermaidEdge {
                 source: from_id,
                 target: to_id,
-                label: label_text,
+                label: None,
                 edge_type,
             });
         }

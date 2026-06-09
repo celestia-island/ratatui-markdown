@@ -70,6 +70,7 @@ impl MarkdownViewer {
 
     pub fn scroll_up(&mut self, n: u16) {
         self.scroll = self.scroll.saturating_sub(n);
+        self.clamp_scroll();
     }
 
     pub fn scroll_down(&mut self, n: u16) {
@@ -80,6 +81,7 @@ impl MarkdownViewer {
     pub fn page_up(&mut self) {
         let step = self.content_h.max(1);
         self.scroll = self.scroll.saturating_sub(step);
+        self.clamp_scroll();
     }
 
     pub fn page_down(&mut self) {
