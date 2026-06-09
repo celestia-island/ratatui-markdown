@@ -38,4 +38,4 @@ jobs:
       - run: rustc --version && cargo --version
       - run: cargo login ${{ secrets.CRATES_IO_API_TOKEN }}
 
-      - run: cargo publish -p ratatui-markdown --allow-dirty -v
+      - run: cargo publish -p ratatui-markdown -v

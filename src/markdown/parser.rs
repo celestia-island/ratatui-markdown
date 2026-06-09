@@ -56,7 +56,7 @@ fn is_line_only_image(text: &str) -> bool {
 
 impl MarkdownRenderer {
     pub fn parse(&self, markdown: &str) -> Vec<MarkdownBlock> {
-        self.parse_inner(markdown, &mut Vec::new())
+        self.parse_inner(markdown)
     }
 
     #[cfg(feature = "image")]
@@ -65,7 +65,7 @@ impl MarkdownRenderer {
         markdown: &str,
         resolver: &mut I,
     ) -> (Vec<MarkdownBlock>, Vec<super::image::ResolvedImage>) {
-        let blocks = self.parse_inner(markdown, &mut Vec::new());
+        let blocks = self.parse_inner(markdown);
         let mut resolved = Vec::new();
         for block in &blocks {
             if let MarkdownBlock::Image { path, .. } = block {
@@ -95,7 +95,6 @@ impl MarkdownRenderer {
     fn parse_inner(
         &self,
         markdown: &str,
-        _inline_images: &mut Vec<(String, String)>,
     ) -> Vec<MarkdownBlock> {
         let mut blocks = Vec::new();
         let mut in_code_block = false;

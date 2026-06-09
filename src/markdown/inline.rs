@@ -199,14 +199,17 @@ pub fn parse_inline_formatting(text: &str, theme: &impl RichTextTheme) -> Vec<Sp
                         while url_end < len {
                             if chars[url_end] == ')' {
                                 let link_text: String = chars[i + 1..end_bracket].iter().collect();
-                                let _url: String = chars[url_start..url_end].iter().collect();
+                                let _url: String =
+                                    chars[url_start..url_end].iter().collect();
                                 flush_current!();
-                                spans.push(Span::styled(
-                                    link_text,
-                                    Style::default()
-                                        .fg(theme.get_primary_color())
-                                        .add_modifier(Modifier::UNDERLINED),
-                                ));
+                                let link_style = Style::default()
+                                    .fg(theme.get_primary_color())
+                                    .add_modifier(Modifier::UNDERLINED);
+                                if link_text.is_empty() {
+                                    spans.push(Span::styled(_url, link_style));
+                                } else {
+                                    spans.push(Span::styled(link_text, link_style));
+                                }
                                 i = url_end + 1;
                                 found_link = true;
                                 break;

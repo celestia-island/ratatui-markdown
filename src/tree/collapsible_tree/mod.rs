@@ -1,6 +1,7 @@
 mod node_ops;
 mod rendering;
 
+use std::cell::RefCell;
 use std::collections::HashSet;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -17,6 +18,7 @@ pub struct CollapsibleTree {
     pub base_indent: usize,
     pub show_root: bool,
     pub root_label: String,
+    flatten_cache: RefCell<Option<Vec<FlatEntry>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -61,6 +63,7 @@ impl CollapsibleTree {
             base_indent: 0,
             show_root: true,
             root_label: String::new(),
+            flatten_cache: RefCell::new(None),
         }
     }
 
@@ -79,6 +82,7 @@ impl CollapsibleTree {
             base_indent: 0,
             show_root: true,
             root_label: String::new(),
+            flatten_cache: RefCell::new(None),
         })
     }
 
@@ -103,6 +107,7 @@ impl CollapsibleTree {
     }
 
     pub fn toggle(&mut self, path: &str) {
+        *self.flatten_cache.get_mut() = None;
         if self.expanded_paths.contains(path) {
             self.expanded_paths.remove(path);
         } else {
@@ -111,10 +116,12 @@ impl CollapsibleTree {
     }
 
     pub fn expand_all(&mut self) {
+        *self.flatten_cache.get_mut() = None;
         self.expanded_paths = Self::collect_expandable_paths(&self.root, "");
     }
 
     pub fn collapse_all(&mut self) {
+        *self.flatten_cache.get_mut() = None;
         self.expanded_paths.clear();
     }
 }

@@ -163,5 +163,6 @@ pub mod tree;
 #[cfg(feature = "viewer")]
 pub mod viewer;
 
+#[allow(deprecated)]
 pub use theme::DefaultTheme;
 pub use theme::{CodeColors, RichTextTheme, ThemeBuilder, ThemeConfig};

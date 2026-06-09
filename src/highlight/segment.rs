@@ -132,3 +132,74 @@ fn sort_and_merge(segments: &[StyleSegment]) -> Vec<(usize, usize, Style)> {
     sorted.sort_by_key(|s| s.0);
     sorted
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn segments_to_lines_empty() {
+        let lines = segments_to_lines("hello", &[], "| ", Style::default(), 80);
+        assert_eq!(lines.len(), 1);
+    }
+
+    #[test]
+    fn segments_to_lines_multiline() {
+        let source = "line1\nline2\nline3";
+        let lines = segments_to_lines(source, &[], "| ", Style::default(), 80);
+        assert_eq!(lines.len(), 3);
+    }
+
+    #[test]
+    fn segments_to_lines_with_styling() {
+        let source = "hello world";
+        let segments = vec![StyleSegment {
+            start: 0,
+            end: 5,
+            style: Style::default().fg(ratatui::style::Color::Red),
+        }];
+        let lines = segments_to_lines(source, &segments, "", Style::default(), 80);
+        assert_eq!(lines.len(), 1);
+        let spans = &lines[0].spans;
+        assert!(spans.len() >= 2);
+    }
+
+    #[test]
+    fn sort_and_merge_empty() {
+        let result = sort_and_merge(&[]);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn sort_and_merge_orders_by_start() {
+        let segments = vec![
+            StyleSegment {
+                start: 5,
+                end: 10,
+                style: Style::default(),
+            },
+            StyleSegment {
+                start: 0,
+                end: 5,
+                style: Style::default(),
+            },
+        ];
+        let result = sort_and_merge(&segments);
+        assert_eq!(result[0].0, 0);
+        assert_eq!(result[1].0, 5);
+    }
+
+    #[test]
+    fn wrap_line_long_text() {
+        let text = "a".repeat(200);
+        let lines = wrap_line(
+            &text,
+            &[],
+            "| ",
+            2,
+            Style::default(),
+            40,
+        );
+        assert!(lines.len() > 1);
+    }
+}
