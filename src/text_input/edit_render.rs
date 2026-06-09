@@ -132,7 +132,7 @@ fn style_source_spans(text: &str, theme: &impl RichTextTheme) -> Vec<Span<'stati
     }
 
     while i < len {
-        if chars[i] == '#' && (i == 0 || chars[i - 1] == '\n') {
+        if chars[i] == '#' && i == 0 {
             flush_current!();
             let mut hash_count = 0;
             let start = i;
@@ -277,6 +277,36 @@ fn style_source_spans(text: &str, theme: &impl RichTextTheme) -> Vec<Span<'stati
             continue;
         }
 
+        if chars[i] == '`' && i + 2 < len && chars[i + 1] == '`' && chars[i + 2] == '`' {
+            flush_current!();
+            let fence_start = i;
+            let mut fence_end = fence_start + 3;
+            while fence_end + 2 < len {
+                if chars[fence_end] == '`'
+                    && chars[fence_end + 1] == '`'
+                    && chars[fence_end + 2] == '`'
+                {
+                    break;
+                }
+                fence_end += 1;
+            }
+            let fence_line: String = if fence_end + 2 < len {
+                chars[fence_start..=fence_end + 2].iter().collect()
+            } else {
+                chars[fence_start..].iter().collect()
+            };
+            spans.push(Span::styled(
+                fence_line,
+                Style::default().fg(theme.get_secondary_color()),
+            ));
+            i = if fence_end + 2 < len {
+                fence_end + 3
+            } else {
+                len
+            };
+            continue;
+        }
+
         if chars[i] == '`' {
             flush_current!();
             let start = i + 1;
@@ -392,7 +422,7 @@ fn style_source_spans(text: &str, theme: &impl RichTextTheme) -> Vec<Span<'stati
             }
         }
 
-        if chars[i] == '>' && (i == 0 || chars[i - 1] == '\n') {
+        if chars[i] == '>' && i == 0 {
             flush_current!();
             spans.push(Span::styled(
                 ">",
@@ -422,7 +452,7 @@ fn style_source_spans(text: &str, theme: &impl RichTextTheme) -> Vec<Span<'stati
         if (chars[i] == '-' || chars[i] == '*')
             && i + 1 < len
             && chars[i + 1] == ' '
-            && (i == 0 || chars[i - 1] == '\n')
+            && i == 0
         {
             flush_current!();
             let marker = chars[i].to_string();
@@ -430,36 +460,6 @@ fn style_source_spans(text: &str, theme: &impl RichTextTheme) -> Vec<Span<'stati
             spans.push(Span::styled(marker, Style::default().fg(muted_color)));
             spans.push(Span::styled(space, Style::default().fg(muted_color)));
             i += 2;
-            continue;
-        }
-
-        if chars[i] == '`' && i + 2 < len && chars[i + 1] == '`' && chars[i + 2] == '`' {
-            flush_current!();
-            let fence_start = i;
-            let mut fence_end = fence_start + 3;
-            while fence_end + 2 < len {
-                if chars[fence_end] == '`'
-                    && chars[fence_end + 1] == '`'
-                    && chars[fence_end + 2] == '`'
-                {
-                    break;
-                }
-                fence_end += 1;
-            }
-            let fence_line: String = if fence_end + 2 < len {
-                chars[fence_start..=fence_end + 2].iter().collect()
-            } else {
-                chars[fence_start..].iter().collect()
-            };
-            spans.push(Span::styled(
-                fence_line,
-                Style::default().fg(theme.get_secondary_color()),
-            ));
-            i = if fence_end + 2 < len {
-                fence_end + 3
-            } else {
-                len
-            };
             continue;
         }
 
