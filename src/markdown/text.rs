@@ -251,12 +251,27 @@ impl MarkdownRenderer {
 
     fn is_cjk(c: char) -> bool {
         let cp = c as u32;
-        (0x4E00..=0x9FFF).contains(&cp)
-            || (0x3400..=0x4DBF).contains(&cp)
-            || (0x20000..=0x2CEAF).contains(&cp)
-            || (0x3040..=0x309F).contains(&cp)
-            || (0x30A0..=0x30FF).contains(&cp)
-            || (0xAC00..=0xD7AF).contains(&cp)
-            || (0x1100..=0x11FF).contains(&cp)
+        (0x1100..=0x11FF).contains(&cp)        // Hangul Jamo
+            || (0x2E80..=0x2FDF).contains(&cp) // CJK Radicals Supplement, Kangxi Radicals
+            || (0x2FF0..=0x2FFF).contains(&cp) // Ideographic Description Characters
+            || (0x3000..=0x303F).contains(&cp) // CJK Symbols and Punctuation
+            || (0x3040..=0x309F).contains(&cp) // Hiragana
+            || (0x30A0..=0x30FF).contains(&cp) // Katakana
+            || (0x3100..=0x31BF).contains(&cp) // Bopomofo, Bopomofo Extended, CJK Strokes
+            || (0x31C0..=0x31EF).contains(&cp) // CJK Strokes
+            || (0x31F0..=0x31FF).contains(&cp) // Katakana Phonetic Extensions
+            || (0x3200..=0x33FF).contains(&cp) // Enclosed CJK Letters, CJK Compatibility
+            || (0x3400..=0x4DBF).contains(&cp) // CJK Extension A
+            || (0x4E00..=0x9FFF).contains(&cp) // CJK Unified Ideographs
+            || (0xA000..=0xA4CF).contains(&cp) // Yi
+            || (0xAC00..=0xD7AF).contains(&cp) // Hangul Syllables
+            || (0xF900..=0xFAFF).contains(&cp) // CJK Compatibility Ideographs
+            || (0xFE30..=0xFE4F).contains(&cp) // CJK Compatibility Forms
+            || (0xFF01..=0xFF60).contains(&cp) // Fullwidth Forms
+            || (0xFFE0..=0xFFE6).contains(&cp) // Fullwidth Signs
+            || (0x1F200..=0x1F2FF).contains(&cp) // Enclosed Ideographic Supplement
+            || (0x20000..=0x2EBEF).contains(&cp) // CJK Extension B through H
+            || (0x2EBF0..=0x2EE5F).contains(&cp) // CJK Extension I
+            || (0x30000..=0x3134F).contains(&cp) // CJK Extension G, H supplementary
     }
 }

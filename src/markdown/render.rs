@@ -494,11 +494,7 @@ impl MarkdownRenderer {
                     line.spans
                         .insert(0, Span::styled(prefix_str.clone(), prefix_style));
                     for span in line.spans.iter_mut().skip(1) {
-                        let new_style = span
-                            .style
-                            .fg(theme.get_muted_text_color())
-                            .add_modifier(Modifier::ITALIC);
-                        span.style = new_style;
+                        span.style = span.style.fg(theme.get_muted_text_color());
                     }
                     lines.push(line);
                 }
