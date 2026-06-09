@@ -8,7 +8,7 @@ use ratatui::{
 use super::image::{ImageResolver, MarkdownRenderOutput};
 use super::{
     inline::parse_inline_formatting,
-    text::string_width,
+    text::{display_width, string_width},
     types::{MarkdownBlock, TextToken},
     MarkdownRenderer,
 };
@@ -230,22 +230,10 @@ impl MarkdownRenderer {
                         return;
                     }
                 }
-                let parsed = parse_inline_formatting(text, theme);
                 let style = Style::default()
                     .fg(theme.get_primary_color())
                     .add_modifier(Modifier::BOLD | Modifier::UNDERLINED);
-                if parsed.is_empty() {
-                    lines.push(Line::from(Span::styled(text.replace('\t', "    "), style)));
-                } else {
-                    let styled: Vec<Span<'static>> = parsed
-                        .into_iter()
-                        .map(|mut s| {
-                            s.style = style.patch(s.style);
-                            s
-                        })
-                        .collect();
-                    lines.push(Line::from(styled));
-                }
+                lines.push(Self::render_heading(text, style, theme));
             }
             MarkdownBlock::Heading2(text) => {
                 if let Some(h) = hooks {
@@ -254,22 +242,10 @@ impl MarkdownRenderer {
                         return;
                     }
                 }
-                let parsed = parse_inline_formatting(text, theme);
                 let style = Style::default()
                     .fg(theme.get_text_color())
                     .add_modifier(Modifier::BOLD);
-                if parsed.is_empty() {
-                    lines.push(Line::from(Span::styled(text.replace('\t', "    "), style)));
-                } else {
-                    let styled: Vec<Span<'static>> = parsed
-                        .into_iter()
-                        .map(|mut s| {
-                            s.style = style.patch(s.style);
-                            s
-                        })
-                        .collect();
-                    lines.push(Line::from(styled));
-                }
+                lines.push(Self::render_heading(text, style, theme));
             }
             MarkdownBlock::Heading3(text) => {
                 if let Some(h) = hooks {
@@ -278,22 +254,10 @@ impl MarkdownRenderer {
                         return;
                     }
                 }
-                let parsed = parse_inline_formatting(text, theme);
                 let style = Style::default()
                     .fg(theme.get_secondary_color())
                     .add_modifier(Modifier::BOLD);
-                if parsed.is_empty() {
-                    lines.push(Line::from(Span::styled(text.replace('\t', "    "), style)));
-                } else {
-                    let styled: Vec<Span<'static>> = parsed
-                        .into_iter()
-                        .map(|mut s| {
-                            s.style = style.patch(s.style);
-                            s
-                        })
-                        .collect();
-                    lines.push(Line::from(styled));
-                }
+                lines.push(Self::render_heading(text, style, theme));
             }
             MarkdownBlock::Paragraph(paragraph_lines) => {
                 if let Some(h) = hooks {
@@ -636,6 +600,26 @@ impl MarkdownRenderer {
         (is_last, ancestors_are_last, index_in_group)
     }
 
+    fn render_heading(
+        text: &str,
+        style: Style,
+        theme: &impl RichTextTheme,
+    ) -> Line<'static> {
+        let parsed = parse_inline_formatting(text, theme);
+        if parsed.is_empty() {
+            Line::from(Span::styled(text.replace('\t', "    "), style))
+        } else {
+            let styled: Vec<Span<'static>> = parsed
+                .into_iter()
+                .map(|mut s| {
+                    s.style = style.patch(s.style);
+                    s
+                })
+                .collect();
+            Line::from(styled)
+        }
+    }
+
     fn default_code_block_header(&self, lang: &str, theme: &impl RichTextTheme) -> Line<'static> {
         if !lang.is_empty() {
             Line::from(Span::styled(
@@ -881,9 +865,10 @@ impl MarkdownRenderer {
             )));
         }
 
-        let last_sep_idx = lines.len() - 1;
-        let last_hline = Self::build_table_hline(&col_widths, CORNER_BL, BOTTOM_MID, CORNER_BR);
-        lines[last_sep_idx] = Line::from(Span::styled(last_hline, border_style));
+        if let Some(last_sep_idx) = lines.len().checked_sub(1) {
+            let last_hline = Self::build_table_hline(&col_widths, CORNER_BL, BOTTOM_MID, CORNER_BR);
+            lines[last_sep_idx] = Line::from(Span::styled(last_hline, border_style));
+        }
 
         lines
     }
@@ -964,12 +949,11 @@ impl MarkdownRenderer {
                             current_line.push(Span::styled(" ".to_string(), style));
                             current_width += final_space;
                         }
-                        if current_width == 0 && word_w > max_w && max_w > 0 {
-                            let mut chars: Vec<char> = word.chars().collect();
+                        if word_w > max_w && max_w > 0 {
                             let mut char_w = 0;
                             let mut chunk = String::new();
-                            for ch in chars.drain(..) {
-                                let cw = string_width(&ch.to_string());
+                            for ch in word.chars() {
+                                let cw = display_width(ch);
                                 if char_w + cw > max_w && !chunk.is_empty() {
                                     current_line.push(Span::styled(chunk, style));
                                     lines.push(std::mem::take(&mut current_line));

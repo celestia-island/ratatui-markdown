@@ -36,7 +36,7 @@ pub fn render_mermaid(
 
     if first_line.starts_with("graph ") || first_line.starts_with("flowchart ") {
         render_flowchart(source, max_width, max_height, theme)
-    } else if first_line == "sequenceDiagram" || first_line.starts_with("sequenceDiagram") {
+    } else if first_line.starts_with("sequenceDiagram") {
         render_sequence_diagram(source, max_width, theme)
     } else if first_line.starts_with("pie") {
         render_pie_chart(source, max_width, theme)
@@ -49,10 +49,7 @@ pub fn render_mermaid(
     } else if first_line.starts_with("quadrantChart") {
         let chart = quadrant::parse_quadrant(source)?;
         Some(quadrant::render_quadrant(&chart, max_width, theme))
-    } else if first_line.starts_with("block-beta")
-        || first_line == "block"
-        || first_line.starts_with("block ")
-    {
+    } else if first_line.starts_with("block") {
         block::render_block_diagram(source, max_width, max_height, theme)
     } else {
         render_flowchart(source, max_width, max_height, theme)

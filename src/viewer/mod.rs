@@ -197,7 +197,7 @@ impl MarkdownViewer {
         }
 
         if !self.key_hints.is_empty() {
-            let info_area = Rect::new(area.x, area.height.saturating_sub(1), area.width, 1);
+            let info_area = Rect::new(area.x, area.y + area.height.saturating_sub(1), area.width, 1);
             f.render_widget(
                 Paragraph::new(vec![Line::from(Span::styled(
                     format!(" {}", self.key_hints),
@@ -228,5 +228,90 @@ impl MarkdownViewer {
         if self.scroll > max {
             self.scroll = max;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ThemeConfig;
+
+    fn test_theme() -> ThemeConfig {
+        ThemeConfig::default()
+    }
+
+    #[test]
+    fn new_viewer_is_empty() {
+        let v = MarkdownViewer::new();
+        assert!(v.content.is_empty());
+        assert!(v.lines.is_empty());
+        assert_eq!(v.scroll, 0);
+    }
+
+    #[test]
+    fn with_title_and_hints() {
+        let v = MarkdownViewer::new()
+            .with_title("Test")
+            .with_key_hints("j/k: scroll");
+        assert_eq!(v.title, "Test");
+        assert_eq!(v.key_hints, "j/k: scroll");
+    }
+
+    #[test]
+    fn set_content_renders() {
+        let mut v = MarkdownViewer::new();
+        let theme = test_theme();
+        v.set_content("# Hello\n\nWorld", &theme);
+        assert!(!v.lines.is_empty());
+        assert!(v.doc_h > 0);
+    }
+
+    #[test]
+    fn scroll_clamping() {
+        let mut v = MarkdownViewer::new();
+        let theme = test_theme();
+        v.set_content("# Hello\n\nLine1\n\nLine2\n\nLine3", &theme);
+        v.scroll_down(100);
+        assert!(v.scroll > 0);
+        v.scroll_up(1);
+        assert!(v.scroll > 0);
+    }
+
+    #[test]
+    fn page_scroll() {
+        let mut v = MarkdownViewer::new();
+        let theme = test_theme();
+        v.set_content("# Title\n\nLine1\n\nLine2\n\nLine3\n\nLine4", &theme);
+        v.scroll_down(2);
+        assert_eq!(v.scroll, 2);
+        v.page_up();
+        assert!(v.scroll <= 2);
+    }
+
+    #[test]
+    fn scroll_to_top_and_bottom() {
+        let mut v = MarkdownViewer::new();
+        let theme = test_theme();
+        v.set_content("# Title\n\nLine1\n\nLine2\n\nLine3", &theme);
+        v.scroll_down(10);
+        assert!(v.scroll > 0);
+        v.scroll_to_top();
+        assert_eq!(v.scroll, 0);
+    }
+
+    #[test]
+    fn duplicate_content_does_not_rerender() {
+        let mut v = MarkdownViewer::new();
+        let theme = test_theme();
+        v.set_content("# Hello", &theme);
+        let line_count = v.lines.len();
+        v.set_content("# Hello", &theme);
+        assert_eq!(v.lines.len(), line_count);
+    }
+
+    #[test]
+    fn with_max_width() {
+        let v = MarkdownViewer::new().with_max_width(40);
+        assert_eq!(v.max_width, 40);
     }
 }
