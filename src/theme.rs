@@ -57,70 +57,87 @@ impl CodeColors {
 pub struct CodeColorsBuilder(CodeColors);
 
 impl CodeColorsBuilder {
+    #[must_use]
     pub fn comment(mut self, c: Color) -> Self {
         self.0.comment = c;
         self
     }
+    #[must_use]
     pub fn keyword(mut self, c: Color) -> Self {
         self.0.keyword = c;
         self
     }
+    #[must_use]
     pub fn string(mut self, c: Color) -> Self {
         self.0.string = c;
         self
     }
+    #[must_use]
     pub fn string_escape(mut self, c: Color) -> Self {
         self.0.string_escape = c;
         self
     }
+    #[must_use]
     pub fn number(mut self, c: Color) -> Self {
         self.0.number = c;
         self
     }
+    #[must_use]
     pub fn constant(mut self, c: Color) -> Self {
         self.0.constant = c;
         self
     }
+    #[must_use]
     pub fn function(mut self, c: Color) -> Self {
         self.0.function = c;
         self
     }
+    #[must_use]
     pub fn r#type(mut self, c: Color) -> Self {
         self.0.r#type = c;
         self
     }
+    #[must_use]
     pub fn variable(mut self, c: Color) -> Self {
         self.0.variable = c;
         self
     }
+    #[must_use]
     pub fn property(mut self, c: Color) -> Self {
         self.0.property = c;
         self
     }
+    #[must_use]
     pub fn operator(mut self, c: Color) -> Self {
         self.0.operator = c;
         self
     }
+    #[must_use]
     pub fn punctuation(mut self, c: Color) -> Self {
         self.0.punctuation = c;
         self
     }
+    #[must_use]
     pub fn attribute(mut self, c: Color) -> Self {
         self.0.attribute = c;
         self
     }
+    #[must_use]
     pub fn tag(mut self, c: Color) -> Self {
         self.0.tag = c;
         self
     }
+    #[must_use]
     pub fn label(mut self, c: Color) -> Self {
         self.0.label = c;
         self
     }
+    #[must_use]
     pub fn error(mut self, c: Color) -> Self {
         self.0.error = c;
         self
     }
+    #[must_use]
     pub fn build(self) -> CodeColors {
         self.0
     }
@@ -229,81 +246,97 @@ impl ThemeConfig {
         }
     }
 
+    #[must_use]
     pub fn with_generation(mut self, gen: Generation) -> Self {
         self.gen = gen;
         self
     }
 
+    #[must_use]
     pub fn with_text_color(mut self, c: Color) -> Self {
         self.text_color = c;
         self
     }
 
+    #[must_use]
     pub fn with_muted_text_color(mut self, c: Color) -> Self {
         self.muted_text_color = c;
         self
     }
 
+    #[must_use]
     pub fn with_primary_color(mut self, c: Color) -> Self {
         self.primary_color = c;
         self
     }
 
+    #[must_use]
     pub fn with_popup_selected_background(mut self, c: Color) -> Self {
         self.popup_selected_background = c;
         self
     }
 
+    #[must_use]
     pub fn with_border_color(mut self, c: Color) -> Self {
         self.border_color = c;
         self
     }
 
+    #[must_use]
     pub fn with_focused_border_color(mut self, c: Color) -> Self {
         self.focused_border_color = c;
         self
     }
 
+    #[must_use]
     pub fn with_secondary_color(mut self, c: Color) -> Self {
         self.secondary_color = c;
         self
     }
 
+    #[must_use]
     pub fn with_info_color(mut self, c: Color) -> Self {
         self.info_color = c;
         self
     }
 
+    #[must_use]
     pub fn with_json_key_color(mut self, c: Color) -> Self {
         self.json_key_color = c;
         self
     }
 
+    #[must_use]
     pub fn with_json_string_color(mut self, c: Color) -> Self {
         self.json_string_color = c;
         self
     }
 
+    #[must_use]
     pub fn with_json_number_color(mut self, c: Color) -> Self {
         self.json_number_color = c;
         self
     }
 
+    #[must_use]
     pub fn with_json_bool_color(mut self, c: Color) -> Self {
         self.json_bool_color = c;
         self
     }
 
+    #[must_use]
     pub fn with_json_null_color(mut self, c: Color) -> Self {
         self.json_null_color = c;
         self
     }
 
+    #[must_use]
     pub fn with_accent_yellow(mut self, c: Color) -> Self {
         self.accent_yellow = c;
         self
     }
 
+    #[must_use]
     pub fn with_code_colors(mut self, colors: CodeColors) -> Self {
         self.code_colors = colors;
         self
@@ -366,102 +399,119 @@ pub struct ThemeBuilder {
 }
 
 impl ThemeBuilder {
+    #[must_use]
     pub fn with_generation(self, gen: Generation) -> Self {
         Self {
             config: self.config.with_generation(gen),
         }
     }
 
+    #[must_use]
     pub fn with_text_color(self, c: Color) -> Self {
         Self {
             config: self.config.with_text_color(c),
         }
     }
 
+    #[must_use]
     pub fn with_muted_text_color(self, c: Color) -> Self {
         Self {
             config: self.config.with_muted_text_color(c),
         }
     }
 
+    #[must_use]
     pub fn with_primary_color(self, c: Color) -> Self {
         Self {
             config: self.config.with_primary_color(c),
         }
     }
 
+    #[must_use]
     pub fn with_popup_selected_background(self, c: Color) -> Self {
         Self {
             config: self.config.with_popup_selected_background(c),
         }
     }
 
+    #[must_use]
     pub fn with_border_color(self, c: Color) -> Self {
         Self {
             config: self.config.with_border_color(c),
         }
     }
 
+    #[must_use]
     pub fn with_focused_border_color(self, c: Color) -> Self {
         Self {
             config: self.config.with_focused_border_color(c),
         }
     }
 
+    #[must_use]
     pub fn with_secondary_color(self, c: Color) -> Self {
         Self {
             config: self.config.with_secondary_color(c),
         }
     }
 
+    #[must_use]
     pub fn with_info_color(self, c: Color) -> Self {
         Self {
             config: self.config.with_info_color(c),
         }
     }
 
+    #[must_use]
     pub fn with_json_key_color(self, c: Color) -> Self {
         Self {
             config: self.config.with_json_key_color(c),
         }
     }
 
+    #[must_use]
     pub fn with_json_string_color(self, c: Color) -> Self {
         Self {
             config: self.config.with_json_string_color(c),
         }
     }
 
+    #[must_use]
     pub fn with_json_number_color(self, c: Color) -> Self {
         Self {
             config: self.config.with_json_number_color(c),
         }
     }
 
+    #[must_use]
     pub fn with_json_bool_color(self, c: Color) -> Self {
         Self {
             config: self.config.with_json_bool_color(c),
         }
     }
 
+    #[must_use]
     pub fn with_json_null_color(self, c: Color) -> Self {
         Self {
             config: self.config.with_json_null_color(c),
         }
     }
 
+    #[must_use]
     pub fn with_accent_yellow(self, c: Color) -> Self {
         Self {
             config: self.config.with_accent_yellow(c),
         }
     }
 
+    #[must_use]
     pub fn with_code_colors(self, colors: CodeColors) -> Self {
         Self {
             config: self.config.with_code_colors(colors),
         }
     }
 
+    #[must_use]
     pub fn build(self) -> ThemeConfig {
         self.config
     }

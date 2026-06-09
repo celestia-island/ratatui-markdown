@@ -30,6 +30,7 @@ impl MarkdownRenderer {
         }
     }
 
+    #[must_use]
     pub fn with_render_hooks(mut self, hooks: Box<dyn RenderHooks>) -> Self {
         self.hooks = Some(hooks);
         self

@@ -38,30 +38,36 @@ impl Default for CursorStyle {
 }
 
 impl CursorStyle {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    #[must_use]
     pub fn with_shape(mut self, shape: CursorShape) -> Self {
         self.shape = shape;
         self
     }
 
+    #[must_use]
     pub fn with_position(mut self, position: CursorPosition) -> Self {
         self.position = position;
         self
     }
 
+    #[must_use]
     pub fn with_fg(mut self, fg: Color) -> Self {
         self.fg = Some(fg);
         self
     }
 
+    #[must_use]
     pub fn with_bg(mut self, bg: Color) -> Self {
         self.bg = Some(bg);
         self
     }
 
+    #[must_use]
     pub fn with_modifier(mut self, modifier: Modifier) -> Self {
         self.modifier = modifier;
         self
@@ -75,15 +81,18 @@ pub struct SelectionStyle {
 }
 
 impl SelectionStyle {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    #[must_use]
     pub fn with_fg(mut self, fg: Color) -> Self {
         self.fg = Some(fg);
         self
     }
 
+    #[must_use]
     pub fn with_bg(mut self, bg: Color) -> Self {
         self.bg = Some(bg);
         self

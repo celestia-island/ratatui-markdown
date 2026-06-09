@@ -85,22 +85,26 @@ impl SpanTree {
         }
     }
 
+    #[must_use]
     pub fn with_cursor_style(mut self, cursor: Span<'static>, blank: Span<'static>) -> Self {
         self.cursor_span = cursor;
         self.blank_cursor_span = blank;
         self
     }
 
+    #[must_use]
     pub fn with_cursor_column(mut self, col: usize) -> Self {
         self.cursor_column = col;
         self
     }
 
+    #[must_use]
     pub fn with_auto_follow(mut self, follow: bool) -> Self {
         self.auto_follow = follow;
         self
     }
 
+    #[must_use]
     pub fn with_cursor_line_mode(mut self, mode: CursorLineMode) -> Self {
         self.cursor_line_mode = mode;
         self

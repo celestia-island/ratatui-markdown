@@ -52,36 +52,43 @@ impl TextInput {
         }
     }
 
+    #[must_use]
     pub fn with_mode(mut self, mode: InputMode) -> Self {
         self.mode = mode;
         self
     }
 
+    #[must_use]
     pub fn with_cursor_style(mut self, style: CursorStyle) -> Self {
         self.cursor_style = style;
         self
     }
 
+    #[must_use]
     pub fn with_selection_style(mut self, style: SelectionStyle) -> Self {
         self.selection_style = style;
         self
     }
 
+    #[must_use]
     pub fn with_blink_controller(mut self, ctrl: Rc<dyn CursorBlinkController>) -> Self {
         self.blink_controller = Some(ctrl);
         self
     }
 
+    #[must_use]
     pub fn with_placeholder(mut self, text: impl Into<String>) -> Self {
         self.placeholder = Some(text.into());
         self
     }
 
+    #[must_use]
     pub fn with_password(mut self, password: bool) -> Self {
         self.password = password;
         self
     }
 
+    #[must_use]
     pub fn with_max_width(mut self, width: usize) -> Self {
         self.max_width = width;
         self

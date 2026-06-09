@@ -61,11 +61,13 @@ impl HybridScrollView {
         }
     }
 
+    #[must_use]
     pub fn with_left_padding(mut self, padding: bool) -> Self {
         self.left_padding = padding;
         self
     }
 
+    #[must_use]
     pub fn with_cursor_indicator(mut self, show: bool) -> Self {
         self.show_cursor_indicator = show;
         self

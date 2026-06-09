@@ -44,16 +44,19 @@ impl MarkdownViewer {
         }
     }
 
+    #[must_use]
     pub fn with_title(mut self, title: impl Into<String>) -> Self {
         self.title = title.into();
         self
     }
 
+    #[must_use]
     pub fn with_key_hints(mut self, hints: impl Into<String>) -> Self {
         self.key_hints = hints.into();
         self
     }
 
+    #[must_use]
     pub fn with_max_width(mut self, width: usize) -> Self {
         self.max_width = width;
         self

@@ -56,16 +56,19 @@ impl MarkdownPreview {
         }
     }
 
+    #[must_use]
     pub fn with_strip_frontmatter(mut self, strip: bool) -> Self {
         self.strip_frontmatter = strip;
         self
     }
 
+    #[must_use]
     pub fn with_render_hooks(mut self, hooks: Box<dyn RenderHooks>) -> Self {
         self.hooks = Some(hooks);
         self
     }
 
+    #[must_use]
     pub fn with_left_padding(mut self, padding: bool) -> Self {
         self.scroll_view = self.scroll_view.with_left_padding(padding);
         self

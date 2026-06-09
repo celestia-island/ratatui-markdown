@@ -86,21 +86,25 @@ impl CollapsibleTree {
         })
     }
 
+    #[must_use]
     pub fn with_key_style(mut self, style: KeyStyle) -> Self {
         self.key_style = style;
         self
     }
 
+    #[must_use]
     pub fn with_base_indent(mut self, indent: usize) -> Self {
         self.base_indent = indent;
         self
     }
 
+    #[must_use]
     pub fn with_show_root(mut self, show: bool) -> Self {
         self.show_root = show;
         self
     }
 
+    #[must_use]
     pub fn with_root_label(mut self, label: &str) -> Self {
         self.root_label = label.to_string();
         self
