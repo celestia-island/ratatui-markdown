@@ -278,7 +278,11 @@ impl MarkdownRenderer {
                 footer_override,
                 prefix_override,
             } => {
-                let code = code.replace('\t', "    ");
+                let code = if code.contains('\t') {
+                    code.replace('\t', "    ")
+                } else {
+                    code.clone()
+                };
                 if let Some(h) = hooks {
                     if let Some(custom) = h.render_code_block(lang, &code) {
                         lines.extend(custom);
@@ -315,7 +319,6 @@ impl MarkdownRenderer {
                             return;
                         }
                     }
-                    return;
                 }
 
                 let content_lines: Vec<&str> = code.lines().collect();
@@ -379,19 +382,6 @@ impl MarkdownRenderer {
                 } else {
                     lines.push(self.default_code_block_footer(theme));
                 }
-            }
-            MarkdownBlock::InlineCode(code) => {
-                if let Some(h) = hooks {
-                    if let Some(custom) = h.inline_code(code) {
-                        lines.push(custom);
-                        return;
-                    }
-                }
-                let code = code.replace('\t', "    ");
-                lines.push(Line::from(Span::styled(
-                    format!("`{}`", code),
-                    Style::default().fg(theme.get_accent_yellow()),
-                )));
             }
             MarkdownBlock::ListItem(text, indent) => {
                 let (is_last, ancestors_are_last, index_in_group) =
@@ -746,16 +736,26 @@ impl MarkdownRenderer {
         }
         if total_allocated < available {
             let mut surplus = available - total_allocated;
-            let total_natural: usize = natural_widths.iter().sum::<usize>().max(1);
-            while surplus > 0 {
-                for idx in 0..col_count {
-                    if surplus == 0 {
-                        break;
+            let total_natural: usize = natural_widths.iter().sum::<usize>();
+            if total_natural > 0 {
+                while surplus > 0 {
+                    for idx in 0..col_count {
+                        if surplus == 0 || natural_widths[idx] == 0 {
+                            break;
+                        }
+                        let share = (surplus * natural_widths[idx]) / total_natural;
+                        if share == 0 {
+                            continue;
+                        }
+                        let take = share.min(surplus);
+                        col_widths[idx] += take;
+                        surplus -= take;
                     }
-                    let share = ((surplus * natural_widths[idx]) / total_natural).max(1);
-                    let take = share.min(surplus);
-                    col_widths[idx] += take;
-                    surplus -= take;
+                    if surplus > 0 {
+                        let take = 1.min(surplus);
+                        col_widths[0] += take;
+                        surplus -= take;
+                    }
                 }
             }
         }

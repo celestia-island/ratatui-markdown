@@ -1,4 +1,4 @@
-use ratatui::style::{Color, Modifier};
+use ratatui::style::Color;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum CursorShape {
@@ -14,7 +14,6 @@ pub struct CursorStyle {
     pub shape: CursorShape,
     pub fg: Option<Color>,
     pub bg: Option<Color>,
-    pub modifier: Modifier,
 }
 
 impl Default for CursorStyle {
@@ -23,7 +22,6 @@ impl Default for CursorStyle {
             shape: CursorShape::default(),
             fg: None,
             bg: None,
-            modifier: Modifier::empty(),
         }
     }
 }
@@ -49,12 +47,6 @@ impl CursorStyle {
     #[must_use]
     pub fn with_bg(mut self, bg: Color) -> Self {
         self.bg = Some(bg);
-        self
-    }
-
-    #[must_use]
-    pub fn with_modifier(mut self, modifier: Modifier) -> Self {
-        self.modifier = modifier;
         self
     }
 }

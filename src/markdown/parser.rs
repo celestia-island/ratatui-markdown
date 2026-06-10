@@ -107,7 +107,8 @@ impl MarkdownRenderer {
 
         while let Some(line) = lines.next() {
             if in_code_block {
-                if line.trim().starts_with(MD_FENCE) {
+                let trimmed_line = line.trim();
+                if trimmed_line.starts_with(MD_FENCE) && trimmed_line[3..].trim().is_empty() {
                     in_code_block = false;
                     blocks.push(MarkdownBlock::code_block(
                         code_lang.clone(),
@@ -122,11 +123,14 @@ impl MarkdownRenderer {
                 continue;
             }
 
-            if line.trim().starts_with(MD_FENCE) {
-                Self::flush_pending(&mut table_buffer, &mut blocks, &mut paragraph_lines);
-                in_code_block = true;
-                code_lang = line.trim().chars().skip(3).collect::<String>();
-                continue;
+            {
+                let trimmed_line = line.trim();
+                if trimmed_line.starts_with(MD_FENCE) {
+                    Self::flush_pending(&mut table_buffer, &mut blocks, &mut paragraph_lines);
+                    in_code_block = true;
+                    code_lang = trimmed_line[3..].trim().to_string();
+                    continue;
+                }
             }
 
             let trimmed = line.trim();
@@ -417,7 +421,7 @@ impl MarkdownRenderer {
             let trimmed = content.trim();
 
             if in_inner_code {
-                if trimmed.starts_with(MD_FENCE) {
+                if trimmed.starts_with(MD_FENCE) && trimmed[3..].trim().is_empty() {
                     in_inner_code = false;
                     if !text_lines.is_empty() {
                         blocks.push(MarkdownBlock::Paragraph(text_lines.clone()));
@@ -442,7 +446,7 @@ impl MarkdownRenderer {
                     text_lines.clear();
                 }
                 in_inner_code = true;
-                inner_code_lang = trimmed.chars().skip(3).collect::<String>();
+                inner_code_lang = trimmed[3..].trim().to_string();
                 continue;
             }
 
@@ -529,8 +533,11 @@ impl MarkdownRenderer {
             return;
         }
         let separator_idx = table_buffer.iter().position(|l| {
-            l.chars()
-                .all(|c| c == '|' || c == '-' || c == ':' || c == ' ')
+            let all_valid = l
+                .chars()
+                .all(|c| c == '|' || c == '-' || c == ':' || c == ' ');
+            let has_dash = l.chars().any(|c| c == '-');
+            all_valid && has_dash
         });
         if separator_idx.is_none() || separator_idx == Some(0) {
             for line in table_buffer.drain(..) {
@@ -538,12 +545,8 @@ impl MarkdownRenderer {
             }
             return;
         }
-        let sep_pos = separator_idx.expect("separator_idx was already checked for None/Some(0) above");
-        let headers: Vec<String> = if sep_pos > 0 {
-            Self::split_table_row(&table_buffer[sep_pos - 1])
-        } else {
-            vec![]
-        };
+        let sep_pos = separator_idx.expect("checked above");
+        let headers = Self::split_table_row(&table_buffer[sep_pos - 1]);
         let sep = sep_pos + 1;
         let rows: Vec<Vec<String>> = if sep < table_buffer.len() {
             table_buffer[sep..]

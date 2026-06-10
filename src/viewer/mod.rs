@@ -214,12 +214,13 @@ impl MarkdownViewer {
     }
 
     fn ensure_rendered(&mut self, theme: &impl RichTextTheme) {
-        if self.lines.is_empty() && !self.content.is_empty() {
-            let w = if self.max_width > 0 {
-                self.max_width
-            } else {
-                76
-            };
+        let w = if self.max_width > 0 {
+            self.max_width
+        } else {
+            76
+        };
+        if (self.lines.is_empty() && !self.content.is_empty()) || self.cached_width != w {
+            self.cached_width = w;
             let renderer = MarkdownRenderer::new(w);
             let blocks = renderer.parse(&self.content);
             self.lines = renderer.render(&blocks, theme);

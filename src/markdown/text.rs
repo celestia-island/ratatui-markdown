@@ -202,7 +202,6 @@ impl MarkdownRenderer {
     }
 
     pub(crate) fn tokenize(text: &str) -> Vec<TextToken> {
-        let text = text.replace('\t', "    ");
         let mut tokens = Vec::new();
         let mut current_word = String::new();
 
@@ -213,6 +212,15 @@ impl MarkdownRenderer {
                     current_word = String::new();
                 }
                 tokens.push(TextToken::Newline);
+                continue;
+            }
+
+            if c == '\t' {
+                if !current_word.is_empty() {
+                    tokens.push(TextToken::Word(current_word));
+                    current_word = String::new();
+                }
+                tokens.push(TextToken::Word("    ".to_string()));
                 continue;
             }
 

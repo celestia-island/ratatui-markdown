@@ -94,7 +94,8 @@ pub(super) fn render(
 
         if entry.lines.is_empty() {
             if global_line >= start && global_line < end {
-                let mut spans: Vec<Span<'static>> = Vec::new();
+                let col = tree.cursor_column;
+                let mut spans: Vec<Span<'static>> = vec![Span::raw(" ".repeat(col))];
                 if is_selected {
                     spans.push(tree.cursor_span.clone());
                     for span in &mut spans {

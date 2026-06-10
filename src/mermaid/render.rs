@@ -62,7 +62,7 @@ pub fn render_layout(
 
     // Phase 2: draw edges — global accumulation → global resolution
     let is_vertical = matches!(direction, Direction::TopDown | Direction::BottomUp);
-    draw_all_edges(&mut grid, &layout.edges, is_vertical, theme);
+    draw_all_edges(&mut grid, &layout.edges, is_vertical, direction, theme);
 
     let mut lines = Vec::new();
     for row in grid.iter() {
@@ -316,6 +316,7 @@ fn draw_all_edges(
     grid: &mut [Vec<Cell>],
     edges: &[LayoutEdge],
     is_vertical: bool,
+    direction: &Direction,
     theme: &impl RichTextTheme,
 ) {
     if edges.is_empty() || grid.is_empty() {
@@ -438,10 +439,21 @@ fn draw_all_edges(
         let last = wp[wp.len() - 1];
         let prev = wp[wp.len() - 2];
         let arrow_ch = if is_vertical {
-            if last.1 > prev.1 {
-                ARROW_DOWN
-            } else {
-                ARROW_UP
+            match direction {
+                Direction::BottomUp => {
+                    if last.1 < prev.1 {
+                        ARROW_UP
+                    } else {
+                        ARROW_DOWN
+                    }
+                }
+                _ => {
+                    if last.1 > prev.1 {
+                        ARROW_DOWN
+                    } else {
+                        ARROW_UP
+                    }
+                }
             }
         } else if last.0 > prev.0 {
             ARROW_RIGHT

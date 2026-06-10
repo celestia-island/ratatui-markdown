@@ -3,6 +3,8 @@ use ratatui::{
     text::{Line, Span},
 };
 
+use unicode_width::UnicodeWidthChar;
+
 use super::{CollapsibleTree, EntryKind, KeyStyle};
 use crate::{constants::*, scroll::FocusableItemRange, theme::RichTextTheme};
 
@@ -146,9 +148,22 @@ fn truncate_value(value: &str, total_width: usize, depth: usize) -> String {
     let value = value.replace('\t', "    ");
     let indent_len = depth * 3 + 4;
     let max_len = total_width.saturating_sub(indent_len + 4);
-    let chars: Vec<char> = value.chars().collect();
-    if chars.len() > max_len {
-        let truncated: String = chars.into_iter().take(max_len.saturating_sub(3)).collect();
+    let vw: usize = value.chars().map(|c| UnicodeWidthChar::width(c).unwrap_or(0)).sum();
+    if vw > max_len {
+        let target = max_len.saturating_sub(3);
+        let mut w = 0;
+        let truncated: String = value
+            .chars()
+            .take_while(|c| {
+                let cw = UnicodeWidthChar::width(*c).unwrap_or(0);
+                if w + cw > target {
+                    false
+                } else {
+                    w += cw;
+                    true
+                }
+            })
+            .collect();
         format!("{}...", truncated)
     } else {
         value

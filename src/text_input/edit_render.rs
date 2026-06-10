@@ -88,7 +88,7 @@ pub(in crate::text_input) fn expanded_display_col(raw_line: &str, raw_col: usize
         if ch == '\t' {
             display_col += 4;
         } else {
-            display_col += 1;
+            display_col += unicode_width::UnicodeWidthChar::width(ch).unwrap_or(1);
         }
     }
     display_col
