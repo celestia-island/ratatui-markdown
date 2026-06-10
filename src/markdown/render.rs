@@ -494,7 +494,9 @@ impl MarkdownRenderer {
                     line.spans
                         .insert(0, Span::styled(prefix_str.clone(), prefix_style));
                     for span in line.spans.iter_mut().skip(1) {
-                        span.style = span.style.fg(theme.get_muted_text_color());
+                        if span.style.fg == Some(theme.get_text_color()) || span.style.fg.is_none() {
+                            span.style = span.style.fg(theme.get_muted_text_color());
+                        }
                     }
                     lines.push(line);
                 }
@@ -746,7 +748,6 @@ impl MarkdownRenderer {
             let mut surplus = available - total_allocated;
             let total_natural: usize = natural_widths.iter().sum::<usize>().max(1);
             while surplus > 0 {
-                let mut gave_this_round = false;
                 for idx in 0..col_count {
                     if surplus == 0 {
                         break;
@@ -755,10 +756,6 @@ impl MarkdownRenderer {
                     let take = share.min(surplus);
                     col_widths[idx] += take;
                     surplus -= take;
-                    gave_this_round = true;
-                }
-                if !gave_this_round {
-                    break;
                 }
             }
         }

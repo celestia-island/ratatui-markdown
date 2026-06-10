@@ -13,7 +13,7 @@ use ratatui::{
     Frame, Terminal,
 };
 use ratatui_markdown::text_input::{
-    CursorBlinkController, CursorPosition, CursorShape, CursorStyle, InputMode, TextInput,
+    CursorBlinkController, CursorShape, CursorStyle, InputMode, TextInput,
 };
 
 const INITIAL_TEXT: &str = "\
@@ -62,8 +62,7 @@ impl App {
             .with_mode(InputMode::Edit)
             .with_cursor_style(
                 CursorStyle::new()
-                    .with_shape(CursorShape::Block)
-                    .with_position(CursorPosition::OnChar),
+                    .with_shape(CursorShape::Block),
             )
             .with_blink_controller(blink.clone())
             .with_placeholder("Type markdown here...");
@@ -84,8 +83,7 @@ impl App {
                 .with_mode(self.input.mode())
                 .with_cursor_style(
                     CursorStyle::new()
-                        .with_shape(CURSOR_SHAPES[self.cursor_shape_idx])
-                        .with_position(CursorPosition::OnChar),
+                        .with_shape(CURSOR_SHAPES[self.cursor_shape_idx]),
                 )
                 .with_blink_controller(self.blink.clone())
                 .with_placeholder("Type markdown here...");

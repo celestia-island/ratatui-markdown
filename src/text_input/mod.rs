@@ -7,8 +7,7 @@ use std::rc::Rc;
 
 use ratatui::{layout::Rect, Frame};
 pub use types::{
-    CursorBlinkController, CursorPosition, CursorShape, CursorStyle, InputMode, Selection,
-    SelectionStyle,
+    CursorBlinkController, CursorShape, CursorStyle, InputMode, Selection, SelectionStyle,
 };
 
 use crate::theme::RichTextTheme;

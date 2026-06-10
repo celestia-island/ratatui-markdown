@@ -9,17 +9,9 @@ pub enum CursorShape {
     HollowBlock,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum CursorPosition {
-    #[default]
-    OnChar,
-    BeforeChar,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CursorStyle {
     pub shape: CursorShape,
-    pub position: CursorPosition,
     pub fg: Option<Color>,
     pub bg: Option<Color>,
     pub modifier: Modifier,
@@ -29,7 +21,6 @@ impl Default for CursorStyle {
     fn default() -> Self {
         Self {
             shape: CursorShape::default(),
-            position: CursorPosition::default(),
             fg: None,
             bg: None,
             modifier: Modifier::empty(),
@@ -46,12 +37,6 @@ impl CursorStyle {
     #[must_use]
     pub fn with_shape(mut self, shape: CursorShape) -> Self {
         self.shape = shape;
-        self
-    }
-
-    #[must_use]
-    pub fn with_position(mut self, position: CursorPosition) -> Self {
-        self.position = position;
         self
     }
 
