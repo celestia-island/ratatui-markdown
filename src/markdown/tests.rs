@@ -1,6 +1,7 @@
 use ratatui::{style::Style, text::Span};
 
 use super::MarkdownRenderer;
+use super::text::display_width;
 use crate::{
     constants::{BD_DL, BD_DR, BD_T_UP},
     theme::{RichTextTheme, ThemeConfig},
@@ -108,7 +109,7 @@ fn cjk_then_ascii_no_overflow() {
     let renderer = MarkdownRenderer::new(4);
     let lines = renderer.wrap_text_simple("大型LLM");
     for l in &lines {
-        let w: usize = l.chars().map(MarkdownRenderer::display_width).sum();
+        let w: usize = l.chars().map(display_width).sum();
         assert!(w <= 4, "line {:?} display width {} > 4", l, w);
     }
     assert_eq!(lines.join(""), "大型LLM");
@@ -119,7 +120,7 @@ fn fullwidth_punctuation_breaks_individually() {
     let renderer = MarkdownRenderer::new(4);
     let lines = renderer.wrap_text_simple("！！！");
     for l in &lines {
-        let w: usize = l.chars().map(MarkdownRenderer::display_width).sum();
+        let w: usize = l.chars().map(display_width).sum();
         assert!(w <= 4, "line {:?} display width {} > 4", l, w);
     }
     assert_eq!(lines.join(""), "！！！");
@@ -161,7 +162,7 @@ fn no_line_exceeds_max_width() {
         let renderer = MarkdownRenderer::new(*width);
         let lines = renderer.wrap_text_simple(text);
         for l in &lines {
-            let w: usize = l.chars().map(MarkdownRenderer::display_width).sum();
+            let w: usize = l.chars().map(display_width).sum();
             assert!(
                 w <= *width,
                 "line {:?} has display width {} > {} (text={:?})",
@@ -216,7 +217,7 @@ fn list_item_prefix_with_mixed_text() {
 fn table_hline_and_row_same_display_width() {
     let col_widths: Vec<usize> = vec![10, 8, 12];
     let hline = MarkdownRenderer::build_table_hline(&col_widths, BD_DR, BD_T_UP, BD_DL);
-    let hline_w: usize = hline.chars().map(MarkdownRenderer::display_width).sum();
+    let hline_w: usize = hline.chars().map(display_width).sum();
     assert_eq!(hline_w, 10 + 8 + 12 + 4);
 
     let cells = ["abc".to_string(), "de".to_string(), "fgh".to_string()];
@@ -232,7 +233,7 @@ fn table_hline_and_row_same_display_width() {
         .collect();
     let row = MarkdownRenderer::build_table_row_from_spans(&col_widths, &cell_spans, &theme, false);
     let row_text: String = row.spans.iter().map(|s| s.content.as_ref()).collect();
-    let row_w: usize = row_text.chars().map(MarkdownRenderer::display_width).sum();
+    let row_w: usize = row_text.chars().map(display_width).sum();
     assert_eq!(
         row_w, hline_w,
         "row display width {} != hline display width {} (row={:?})",
@@ -256,9 +257,9 @@ fn table_cjk_cells_aligned() {
         .collect();
     let row = MarkdownRenderer::build_table_row_from_spans(&col_widths, &cell_spans, &theme, false);
     let row_text: String = row.spans.iter().map(|s| s.content.as_ref()).collect();
-    let row_w: usize = row_text.chars().map(MarkdownRenderer::display_width).sum();
+    let row_w: usize = row_text.chars().map(display_width).sum();
     let hline = MarkdownRenderer::build_table_hline(&col_widths, BD_DR, BD_T_UP, BD_DL);
-    let hline_w: usize = hline.chars().map(MarkdownRenderer::display_width).sum();
+    let hline_w: usize = hline.chars().map(display_width).sum();
     assert_eq!(
         row_w, hline_w,
         "CJK row misaligned: row={:?} hline={:?}",

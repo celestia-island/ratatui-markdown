@@ -29,7 +29,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! ratatui-markdown = { version = "0.2", default-features = false, features = ["markdown"] }
+//! ratatui-markdown = { version = "0.3", default-features = false, features = ["markdown"] }
 //! ```
 //!
 //! | Feature    | Requires                                | Description                               |
@@ -44,7 +44,7 @@
 //!
 //! ## Quick Start
 //!
-//! ```rust
+//! ```rust,no_run
 //! use ratatui_markdown::preview::MarkdownPreview;
 //!
 //! let mut preview = MarkdownPreview::new();
@@ -54,7 +54,7 @@
 //!
 //! ### Markdown Rendering
 //!
-//! ```rust
+//! ```rust,ignore
 //! use ratatui_markdown::markdown::MarkdownRenderer;
 //!
 //! let renderer = MarkdownRenderer::new(80);
@@ -82,7 +82,7 @@
 //!
 //! ### Collapsible Trees
 //!
-//! ```rust
+//! ```rust,ignore
 //! use ratatui_markdown::tree::CollapsibleTree;
 //!
 //! let mut tree = CollapsibleTree::from_json_str(

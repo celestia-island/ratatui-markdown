@@ -11,8 +11,6 @@ mod tests;
 mod text;
 mod types;
 
-use std::boxed::Box;
-
 pub use hooks::RenderHooks;
 #[cfg(feature = "image")]
 pub use image::{CropRect, ImagePlacement, ImageResolver, MarkdownRenderOutput, NoopImageResolver};
@@ -32,6 +30,7 @@ impl MarkdownRenderer {
         }
     }
 
+    #[must_use]
     pub fn with_render_hooks(mut self, hooks: Box<dyn RenderHooks>) -> Self {
         self.hooks = Some(hooks);
         self

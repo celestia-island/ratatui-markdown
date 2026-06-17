@@ -4,7 +4,7 @@ version = "0.3.6"
 edition = "2021"
 rust-version = "1.74"
 authors = ["langyo <langyo.china@gmail.com>"]
-license = "MIT OR Apache-2.0"
+license = "SySL-1.0"
 readme = "README.md"
 description = "Markdown rendering, syntax highlighting, collapsible trees, and rich scroll widgets for ratatui"
 repository = "https://github.com/celestia-island/ratatui-markdown"
@@ -12,7 +12,7 @@ keywords = ["ratatui", "markdown", "tui", "terminal", "highlight"]
 categories = ["command-line-interface", "text-processing"]
 
 [lib]
-doctest = false
+doctest = true
 
 [features]
 default = [

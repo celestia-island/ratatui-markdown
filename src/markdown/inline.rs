@@ -188,33 +188,58 @@ pub fn parse_inline_formatting(text: &str, theme: &impl RichTextTheme) -> Vec<Sp
             continue;
         }
 
+        if chars[i] == '\\' && i + 1 < len {
+            let next = chars[i + 1];
+            if next.is_ascii_punctuation() {
+                current.push(next);
+                i += 2;
+                continue;
+            }
+        }
+
         if chars[i] == '[' {
             let mut end_bracket = i + 1;
             let mut found_link = false;
+            let mut bracket_depth: usize = 0;
             while end_bracket < len {
-                if chars[end_bracket] == ']' {
-                    if end_bracket + 1 < len && chars[end_bracket + 1] == '(' {
+                if chars[end_bracket] == '[' {
+                    bracket_depth += 1;
+                } else if chars[end_bracket] == ']' {
+                    if bracket_depth > 0 {
+                        bracket_depth -= 1;
+                    } else if end_bracket + 1 < len && chars[end_bracket + 1] == '(' {
                         let url_start = end_bracket + 2;
                         let mut url_end = url_start;
+                        let mut paren_depth: usize = 1;
                         while url_end < len {
-                            if chars[url_end] == ')' {
-                                let link_text: String = chars[i + 1..end_bracket].iter().collect();
-                                let _url: String = chars[url_start..url_end].iter().collect();
-                                flush_current!();
-                                spans.push(Span::styled(
-                                    link_text,
-                                    Style::default()
-                                        .fg(theme.get_primary_color())
-                                        .add_modifier(Modifier::UNDERLINED),
-                                ));
-                                i = url_end + 1;
-                                found_link = true;
-                                break;
+                            if chars[url_end] == '(' {
+                                paren_depth += 1;
+                            } else if chars[url_end] == ')' {
+                                paren_depth -= 1;
+                                if paren_depth == 0 {
+                                    break;
+                                }
                             }
                             url_end += 1;
                         }
+                        let link_text: String = chars[i + 1..end_bracket].iter().collect();
+                        let _url: String =
+                            chars[url_start..url_end].iter().collect();
+                        flush_current!();
+                        let link_style = Style::default()
+                            .fg(theme.get_primary_color())
+                            .add_modifier(Modifier::UNDERLINED);
+                        if link_text.is_empty() {
+                            spans.push(Span::styled(_url, link_style));
+                        } else {
+                            spans.push(Span::styled(link_text, link_style));
+                        }
+                        i = url_end + 1;
+                        found_link = true;
+                        break;
+                    } else {
+                        break;
                     }
-                    break;
                 }
                 end_bracket += 1;
             }

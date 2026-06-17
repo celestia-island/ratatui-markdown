@@ -1,6 +1,10 @@
 #[path = "utils/mod.rs"]
 mod common;
 
+use common::image_support::{
+    calculate_clip, fix_protocol_override, mark_all_dirty, render_scrollbar, safe_font_size,
+    Dirtyable,
+};
 use common::{lorem, Theme};
 use ratatui::{
     backend::CrosstermBackend,
@@ -11,9 +15,7 @@ use ratatui::{
     layout::Rect,
     style::{Color, Style},
     text::{Line, Span},
-    widgets::{
-        Block, Borders, Padding, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
-    },
+    widgets::{Block, Borders, Padding, Paragraph},
     Terminal,
 };
 use ratatui_image::{
@@ -25,39 +27,6 @@ use ratatui_markdown::{
     markdown::{ImageResolver, MarkdownRenderer, RenderHooks},
     theme::RichTextTheme,
 };
-
-fn fix_protocol_override(picker: &mut Picker) {
-    use ratatui_image::picker::Capability;
-    let caps = picker.capabilities();
-    if caps.contains(&Capability::Kitty) && picker.protocol_type() != ProtocolType::Kitty {
-        picker.set_protocol_type(ProtocolType::Kitty);
-    }
-}
-
-fn safe_font_size(picker: &Picker) -> (u16, u16) {
-    let (fw, fh) = picker.font_size();
-    if fw == 0 || fh == 0 {
-        (8, 16)
-    } else {
-        (fw, fh)
-    }
-}
-
-fn height_divisor(font_h: u16, proto: ProtocolType) -> f64 {
-    match proto {
-        ProtocolType::Halfblocks => font_h as f64 * 2.0,
-        _ => font_h as f64,
-    }
-}
-
-fn pixel_to_cell(pw: u32, ph: u32, font_w: u16, font_h: u16, proto: ProtocolType) -> (u16, u16) {
-    if pw == 0 || ph == 0 || font_w == 0 {
-        return (0, 0);
-    }
-    let cw = (pw as f64 / font_w as f64).ceil() as u16;
-    let ch = (ph as f64 / height_divisor(font_h, proto)).ceil() as u16;
-    (cw.max(1), ch.max(1))
-}
 
 const MARKDOWN_TEMPLATE: &str = r#"
 # Mermaid Image Rendering
@@ -301,6 +270,15 @@ impl MermaidImage {
     }
 }
 
+impl Dirtyable for MermaidImage {
+    fn is_failed(&self) -> bool {
+        self.failed
+    }
+    fn set_dirty(&mut self) {
+        self.dirty = true;
+    }
+}
+
 struct MermaidImageHooks {
     mermaid_theme: ratatui_markdown::mermaid::theme::MermaidTheme,
     font_w: u32,
@@ -341,22 +319,14 @@ impl ImageResolver for MermaidResolver {
         max_width: u16,
         max_height: u16,
     ) -> (u16, u16) {
-        let (cw, ch) = pixel_to_cell(
-            img.width(),
-            img.height(),
+        common::image_support::cell_dimensions(
+            img,
+            max_width,
+            max_height,
             self.font_w,
             self.font_h,
             self.proto,
-        );
-        let w = cw.min(max_width);
-        let h = if w < cw {
-            let ratio = img.height() as f64 * w as f64 / (img.width() as f64).max(1.0);
-            (ratio / height_divisor(self.font_h, self.proto)).ceil() as u16
-        } else {
-            ch
-        };
-        let h = h.min(max_height);
-        (w.max(1), h.max(1))
+        )
     }
 }
 
@@ -506,30 +476,14 @@ fn main() -> anyhow::Result<()> {
 
                 let img_l = text_left as i32 + placement.col as i32;
                 let img_t = text_top as i32 + placement.row as i32 - state.scroll as i32;
-                let img_r = img_l + img_w as i32 - 1;
-                let img_b = img_t + img_h as i32 - 1;
 
-                let vp_l = text_left as i32;
-                let vp_t = text_top as i32;
-                let vp_r = (text_left as i32 + content_w as i32 - 1).max(vp_l);
-                let vp_b = text_bot as i32;
-
-                if img_r < vp_l || img_l > vp_r || img_b < vp_t || img_t > vp_b {
-                    continue;
-                }
-
-                let clip_l = img_l.max(vp_l);
-                let clip_t = img_t.max(vp_t);
-                let clip_r = img_r.min(vp_r);
-                let clip_b = img_b.min(vp_b);
-
-                let vis_w = (clip_r - clip_l + 1) as u16;
-                let vis_h = (clip_b - clip_t + 1) as u16;
-
-                let crop_cells_l = (clip_l - img_l) as u32;
-                let crop_cells_t = (clip_t - img_t) as u32;
-                let crop_cells_r = (img_r - clip_r) as u32;
-                let crop_cells_b = (img_b - clip_b) as u32;
+                let clip = match calculate_clip(
+                    img_l, img_t, img_w, img_h,
+                    text_left, text_top, content_w, text_bot,
+                ) {
+                    Some(c) => c,
+                    None => continue,
+                };
 
                 let fw = state.font_w as u32;
                 let fh = state.font_h as u32;
@@ -537,21 +491,21 @@ fn main() -> anyhow::Result<()> {
                 let total_px_h = mi.image.height();
 
                 if mi.dirty || mi.protocol.is_none() {
-                    let crop_px_x = crop_cells_l * fw;
-                    let crop_px_y = crop_cells_t * fh;
+                    let crop_px_x = clip.crop_cells_l * fw;
+                    let crop_px_y = clip.crop_cells_t * fh;
                     let crop_px_w = total_px_w
-                        .saturating_sub(crop_cells_l * fw)
-                        .saturating_sub(crop_cells_r * fw)
+                        .saturating_sub(clip.crop_cells_l * fw)
+                        .saturating_sub(clip.crop_cells_r * fw)
                         .max(1);
                     let crop_px_h = total_px_h
-                        .saturating_sub(crop_cells_t * fh)
-                        .saturating_sub(crop_cells_b * fh)
+                        .saturating_sub(clip.crop_cells_t * fh)
+                        .saturating_sub(clip.crop_cells_b * fh)
                         .max(1);
 
-                    let need_crop = crop_cells_l > 0
-                        || crop_cells_t > 0
-                        || crop_cells_r > 0
-                        || crop_cells_b > 0;
+                    let need_crop = clip.crop_cells_l > 0
+                        || clip.crop_cells_t > 0
+                        || clip.crop_cells_r > 0
+                        || clip.crop_cells_b > 0;
 
                     let img_for_proto = if need_crop {
                         mi.image
@@ -560,8 +514,8 @@ fn main() -> anyhow::Result<()> {
                         mi.image.clone()
                     };
 
-                    let target_px_w = vis_w as u32 * fw;
-                    let target_px_h = vis_h as u32 * fh;
+                    let target_px_w = clip.vis_w as u32 * fw;
+                    let target_px_h = clip.vis_h as u32 * fh;
                     let final_img = if img_for_proto.width() == target_px_w
                         && img_for_proto.height() == target_px_h
                     {
@@ -579,7 +533,7 @@ fn main() -> anyhow::Result<()> {
                         image::DynamicImage::ImageRgba8(canvas)
                     };
 
-                    let rect_for_proto = Rect::new(0, 0, vis_w, vis_h);
+                    let rect_for_proto = Rect::new(0, 0, clip.vis_w, clip.vis_h);
                     match state
                         .picker
                         .new_protocol(final_img, rect_for_proto, Resize::Fit(None))
@@ -597,7 +551,7 @@ fn main() -> anyhow::Result<()> {
                     Some(p) => p,
                     None => continue,
                 };
-                let rect = Rect::new(clip_l as u16, clip_t as u16, vis_w, vis_h);
+                let rect = Rect::new(clip.screen_x, clip.screen_y, clip.vis_w, clip.vis_h);
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     let widget = Image::new(proto_ref);
                     f.render_widget(widget, rect);
@@ -608,21 +562,7 @@ fn main() -> anyhow::Result<()> {
                 }
             }
 
-            if doc_h > content_h && content_h > 0 {
-                let sb_area = Rect::new(sb_col, inner.y, 1, content_h);
-                let ratatui_content_len = doc_h.saturating_sub(content_h).saturating_add(1);
-                let sb = Scrollbar::default()
-                    .orientation(ScrollbarOrientation::VerticalRight)
-                    .thumb_symbol("█")
-                    .track_symbol(Some("│"))
-                    .style(Style::default().fg(Color::DarkGray))
-                    .thumb_style(Style::default().fg(Color::Cyan));
-                let mut sb_state = ScrollbarState::default()
-                    .content_length(ratatui_content_len as usize)
-                    .viewport_content_length(content_h as usize)
-                    .position(state.scroll as usize);
-                f.render_stateful_widget(sb, sb_area, &mut sb_state);
-            }
+            render_scrollbar(f, doc_h, content_h, state.scroll, sb_col, inner.y);
 
             let info_area = Rect::new(area.x, area.height.saturating_sub(1), area.width, 1);
             f.render_widget(
@@ -640,40 +580,40 @@ fn main() -> anyhow::Result<()> {
                     KeyCode::Char('q') => break,
                     KeyCode::Up => {
                         state.scroll = state.scroll.saturating_sub(1);
-                        mark_dirty(&mut state.images);
+                        mark_all_dirty(&mut state.images);
                     }
                     KeyCode::Down => {
                         state.scroll = state.scroll.saturating_add(1);
-                        mark_dirty(&mut state.images);
+                        mark_all_dirty(&mut state.images);
                     }
                     KeyCode::PageUp => {
                         let ch = terminal.get_frame().area().height.saturating_sub(3);
                         state.scroll = state.scroll.saturating_sub(ch.max(1));
-                        mark_dirty(&mut state.images);
+                        mark_all_dirty(&mut state.images);
                     }
                     KeyCode::PageDown => {
                         let ch = terminal.get_frame().area().height.saturating_sub(3);
                         state.scroll = state.scroll.saturating_add(ch.max(1));
-                        mark_dirty(&mut state.images);
+                        mark_all_dirty(&mut state.images);
                     }
                     KeyCode::Home => {
                         state.scroll = 0;
-                        mark_dirty(&mut state.images);
+                        mark_all_dirty(&mut state.images);
                     }
                     KeyCode::End => {
                         state.scroll = u16::MAX;
-                        mark_dirty(&mut state.images);
+                        mark_all_dirty(&mut state.images);
                     }
                     _ => {}
                 },
                 Event::Mouse(mouse) => match mouse.kind {
                     MouseEventKind::ScrollUp => {
                         state.scroll = state.scroll.saturating_sub(3);
-                        mark_dirty(&mut state.images);
+                        mark_all_dirty(&mut state.images);
                     }
                     MouseEventKind::ScrollDown => {
                         state.scroll = state.scroll.saturating_add(3);
-                        mark_dirty(&mut state.images);
+                        mark_all_dirty(&mut state.images);
                     }
                     _ => {}
                 },
@@ -689,12 +629,4 @@ fn main() -> anyhow::Result<()> {
         event::DisableMouseCapture
     )?;
     Ok(())
-}
-
-fn mark_dirty(images: &mut [MermaidImage]) {
-    for img in images.iter_mut() {
-        if !img.failed {
-            img.dirty = true;
-        }
-    }
 }

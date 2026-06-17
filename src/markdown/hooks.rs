@@ -55,24 +55,25 @@ pub trait RenderHooks: Send + Sync {
         None
     }
 
-    /// 每级树形缩进的字符总宽度（含延续线/空白）。
-    /// 返回 `None` 表示不启用树形列表渲染。
+    /// Total character width for each level of tree indentation (including continuation lines/blank fill).
+    /// Returns `None` to disable tree-style list rendering.
     ///
-    /// 内部约定：
-    /// - 延续线 = `│` + (unit - 1) 个空格
-    /// - 空白填充 = unit 个空格
-    /// - 连接符 = `├─ ` / `└─ `（固定 3 字符，不含在此值内）
+    /// Internal conventions:
+    /// - Continuation line = `│` + (unit - 1) spaces
+    /// - Blank fill = unit spaces
+    /// - Connector = `├─ ` / `└─ ` (fixed 3 characters, not included in this value)
     ///
-    /// 例如：
-    /// - `Some(3)` → 紧凑：`│  ├─ `（每级差 3 列）
-    /// - `Some(4)` → 宽松：`│   ├─ `（每级差 4 列）
+    /// Examples:
+    /// - `Some(3)` → compact: `│  ├─ ` (3 columns per level)
+    /// - `Some(4)` → relaxed: `│   ├─ ` (4 columns per level)
     fn tree_indent_unit(&self) -> Option<usize> {
         None
     }
 
-    /// 换行续行的前缀（保留祖先层级的 `│` 延续线）。
-    /// 参数与 `list_item_marker` 相同，返回值用于文本换行后的第 2 行及之后。
-    /// 返回 `None` 时渲染器回退到等宽纯空格。
+    /// Continuation prefix for wrapped lines (preserves ancestor-level `│` continuation lines).
+    /// Parameters are the same as `list_item_marker`; the return value is used for the 2nd line
+    /// and beyond after text wrapping.
+    /// Returns `None` to fall back to equal-width blank spaces.
     fn tree_continuation_prefix(
         &self,
         _indent: u8,

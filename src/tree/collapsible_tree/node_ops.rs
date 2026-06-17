@@ -39,6 +39,7 @@ impl CollapsibleTree {
     }
 
     pub fn expand_to_depth(&mut self, max_depth: usize) {
+        *self.flatten_cache.get_mut() = None;
         self.expanded_paths = Self::collect_expandable_paths_to_depth(&self.root, "", 0, max_depth);
     }
 
@@ -88,6 +89,9 @@ impl CollapsibleTree {
     }
 
     pub fn flatten(&self) -> Vec<FlatEntry> {
+        if let Some(ref cache) = *self.flatten_cache.borrow() {
+            return cache.clone();
+        }
         let mut entries = Vec::new();
         let mut is_last_stack = Vec::new();
         let mut ctx = FlattenContext {
@@ -103,6 +107,7 @@ impl CollapsibleTree {
             &self.root_label,
             &mut ctx,
         );
+        *self.flatten_cache.borrow_mut() = Some(entries.clone());
         entries
     }
 
@@ -302,7 +307,7 @@ pub(crate) fn format_primitive(value: &serde_json::Value) -> (String, ValueType)
         ),
         serde_json::Value::Number(n) => (n.to_string(), ValueType::Number),
         serde_json::Value::Bool(b) => (b.to_string(), ValueType::Boolean),
-        serde_json::Value::Null => ("null".to_string(), ValueType::String),
+        serde_json::Value::Null => ("null".to_string(), ValueType::Null),
         _ => (value.to_string().replace('\t', "    "), ValueType::String),
     }
 }

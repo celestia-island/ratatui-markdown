@@ -3,7 +3,7 @@ use ratatui::style::Color;
 #[cfg(feature = "mermaid")]
 use crate::mermaid::theme::MermaidTheme;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CodeColors {
     pub comment: Color,
     pub keyword: Color,
@@ -57,77 +57,100 @@ impl CodeColors {
 pub struct CodeColorsBuilder(CodeColors);
 
 impl CodeColorsBuilder {
+    #[must_use]
     pub fn comment(mut self, c: Color) -> Self {
         self.0.comment = c;
         self
     }
+    #[must_use]
     pub fn keyword(mut self, c: Color) -> Self {
         self.0.keyword = c;
         self
     }
+    #[must_use]
     pub fn string(mut self, c: Color) -> Self {
         self.0.string = c;
         self
     }
+    #[must_use]
     pub fn string_escape(mut self, c: Color) -> Self {
         self.0.string_escape = c;
         self
     }
+    #[must_use]
     pub fn number(mut self, c: Color) -> Self {
         self.0.number = c;
         self
     }
+    #[must_use]
     pub fn constant(mut self, c: Color) -> Self {
         self.0.constant = c;
         self
     }
+    #[must_use]
     pub fn function(mut self, c: Color) -> Self {
         self.0.function = c;
         self
     }
+    #[must_use]
     pub fn r#type(mut self, c: Color) -> Self {
         self.0.r#type = c;
         self
     }
+    #[must_use]
     pub fn variable(mut self, c: Color) -> Self {
         self.0.variable = c;
         self
     }
+    #[must_use]
     pub fn property(mut self, c: Color) -> Self {
         self.0.property = c;
         self
     }
+    #[must_use]
     pub fn operator(mut self, c: Color) -> Self {
         self.0.operator = c;
         self
     }
+    #[must_use]
     pub fn punctuation(mut self, c: Color) -> Self {
         self.0.punctuation = c;
         self
     }
+    #[must_use]
     pub fn attribute(mut self, c: Color) -> Self {
         self.0.attribute = c;
         self
     }
+    #[must_use]
     pub fn tag(mut self, c: Color) -> Self {
         self.0.tag = c;
         self
     }
+    #[must_use]
     pub fn label(mut self, c: Color) -> Self {
         self.0.label = c;
         self
     }
+    #[must_use]
     pub fn error(mut self, c: Color) -> Self {
         self.0.error = c;
         self
     }
+    #[must_use]
     pub fn build(self) -> CodeColors {
         self.0
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Generation(pub u64);
+
+impl Default for Generation {
+    fn default() -> Self {
+        Self(1)
+    }
+}
 
 impl Generation {
     pub fn next(&self) -> Self {
@@ -223,81 +246,97 @@ impl ThemeConfig {
         }
     }
 
+    #[must_use]
     pub fn with_generation(mut self, gen: Generation) -> Self {
         self.gen = gen;
         self
     }
 
+    #[must_use]
     pub fn with_text_color(mut self, c: Color) -> Self {
         self.text_color = c;
         self
     }
 
+    #[must_use]
     pub fn with_muted_text_color(mut self, c: Color) -> Self {
         self.muted_text_color = c;
         self
     }
 
+    #[must_use]
     pub fn with_primary_color(mut self, c: Color) -> Self {
         self.primary_color = c;
         self
     }
 
+    #[must_use]
     pub fn with_popup_selected_background(mut self, c: Color) -> Self {
         self.popup_selected_background = c;
         self
     }
 
+    #[must_use]
     pub fn with_border_color(mut self, c: Color) -> Self {
         self.border_color = c;
         self
     }
 
+    #[must_use]
     pub fn with_focused_border_color(mut self, c: Color) -> Self {
         self.focused_border_color = c;
         self
     }
 
+    #[must_use]
     pub fn with_secondary_color(mut self, c: Color) -> Self {
         self.secondary_color = c;
         self
     }
 
+    #[must_use]
     pub fn with_info_color(mut self, c: Color) -> Self {
         self.info_color = c;
         self
     }
 
+    #[must_use]
     pub fn with_json_key_color(mut self, c: Color) -> Self {
         self.json_key_color = c;
         self
     }
 
+    #[must_use]
     pub fn with_json_string_color(mut self, c: Color) -> Self {
         self.json_string_color = c;
         self
     }
 
+    #[must_use]
     pub fn with_json_number_color(mut self, c: Color) -> Self {
         self.json_number_color = c;
         self
     }
 
+    #[must_use]
     pub fn with_json_bool_color(mut self, c: Color) -> Self {
         self.json_bool_color = c;
         self
     }
 
+    #[must_use]
     pub fn with_json_null_color(mut self, c: Color) -> Self {
         self.json_null_color = c;
         self
     }
 
+    #[must_use]
     pub fn with_accent_yellow(mut self, c: Color) -> Self {
         self.accent_yellow = c;
         self
     }
 
+    #[must_use]
     pub fn with_code_colors(mut self, colors: CodeColors) -> Self {
         self.code_colors = colors;
         self
@@ -360,86 +399,119 @@ pub struct ThemeBuilder {
 }
 
 impl ThemeBuilder {
-    pub fn with_generation(mut self, gen: Generation) -> Self {
-        self.config.gen = gen;
-        self
+    #[must_use]
+    pub fn with_generation(self, gen: Generation) -> Self {
+        Self {
+            config: self.config.with_generation(gen),
+        }
     }
 
-    pub fn with_text_color(mut self, c: Color) -> Self {
-        self.config.text_color = c;
-        self
+    #[must_use]
+    pub fn with_text_color(self, c: Color) -> Self {
+        Self {
+            config: self.config.with_text_color(c),
+        }
     }
 
-    pub fn with_muted_text_color(mut self, c: Color) -> Self {
-        self.config.muted_text_color = c;
-        self
+    #[must_use]
+    pub fn with_muted_text_color(self, c: Color) -> Self {
+        Self {
+            config: self.config.with_muted_text_color(c),
+        }
     }
 
-    pub fn with_primary_color(mut self, c: Color) -> Self {
-        self.config.primary_color = c;
-        self
+    #[must_use]
+    pub fn with_primary_color(self, c: Color) -> Self {
+        Self {
+            config: self.config.with_primary_color(c),
+        }
     }
 
-    pub fn with_popup_selected_background(mut self, c: Color) -> Self {
-        self.config.popup_selected_background = c;
-        self
+    #[must_use]
+    pub fn with_popup_selected_background(self, c: Color) -> Self {
+        Self {
+            config: self.config.with_popup_selected_background(c),
+        }
     }
 
-    pub fn with_border_color(mut self, c: Color) -> Self {
-        self.config.border_color = c;
-        self
+    #[must_use]
+    pub fn with_border_color(self, c: Color) -> Self {
+        Self {
+            config: self.config.with_border_color(c),
+        }
     }
 
-    pub fn with_focused_border_color(mut self, c: Color) -> Self {
-        self.config.focused_border_color = c;
-        self
+    #[must_use]
+    pub fn with_focused_border_color(self, c: Color) -> Self {
+        Self {
+            config: self.config.with_focused_border_color(c),
+        }
     }
 
-    pub fn with_secondary_color(mut self, c: Color) -> Self {
-        self.config.secondary_color = c;
-        self
+    #[must_use]
+    pub fn with_secondary_color(self, c: Color) -> Self {
+        Self {
+            config: self.config.with_secondary_color(c),
+        }
     }
 
-    pub fn with_info_color(mut self, c: Color) -> Self {
-        self.config.info_color = c;
-        self
+    #[must_use]
+    pub fn with_info_color(self, c: Color) -> Self {
+        Self {
+            config: self.config.with_info_color(c),
+        }
     }
 
-    pub fn with_json_key_color(mut self, c: Color) -> Self {
-        self.config.json_key_color = c;
-        self
+    #[must_use]
+    pub fn with_json_key_color(self, c: Color) -> Self {
+        Self {
+            config: self.config.with_json_key_color(c),
+        }
     }
 
-    pub fn with_json_string_color(mut self, c: Color) -> Self {
-        self.config.json_string_color = c;
-        self
+    #[must_use]
+    pub fn with_json_string_color(self, c: Color) -> Self {
+        Self {
+            config: self.config.with_json_string_color(c),
+        }
     }
 
-    pub fn with_json_number_color(mut self, c: Color) -> Self {
-        self.config.json_number_color = c;
-        self
+    #[must_use]
+    pub fn with_json_number_color(self, c: Color) -> Self {
+        Self {
+            config: self.config.with_json_number_color(c),
+        }
     }
 
-    pub fn with_json_bool_color(mut self, c: Color) -> Self {
-        self.config.json_bool_color = c;
-        self
+    #[must_use]
+    pub fn with_json_bool_color(self, c: Color) -> Self {
+        Self {
+            config: self.config.with_json_bool_color(c),
+        }
     }
 
-    pub fn with_json_null_color(mut self, c: Color) -> Self {
-        self.config.json_null_color = c;
-        self
+    #[must_use]
+    pub fn with_json_null_color(self, c: Color) -> Self {
+        Self {
+            config: self.config.with_json_null_color(c),
+        }
     }
 
-    pub fn with_accent_yellow(mut self, c: Color) -> Self {
-        self.config.accent_yellow = c;
-        self
+    #[must_use]
+    pub fn with_accent_yellow(self, c: Color) -> Self {
+        Self {
+            config: self.config.with_accent_yellow(c),
+        }
     }
 
-    pub fn with_code_colors(mut self, colors: CodeColors) -> Self {
-        self.config.code_colors = colors;
-        self
+    #[must_use]
+    pub fn with_code_colors(self, colors: CodeColors) -> Self {
+        Self {
+            config: self.config.with_code_colors(colors),
+        }
     }
 
+    #[must_use]
     pub fn build(self) -> ThemeConfig {
         self.config
     }
@@ -494,5 +566,73 @@ impl RichTextTheme for DefaultTheme {
     }
     fn get_accent_yellow(&self) -> Color {
         Color::Yellow
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn theme_config_default_values() {
+        let t = ThemeConfig::default();
+        assert_eq!(t.text_color, Color::White);
+        assert_eq!(t.muted_text_color, Color::DarkGray);
+        assert_eq!(t.primary_color, Color::Cyan);
+        assert_eq!(t.secondary_color, Color::Blue);
+        assert_eq!(t.accent_yellow, Color::Yellow);
+        assert_eq!(t.gen, Generation(1));
+    }
+
+    #[test]
+    fn theme_config_builder_matches_with_methods() {
+        let via_with = ThemeConfig::default()
+            .with_text_color(Color::Red)
+            .with_primary_color(Color::Green)
+            .with_accent_yellow(Color::Blue);
+
+        let via_builder = ThemeConfig::builder()
+            .with_text_color(Color::Red)
+            .with_primary_color(Color::Green)
+            .with_accent_yellow(Color::Blue)
+            .build();
+
+        assert_eq!(via_with.text_color, via_builder.text_color);
+        assert_eq!(via_with.primary_color, via_builder.primary_color);
+        assert_eq!(via_with.accent_yellow, via_builder.accent_yellow);
+    }
+
+    #[test]
+    fn generation_next() {
+        let g = Generation(1);
+        let g2 = g.next();
+        assert_eq!(g2.0, 2);
+    }
+
+    #[test]
+    fn code_colors_default() {
+        let c = CodeColors::default();
+        assert_eq!(c.comment, Color::DarkGray);
+        assert_eq!(c.keyword, Color::Magenta);
+        assert_eq!(c.string, Color::Green);
+    }
+
+    #[test]
+    fn code_colors_builder() {
+        let c = CodeColors::builder()
+            .comment(Color::Red)
+            .keyword(Color::Blue)
+            .build();
+        assert_eq!(c.comment, Color::Red);
+        assert_eq!(c.keyword, Color::Blue);
+        assert_eq!(c.string, Color::Green);
+    }
+
+    #[test]
+    fn theme_config_rich_text_theme_impl() {
+        let t = ThemeConfig::default();
+        assert_eq!(RichTextTheme::get_text_color(&t), Color::White);
+        assert_eq!(RichTextTheme::get_primary_color(&t), Color::Cyan);
+        assert_eq!(RichTextTheme::get_code_colors(&t), CodeColors::DEFAULT);
     }
 }

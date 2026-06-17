@@ -82,6 +82,9 @@ pub fn compute_layout(
     let (h_spacing, v_spacing) =
         adapt_spacing(diagram, &graph.layers, node_v_height, max_width, max_height);
 
+    let node_map: HashMap<&str, &MermaidNode> =
+        diagram.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
+
     let mut layout_nodes = Vec::new();
     let mut node_positions: HashMap<String, (usize, usize)> = HashMap::new();
 
@@ -95,10 +98,8 @@ pub fn compute_layout(
         let mut node_widths: Vec<usize> = layer
             .iter()
             .map(|id| {
-                let node = diagram
-                    .nodes
-                    .iter()
-                    .find(|n| &n.id == id)
+                let node = node_map
+                    .get(id.as_str())
                     .expect("layer node must exist in diagram nodes");
                 let text_w = if node.label.contains('\n') {
                     label_display_width(&node.label)
@@ -136,10 +137,8 @@ pub fn compute_layout(
         let mut x = x_start;
         let mut layer_max_h = 0usize;
         for (i, id) in layer.iter().enumerate() {
-            let node = diagram
-                .nodes
-                .iter()
-                .find(|n| &n.id == id)
+            let node = node_map
+                .get(id.as_str())
                 .expect("layer node must exist in diagram nodes");
             let w = node_widths[i];
             let is_multiline = node.label.contains('\n');
@@ -306,11 +305,12 @@ fn compute_edge_path(
     direction: &Direction,
     v_spacing: usize,
 ) -> Vec<(usize, usize)> {
-    let source = match nodes.iter().find(|n| n.id == edge.source) {
+    let node_map: HashMap<&str, &LayoutNode> = nodes.iter().map(|n| (n.id.as_str(), n)).collect();
+    let source = match node_map.get(edge.source.as_str()) {
         Some(n) => n,
         None => return Vec::new(),
     };
-    let target = match nodes.iter().find(|n| n.id == edge.target) {
+    let target = match node_map.get(edge.target.as_str()) {
         Some(n) => n,
         None => return Vec::new(),
     };

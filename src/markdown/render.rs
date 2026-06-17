@@ -8,6 +8,7 @@ use ratatui::{
 use super::image::{ImageResolver, MarkdownRenderOutput};
 use super::{
     inline::parse_inline_formatting,
+    text::{display_width, string_width},
     types::{MarkdownBlock, TextToken},
     MarkdownRenderer,
 };
@@ -229,22 +230,10 @@ impl MarkdownRenderer {
                         return;
                     }
                 }
-                let parsed = parse_inline_formatting(text, theme);
                 let style = Style::default()
                     .fg(theme.get_primary_color())
                     .add_modifier(Modifier::BOLD | Modifier::UNDERLINED);
-                if parsed.is_empty() {
-                    lines.push(Line::from(Span::styled(text.replace('\t', "    "), style)));
-                } else {
-                    let styled: Vec<Span<'static>> = parsed
-                        .into_iter()
-                        .map(|mut s| {
-                            s.style = style.patch(s.style);
-                            s
-                        })
-                        .collect();
-                    lines.push(Line::from(styled));
-                }
+                lines.push(Self::render_heading(text, style, theme));
             }
             MarkdownBlock::Heading2(text) => {
                 if let Some(h) = hooks {
@@ -253,22 +242,10 @@ impl MarkdownRenderer {
                         return;
                     }
                 }
-                let parsed = parse_inline_formatting(text, theme);
                 let style = Style::default()
                     .fg(theme.get_text_color())
                     .add_modifier(Modifier::BOLD);
-                if parsed.is_empty() {
-                    lines.push(Line::from(Span::styled(text.replace('\t', "    "), style)));
-                } else {
-                    let styled: Vec<Span<'static>> = parsed
-                        .into_iter()
-                        .map(|mut s| {
-                            s.style = style.patch(s.style);
-                            s
-                        })
-                        .collect();
-                    lines.push(Line::from(styled));
-                }
+                lines.push(Self::render_heading(text, style, theme));
             }
             MarkdownBlock::Heading3(text) => {
                 if let Some(h) = hooks {
@@ -277,22 +254,10 @@ impl MarkdownRenderer {
                         return;
                     }
                 }
-                let parsed = parse_inline_formatting(text, theme);
                 let style = Style::default()
                     .fg(theme.get_secondary_color())
                     .add_modifier(Modifier::BOLD);
-                if parsed.is_empty() {
-                    lines.push(Line::from(Span::styled(text.replace('\t', "    "), style)));
-                } else {
-                    let styled: Vec<Span<'static>> = parsed
-                        .into_iter()
-                        .map(|mut s| {
-                            s.style = style.patch(s.style);
-                            s
-                        })
-                        .collect();
-                    lines.push(Line::from(styled));
-                }
+                lines.push(Self::render_heading(text, style, theme));
             }
             MarkdownBlock::Paragraph(paragraph_lines) => {
                 if let Some(h) = hooks {
@@ -313,7 +278,11 @@ impl MarkdownRenderer {
                 footer_override,
                 prefix_override,
             } => {
-                let code = code.replace('\t', "    ");
+                let code = if code.contains('\t') {
+                    code.replace('\t', "    ")
+                } else {
+                    code.clone()
+                };
                 if let Some(h) = hooks {
                     if let Some(custom) = h.render_code_block(lang, &code) {
                         lines.extend(custom);
@@ -350,7 +319,6 @@ impl MarkdownRenderer {
                             return;
                         }
                     }
-                    return;
                 }
 
                 let content_lines: Vec<&str> = code.lines().collect();
@@ -415,19 +383,6 @@ impl MarkdownRenderer {
                     lines.push(self.default_code_block_footer(theme));
                 }
             }
-            MarkdownBlock::InlineCode(code) => {
-                if let Some(h) = hooks {
-                    if let Some(custom) = h.inline_code(code) {
-                        lines.push(custom);
-                        return;
-                    }
-                }
-                let code = code.replace('\t', "    ");
-                lines.push(Line::from(Span::styled(
-                    format!("`{}`", code),
-                    Style::default().fg(theme.get_accent_yellow()),
-                )));
-            }
             MarkdownBlock::ListItem(text, indent) => {
                 let (is_last, ancestors_are_last, index_in_group) =
                     Self::find_list_context(block_idx, blocks);
@@ -445,7 +400,7 @@ impl MarkdownRenderer {
                                 lines.push(cline);
                             }
                         } else {
-                            let marker_width = Self::string_width(&marker_str);
+                            let marker_width = string_width(&marker_str);
                             let cont_indent = h
                                 .tree_continuation_prefix(*indent, &ancestors_are_last)
                                 .unwrap_or_else(|| " ".repeat(marker_width));
@@ -529,11 +484,9 @@ impl MarkdownRenderer {
                     line.spans
                         .insert(0, Span::styled(prefix_str.clone(), prefix_style));
                     for span in line.spans.iter_mut().skip(1) {
-                        let new_style = span
-                            .style
-                            .fg(theme.get_muted_text_color())
-                            .add_modifier(Modifier::ITALIC);
-                        span.style = new_style;
+                        if span.style.fg == Some(theme.get_text_color()) || span.style.fg.is_none() {
+                            span.style = span.style.fg(theme.get_muted_text_color());
+                        }
                     }
                     lines.push(line);
                 }
@@ -635,6 +588,26 @@ impl MarkdownRenderer {
         (is_last, ancestors_are_last, index_in_group)
     }
 
+    fn render_heading(
+        text: &str,
+        style: Style,
+        theme: &impl RichTextTheme,
+    ) -> Line<'static> {
+        let parsed = parse_inline_formatting(text, theme);
+        if parsed.is_empty() {
+            Line::from(Span::styled(text.replace('\t', "    "), style))
+        } else {
+            let styled: Vec<Span<'static>> = parsed
+                .into_iter()
+                .map(|mut s| {
+                    s.style = style.patch(s.style);
+                    s
+                })
+                .collect();
+            Line::from(styled)
+        }
+    }
+
     fn default_code_block_header(&self, lang: &str, theme: &impl RichTextTheme) -> Line<'static> {
         if !lang.is_empty() {
             Line::from(Span::styled(
@@ -680,7 +653,7 @@ impl MarkdownRenderer {
             MarkdownRenderer::tokenize(text)
                 .into_iter()
                 .filter_map(|t| match t {
-                    TextToken::Word(w) => Some(MarkdownRenderer::string_width(&w)),
+                    TextToken::Word(w) => Some(string_width(&w)),
                     _ => None,
                 })
                 .max()
@@ -688,7 +661,7 @@ impl MarkdownRenderer {
         }
 
         let header_widths: Vec<usize> = (0..col_count)
-            .map(|c| headers.get(c).map(|h| Self::string_width(h)).unwrap_or(0))
+            .map(|c| headers.get(c).map(|h| string_width(h)).unwrap_or(0))
             .collect();
 
         let min_widths: Vec<usize> = (0..col_count)
@@ -710,7 +683,7 @@ impl MarkdownRenderer {
                 let rw = rows
                     .iter()
                     .filter_map(|r| r.get(c))
-                    .map(|cell| Self::string_width(cell))
+                    .map(|cell| string_width(cell))
                     .max()
                     .unwrap_or(0);
                 hw.max(rw)
@@ -763,21 +736,26 @@ impl MarkdownRenderer {
         }
         if total_allocated < available {
             let mut surplus = available - total_allocated;
-            let total_natural: usize = natural_widths.iter().sum::<usize>().max(1);
-            while surplus > 0 {
-                let mut gave_this_round = false;
-                for idx in 0..col_count {
-                    if surplus == 0 {
-                        break;
+            let total_natural: usize = natural_widths.iter().sum::<usize>();
+            if total_natural > 0 {
+                while surplus > 0 {
+                    for idx in 0..col_count {
+                        if surplus == 0 || natural_widths[idx] == 0 {
+                            break;
+                        }
+                        let share = (surplus * natural_widths[idx]) / total_natural;
+                        if share == 0 {
+                            continue;
+                        }
+                        let take = share.min(surplus);
+                        col_widths[idx] += take;
+                        surplus -= take;
                     }
-                    let share = ((surplus * natural_widths[idx]) / total_natural).max(1);
-                    let take = share.min(surplus);
-                    col_widths[idx] += take;
-                    surplus -= take;
-                    gave_this_round = true;
-                }
-                if !gave_this_round {
-                    break;
+                    if surplus > 0 {
+                        let take = 1.min(surplus);
+                        col_widths[0] += take;
+                        surplus -= take;
+                    }
                 }
             }
         }
@@ -880,9 +858,10 @@ impl MarkdownRenderer {
             )));
         }
 
-        let last_sep_idx = lines.len() - 1;
-        let last_hline = Self::build_table_hline(&col_widths, CORNER_BL, BOTTOM_MID, CORNER_BR);
-        lines[last_sep_idx] = Line::from(Span::styled(last_hline, border_style));
+        if let Some(last_sep_idx) = lines.len().checked_sub(1) {
+            let last_hline = Self::build_table_hline(&col_widths, CORNER_BL, BOTTOM_MID, CORNER_BR);
+            lines[last_sep_idx] = Line::from(Span::styled(last_hline, border_style));
+        }
 
         lines
     }
@@ -935,7 +914,7 @@ impl MarkdownRenderer {
                         pending_space = true;
                     }
                     TextToken::Word(word) => {
-                        let word_w = Self::string_width(&word);
+                        let word_w = string_width(&word);
                         let space_w: usize = if pending_space && current_width > 0 {
                             1
                         } else {
@@ -963,12 +942,11 @@ impl MarkdownRenderer {
                             current_line.push(Span::styled(" ".to_string(), style));
                             current_width += final_space;
                         }
-                        if current_width == 0 && word_w > max_w && max_w > 0 {
-                            let mut chars: Vec<char> = word.chars().collect();
+                        if word_w > max_w && max_w > 0 {
                             let mut char_w = 0;
                             let mut chunk = String::new();
-                            for ch in chars.drain(..) {
-                                let cw = Self::string_width(&ch.to_string());
+                            for ch in word.chars() {
+                                let cw = display_width(ch);
                                 if char_w + cw > max_w && !chunk.is_empty() {
                                     current_line.push(Span::styled(chunk, style));
                                     lines.push(std::mem::take(&mut current_line));
@@ -1019,7 +997,7 @@ impl MarkdownRenderer {
             let cell_spans_ref = cell_spans.get(i).map(|v| v.as_slice()).unwrap_or(&[]);
             let total_cell_w: usize = cell_spans_ref
                 .iter()
-                .map(|s| Self::string_width(&s.content))
+                .map(|s| string_width(&s.content))
                 .sum();
             let inner_w = width.saturating_sub(2);
 

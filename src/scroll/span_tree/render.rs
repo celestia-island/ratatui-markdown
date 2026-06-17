@@ -8,9 +8,6 @@ use ratatui::{
 use super::{CursorLineMode, SpanTree};
 use crate::{scroll::render_arrow_scrollbar, theme::RichTextTheme};
 
-/// Pad `replacement` span with trailing spaces so its display width matches
-/// `original`. This prevents the cursor/blank replacement from collapsing
-/// indentation when `spans[cursor_column]` is wider than the cursor glyph.
 fn width_preserving_replacement(original: &Span<'_>, replacement: Span<'static>) -> Span<'static> {
     let original_w = original.width();
     let replacement_w = replacement.width();
@@ -25,13 +22,6 @@ fn width_preserving_replacement(original: &Span<'_>, replacement: Span<'static>)
     }
 }
 
-/// Apply cursor highlighting to a line's spans.
-///
-/// # Invariant
-///
-/// `spans[cursor_column]` MUST contain only whitespace characters (spaces).
-/// Tree-structure characters such as `│`, `├`, `└` belong in spans AFTER
-/// `cursor_column` so they are never overwritten by cursor/blank replacement.
 fn apply_cursor(
     spans: &mut Vec<Span<'static>>,
     tree: &SpanTree,
@@ -67,7 +57,7 @@ pub(super) fn render(
     tree: &mut SpanTree,
     f: &mut Frame,
     inner_area: Rect,
-    outer_area: Rect,
+    _outer_area: Rect,
     theme: &impl RichTextTheme,
 ) {
     let visible_height = inner_area.height as usize;
@@ -104,7 +94,8 @@ pub(super) fn render(
 
         if entry.lines.is_empty() {
             if global_line >= start && global_line < end {
-                let mut spans: Vec<Span<'static>> = Vec::new();
+                let col = tree.cursor_column;
+                let mut spans: Vec<Span<'static>> = vec![Span::raw(" ".repeat(col))];
                 if is_selected {
                     spans.push(tree.cursor_span.clone());
                     for span in &mut spans {
@@ -123,14 +114,32 @@ pub(super) fn render(
         }
     }
 
-    let paragraph = Paragraph::new(visible_lines);
-    f.render_widget(paragraph, inner_area);
-
     let total = tree.total_lines();
-    if total > visible_height {
+    let need_scrollbar = total > visible_height;
+    let content_area = if need_scrollbar && inner_area.width > 1 {
+        Rect::new(
+            inner_area.x,
+            inner_area.y,
+            inner_area.width.saturating_sub(1),
+            inner_area.height,
+        )
+    } else {
+        inner_area
+    };
+
+    let paragraph = Paragraph::new(visible_lines);
+    f.render_widget(paragraph, content_area);
+
+    if need_scrollbar {
+        let scrollbar_area = Rect::new(
+            inner_area.x + inner_area.width.saturating_sub(1),
+            inner_area.y,
+            1,
+            inner_area.height,
+        );
         render_arrow_scrollbar(
             f,
-            outer_area,
+            scrollbar_area,
             total,
             visible_height,
             tree.scroll_offset,
