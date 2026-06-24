@@ -223,8 +223,7 @@ pub fn parse_inline_formatting(text: &str, theme: &impl RichTextTheme) -> Vec<Sp
                             url_end += 1;
                         }
                         let link_text: String = chars[i + 1..end_bracket].iter().collect();
-                        let _url: String =
-                            chars[url_start..url_end].iter().collect();
+                        let _url: String = chars[url_start..url_end].iter().collect();
                         flush_current!();
                         let link_style = Style::default()
                             .fg(theme.get_primary_color())

@@ -449,11 +449,7 @@ fn style_source_spans(text: &str, theme: &impl RichTextTheme) -> Vec<Span<'stati
             continue;
         }
 
-        if (chars[i] == '-' || chars[i] == '*')
-            && i + 1 < len
-            && chars[i + 1] == ' '
-            && i == 0
-        {
+        if (chars[i] == '-' || chars[i] == '*') && i + 1 < len && chars[i + 1] == ' ' && i == 0 {
             flush_current!();
             let marker = chars[i].to_string();
             let space = " ".to_string();

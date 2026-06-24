@@ -192,14 +192,7 @@ mod tests {
     #[test]
     fn wrap_line_long_text() {
         let text = "a".repeat(200);
-        let lines = wrap_line(
-            &text,
-            &[],
-            "| ",
-            2,
-            Style::default(),
-            40,
-        );
+        let lines = wrap_line(&text, &[], "| ", 2, Style::default(), 40);
         assert!(lines.len() > 1);
     }
 }

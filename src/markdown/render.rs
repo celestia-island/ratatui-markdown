@@ -1,3 +1,5 @@
+use std::num::NonZeroUsize;
+
 use ratatui::{
     prelude::Stylize,
     style::{Color, Modifier, Style},
@@ -484,7 +486,8 @@ impl MarkdownRenderer {
                     line.spans
                         .insert(0, Span::styled(prefix_str.clone(), prefix_style));
                     for span in line.spans.iter_mut().skip(1) {
-                        if span.style.fg == Some(theme.get_text_color()) || span.style.fg.is_none() {
+                        if span.style.fg == Some(theme.get_text_color()) || span.style.fg.is_none()
+                        {
                             span.style = span.style.fg(theme.get_muted_text_color());
                         }
                     }
@@ -588,11 +591,7 @@ impl MarkdownRenderer {
         (is_last, ancestors_are_last, index_in_group)
     }
 
-    fn render_heading(
-        text: &str,
-        style: Style,
-        theme: &impl RichTextTheme,
-    ) -> Line<'static> {
+    fn render_heading(text: &str, style: Style, theme: &impl RichTextTheme) -> Line<'static> {
         let parsed = parse_inline_formatting(text, theme);
         if parsed.is_empty() {
             Line::from(Span::styled(text.replace('\t', "    "), style))
@@ -736,14 +735,14 @@ impl MarkdownRenderer {
         }
         if total_allocated < available {
             let mut surplus = available - total_allocated;
-            let total_natural: usize = natural_widths.iter().sum::<usize>();
-            if total_natural > 0 {
+            let total_natural = NonZeroUsize::new(natural_widths.iter().sum::<usize>());
+            if let Some(total_natural) = total_natural {
                 while surplus > 0 {
                     for idx in 0..col_count {
                         if surplus == 0 || natural_widths[idx] == 0 {
                             break;
                         }
-                        let share = (surplus * natural_widths[idx]) / total_natural;
+                        let share = (surplus * natural_widths[idx]) / total_natural.get();
                         if share == 0 {
                             continue;
                         }

@@ -9,21 +9,11 @@ pub enum CursorShape {
     HollowBlock,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct CursorStyle {
     pub shape: CursorShape,
     pub fg: Option<Color>,
     pub bg: Option<Color>,
-}
-
-impl Default for CursorStyle {
-    fn default() -> Self {
-        Self {
-            shape: CursorShape::default(),
-            fg: None,
-            bg: None,
-        }
-    }
 }
 
 impl CursorStyle {
