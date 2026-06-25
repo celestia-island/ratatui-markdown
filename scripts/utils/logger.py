@@ -116,23 +116,31 @@ def _script_module() -> str:
 def _wrap(text: str, width: int, indent: str) -> str:
     if width <= 1 or not text:
         return text
-    # textwrap handles word-boundary wrapping and continuation indent; embedded
-    # newlines become paragraph breaks (each paragraph wrapped independently).
-    out: list[str] = []
+    # Wrap each paragraph to `width` (the message-column width), then prepend
+    # `indent` to every line after the first. We deliberately do NOT pass
+    # subsequent_indent to textwrap: its `width` is the TOTAL line width
+    # INCLUDING the indent, so using it made continuation lines wrap
+    # `len(indent)` columns narrower than the first line (the first line got
+    # `width` chars of text, continuations got `width - len(indent)`).
+    raw_lines: list[str] = []
     for paragraph in text.splitlines() or [""]:
         if not paragraph:
-            out.append("")
+            raw_lines.append("")
             continue
-        out.extend(
+        raw_lines.extend(
             textwrap.wrap(
                 paragraph,
                 width=width,
-                subsequent_indent=indent,
                 break_long_words=True,
                 break_on_hyphens=False,
             )
             or [""]
         )
+    if not raw_lines:
+        return text
+    out = [raw_lines[0]]
+    for line in raw_lines[1:]:
+        out.append(indent + line if line else line)
     return "\n".join(out)
 
 
@@ -246,13 +254,15 @@ class Logger:
         self.log("ERROR", message, **kw)
 
     def tag(self, source: str, line: str) -> None:
-        """Prepend the SOURCE column to a line streamed from a subprocess.
+        """Prepend the columnar header to a line streamed from a subprocess.
 
         Rust ``tracing`` lines (``HH:MM:SS LEVEL TARGET: msg``) are reparsed
         and re-emitted with the same column widths as :meth:`log`, so the
-        TIME/LEVEL/MODULE columns align across Python and Rust output.
-        Non-tracing lines (cargo progress, plain stderr, etc.) pass through
-        verbatim with only the source column prepended."""
+        TIME/LEVEL/MODULE columns align across Python and Rust output. Plain
+        lines (cargo progress, mock-LLM stdout, bare stderr) are emitted as
+        full columnar lines too — current timestamp, INFO level, and the source
+        as the module — so every streamed line carries the same columns instead
+        of a bare source+text that breaks alignment."""
         text = _strip_ansi(line.rstrip("\n\r"))
         src = self._paint("dim", source.ljust(self.source_width))
 
@@ -262,29 +272,35 @@ class Logger:
             level = level.upper()
             if level == "TRACE":
                 level = "DEBUG"
-            color = _LEVELS.get(level, "dim")
-            lvl = level.rjust(5)
             # Strip trailing ':' from target (tracing appends it), then take
             # the leaf segment so long module paths (e.g.
             # "scepter::state_machine::skill_chain::execution::merge_coordinator")
             # don't push the message column far to the right.
             target = target.rstrip(":").split("::")[-1]
-            prefix = "  ".join([
-                src,
-                self._paint("dim", time_s),
-                self._paint(color, lvl),
-                self._paint("dim", target.ljust(self.module_width)),
-            ])
-            offset = self._msg_offset
-            term = _term_width()
-            content_w = term - offset
-            if content_w >= offset + 20:
-                body = _wrap(msg, content_w, " " * offset)
-            else:
-                body = msg
-            self._emit(prefix + "  " + body)
         else:
-            self._emit(f"{src}  {text}")
+            # Non-tracing line (cargo, deno/node console.log, plain stderr):
+            # synthesize the missing columns so it aligns with log() output.
+            time_s, level, target, msg = self._now(), "INFO", source, text
+
+        color = _LEVELS.get(level, "dim")
+        lvl = level.rjust(5)
+        prefix = "  ".join([
+            src,
+            self._paint("dim", time_s),
+            self._paint(color, lvl),
+            self._paint("dim", target.ljust(self.module_width)),
+        ])
+        offset = self._msg_offset
+        term = _term_width()
+        content_w = term - offset
+        # Wrap only when the message column has room for the continuation indent
+        # PLUS text (content_w >= indent_len + 20). Otherwise emit unwrapped —
+        # never let the indent exceed the wrap width (per-char garbage).
+        if content_w >= offset + 20:
+            body = _wrap(msg, content_w, " " * offset)
+        else:
+            body = msg
+        self._emit(prefix + "  " + body)
 
     def section(self, title: str) -> None:
         self._emit(self._paint("bold", f"==> {title}"))
