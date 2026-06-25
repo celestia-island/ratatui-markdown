@@ -25,6 +25,7 @@ import; every repo is self-contained.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import sys
 import textwrap
@@ -72,6 +73,23 @@ _ANSI = {
 }
 
 _TIME_FMT = "%H:%M:%S"
+
+# Strip ANSI escape codes (tracing_subscriber emits them even when piped).
+_ANSI_RE = re.compile(r'\033\[[0-9;]*m')
+
+
+def _strip_ansi(text: str) -> str:
+    return _ANSI_RE.sub('', text)
+
+
+# Match Rust tracing output: "HH:MM:SS  LEVEL  target: message"
+# (tracing's default Full format with ShortTimer, after ANSI stripping).
+# Used by tag() to re-align subprocess output with the Python columnar layout.
+_RUST_TRACE_RE = re.compile(
+    r'^(\d{2}:\d{2}:\d{2})\s+'
+    r'(DEBUG|INFO|WARN|ERROR|TRACE)\s+'
+    r'(.+?):\s(.*)$'
+)
 
 
 def _color_enabled(stream: IO) -> bool:
@@ -230,12 +248,43 @@ class Logger:
     def tag(self, source: str, line: str) -> None:
         """Prepend the SOURCE column to a line streamed from a subprocess.
 
-        The line is emitted verbatim (a Rust tracing line already carries its
-        own TIME/LEVEL/TARGET), so only the source column is added — keeping it
-        aligned with full log() lines."""
-        text = line.rstrip("\n\r")
+        Rust ``tracing`` lines (``HH:MM:SS LEVEL TARGET: msg``) are reparsed
+        and re-emitted with the same column widths as :meth:`log`, so the
+        TIME/LEVEL/MODULE columns align across Python and Rust output.
+        Non-tracing lines (cargo progress, plain stderr, etc.) pass through
+        verbatim with only the source column prepended."""
+        text = _strip_ansi(line.rstrip("\n\r"))
         src = self._paint("dim", source.ljust(self.source_width))
-        self._emit(f"{src}  {text}")
+
+        m = _RUST_TRACE_RE.match(text)
+        if m:
+            time_s, level, target, msg = m.groups()
+            level = level.upper()
+            if level == "TRACE":
+                level = "DEBUG"
+            color = _LEVELS.get(level, "dim")
+            lvl = level.rjust(5)
+            # Strip trailing ':' from target (tracing appends it), then take
+            # the leaf segment so long module paths (e.g.
+            # "scepter::state_machine::skill_chain::execution::merge_coordinator")
+            # don't push the message column far to the right.
+            target = target.rstrip(":").split("::")[-1]
+            prefix = "  ".join([
+                src,
+                self._paint("dim", time_s),
+                self._paint(color, lvl),
+                self._paint("dim", target.ljust(self.module_width)),
+            ])
+            offset = self._msg_offset
+            term = _term_width()
+            content_w = term - offset
+            if content_w >= offset + 20:
+                body = _wrap(msg, content_w, " " * offset)
+            else:
+                body = msg
+            self._emit(prefix + "  " + body)
+        else:
+            self._emit(f"{src}  {text}")
 
     def section(self, title: str) -> None:
         self._emit(self._paint("bold", f"==> {title}"))
