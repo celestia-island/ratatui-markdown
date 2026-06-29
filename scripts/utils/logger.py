@@ -352,7 +352,7 @@ class Logger:
         else:
             # Non-tracing line (cargo, deno/node console.log, plain stderr):
             # synthesize the missing columns so it aligns with log() output.
-            time_s, level, target, msg = self._now(), "INFO", source, text
+            time_s, level, target, msg = self._now(), "INFO", source, text.translate(_MSG_CTRL_TRANS)
 
         color = _LEVELS.get(level, "dim")
         lvl = level.rjust(5)
