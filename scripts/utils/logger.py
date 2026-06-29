@@ -297,9 +297,15 @@ class Logger:
             # the real target; the lazy regex captures it as `target` and pushes
             # the real "target: message" into `msg`. Peel those span layers off
             # the front of msg until target no longer contains a span's braces.
+            # Guard on '::' in the peeled head: a real Rust target is a path
+            # (crate::module), whereas a bare message clause like "error: …"
+            # or a JSON payload after a span would otherwise be mis-parsed.
             while '{' in target and ': ' in msg:
-                head, _, msg = msg.partition(': ')
+                head, _, rest = msg.partition(': ')
+                if '::' not in head:
+                    break
                 target = head.rstrip(":").split("::")[-1]
+                msg = rest
         else:
             # Non-tracing line (cargo, deno/node console.log, plain stderr):
             # synthesize the missing columns so it aligns with log() output.
