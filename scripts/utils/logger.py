@@ -214,9 +214,9 @@ class Logger:
         if module is not None:
             self.module = module
         if source_width is not None:
-            self.source_width = source_width
+            self.source_width = source_width if isinstance(source_width, int) else SOURCE_WIDTH
         if module_width is not None:
-            self.module_width = module_width
+            self.module_width = module_width if isinstance(module_width, int) else MODULE_WIDTH
         if stream is not None:
             self.stream = stream
             self._color = _color_enabled(self.stream)
