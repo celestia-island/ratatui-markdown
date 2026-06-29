@@ -129,7 +129,7 @@ def _script_module() -> str:
 def _sanitize_col(text: str) -> str:
     """Replace control characters that would break column alignment or split
     a logical log line across multiple physical lines."""
-    return text.replace("\n", " ").replace("\r", " ").replace("\t", " ")
+    return str(text).replace("\n", " ").replace("\r", " ").replace("\t", " ")
 
 
 def _wrap(text: str, width: int, indent: str) -> str:
@@ -299,7 +299,7 @@ class Logger:
         lines too — current timestamp, INFO level, and the source as the
         module — so every streamed line carries the same columns instead of
         a bare source+text that breaks alignment."""
-        text = _strip_ansi((line or "").rstrip("\n\r"))
+        text = _strip_ansi(str(line or "").rstrip("\n\r"))
         source = _sanitize_col(source or "")
         src = self._paint("dim", source.ljust(self.source_width))
 
