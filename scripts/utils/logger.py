@@ -323,6 +323,7 @@ class Logger:
                     break
                 target = head.rstrip(":").split("::")[-1]
                 msg = rest
+            target = _sanitize_col(target)
         else:
             # Non-tracing line (cargo, deno/node console.log, plain stderr):
             # synthesize the missing columns so it aligns with log() output.
