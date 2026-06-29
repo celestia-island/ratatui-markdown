@@ -130,6 +130,8 @@ def _script_module() -> str:
 # Applied to source/module/target columns so they never split a line or
 # shift terminal columns.
 _CTRL_TRANS = str.maketrans({**{i: " " for i in range(0x20)}, 0x7F: " "})
+# Same but preserves \n (0x0a) for multi-line message bodies.
+_MSG_CTRL_TRANS = str.maketrans({**{i: " " for i in range(0x20) if i != 0x0A}, 0x7F: " "})
 
 
 def _safe_str(obj: object) -> str:
@@ -286,7 +288,7 @@ class Logger:
                 self._paint("dim", mod_raw.ljust(self.module_width)),
             ]
         )
-        msg_text = _safe_str(message)
+        msg_text = _safe_str(message).translate(_MSG_CTRL_TRANS)
         self._emit_line(prefix, msg_text, overflow=overflow, err=(level == "ERROR"))
 
     def debug(self, message: str, **kw) -> None:
@@ -346,6 +348,7 @@ class Logger:
                 target = head.rstrip(":").split("::")[-1]
                 msg = rest
             target = _sanitize_col(target)
+            msg = _safe_str(msg).translate(_MSG_CTRL_TRANS)
         else:
             # Non-tracing line (cargo, deno/node console.log, plain stderr):
             # synthesize the missing columns so it aligns with log() output.
@@ -363,7 +366,7 @@ class Logger:
         self._emit_line(prefix, msg, overflow=overflow, err=(level == "ERROR"))
 
     def section(self, title: str) -> None:
-        self._emit(self._paint("bold", f"==> {_safe_str(title)}"))
+        self._emit(self._paint("bold", f"==> {_sanitize_col(title)}"))
 
     def blank(self) -> None:
         self._emit("")
