@@ -100,6 +100,10 @@ _RUST_TRACE_RE = re.compile(
     r'(.+?):\s(.*)$'
 )
 
+# Matches a tracing span-context head: 'name{fields}'. Used by the span-peel
+# loop to distinguish span layers from bare message clauses or JSON payloads.
+_SPAN_HEAD_RE = re.compile(r'^\w+\{.*\}$')
+
 
 def _color_enabled(stream: IO) -> bool:
     if os.environ.get("NO_COLOR"):
@@ -314,12 +318,12 @@ class Logger:
             # the real target; the lazy regex captures it as `target` and pushes
             # the real "target: message" into `msg`. Peel those span layers off
             # the front of msg until target no longer contains a span's braces.
-            # Guard on '::' in the peeled head: a real Rust target is a path
-            # (crate::module), whereas a bare message clause like "error: …"
-            # or a JSON payload after a span would otherwise be mis-parsed.
+            # Guard: peel only when the head is a target path ('::') or a span
+            # context ('name{...}'); a bare message clause like "error: …" or a
+            # JSON payload '{"key": …}' has neither and must not be mis-parsed.
             while '{' in target and ': ' in msg:
                 head, _, rest = msg.partition(': ')
-                if '::' not in head:
+                if '::' not in head and not _SPAN_HEAD_RE.match(head.rstrip(":")):
                     break
                 target = head.rstrip(":").split("::")[-1]
                 msg = rest
