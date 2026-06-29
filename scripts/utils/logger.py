@@ -126,10 +126,16 @@ def _script_module() -> str:
     return name or "script"
 
 
+# Translation table: all C0 control chars (0x00-0x1f) + DEL (0x7f) → space.
+# Applied to source/module/target columns so they never split a line or
+# shift terminal columns.
+_CTRL_TRANS = str.maketrans({**{i: " " for i in range(0x20)}, 0x7F: " "})
+
+
 def _sanitize_col(text: str) -> str:
     """Replace control characters that would break column alignment or split
     a logical log line across multiple physical lines."""
-    return str(text).replace("\n", " ").replace("\r", " ").replace("\t", " ")
+    return str(text).translate(_CTRL_TRANS)
 
 
 def _wrap(text: str, width: int, indent: str) -> str:
@@ -269,7 +275,11 @@ class Logger:
                 self._paint("dim", mod_raw.ljust(self.module_width)),
             ]
         )
-        self._emit_line(prefix, str(message), overflow=overflow, err=(level == "ERROR"))
+        try:
+            msg_text = str(message)
+        except Exception:
+            msg_text = repr(message)
+        self._emit_line(prefix, msg_text, overflow=overflow, err=(level == "ERROR"))
 
     def debug(self, message: str, **kw) -> None:
         self.log("DEBUG", message, **kw)
