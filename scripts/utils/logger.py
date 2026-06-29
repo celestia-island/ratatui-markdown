@@ -205,6 +205,26 @@ class Logger:
         # visible columns before the message: src + 2 + time(8) + 2 + level(5) + 2 + mod + 2
         return self.source_width + 2 + 8 + 2 + 5 + 2 + self.module_width + 2
 
+    def _emit_line(self, prefix: str, msg: str, *, mod_overflow: bool = False, err: bool = False) -> None:
+        """Render prefix + message, wrapping the message at the correct column.
+
+        When *mod_overflow* is True the module name exceeded its column width;
+        the prefix is emitted as its own line and the message starts on the
+        next line aligned at the theoretical message offset so subsequent
+        continuation lines stay aligned with other processes' output."""
+        offset = self._msg_offset
+        term = _term_width()
+        content_w = term - offset
+        if content_w >= offset + 20:
+            body = _wrap(msg, content_w, " " * offset)
+        else:
+            body = msg
+        if mod_overflow:
+            self._emit(prefix)
+            self._emit(" " * offset + body, err=err)
+        else:
+            self._emit(prefix + "  " + body, err=err)
+
     def log(
         self,
         level: str,
@@ -218,25 +238,17 @@ class Logger:
             level = "INFO"
         color = _LEVELS[level]
         lvl = level.rjust(5)
+        mod_raw = module if module is not None else self.module
+        mod_overflow = len(mod_raw) > self.module_width
         prefix = "  ".join(
             [
                 self._paint("dim", self._src(source)),
                 self._paint("dim", self._now()),
                 self._paint(color, lvl),
-                self._paint("dim", self._mod(module)),
+                self._paint("dim", mod_raw.ljust(self.module_width)),
             ]
         )
-        offset = self._msg_offset
-        term = _term_width()
-        content_w = term - offset
-        # Wrap only when the message column has room for the continuation indent
-        # PLUS text (content_w >= indent_len + 20). Otherwise emit unwrapped —
-        # never let the indent exceed the wrap width (per-char garbage).
-        if content_w >= offset + 20:
-            body = _wrap(str(message), content_w, " " * offset)
-        else:
-            body = str(message)
-        self._emit(prefix + "  " + body, err=(level == "ERROR"))
+        self._emit_line(prefix, str(message), mod_overflow=mod_overflow, err=(level == "ERROR"))
 
     def debug(self, message: str, **kw) -> None:
         self.log("DEBUG", message, **kw)
@@ -284,23 +296,14 @@ class Logger:
 
         color = _LEVELS.get(level, "dim")
         lvl = level.rjust(5)
+        mod_overflow = len(target) > self.module_width
         prefix = "  ".join([
             src,
             self._paint("dim", time_s),
             self._paint(color, lvl),
             self._paint("dim", target.ljust(self.module_width)),
         ])
-        offset = self._msg_offset
-        term = _term_width()
-        content_w = term - offset
-        # Wrap only when the message column has room for the continuation indent
-        # PLUS text (content_w >= indent_len + 20). Otherwise emit unwrapped —
-        # never let the indent exceed the wrap width (per-char garbage).
-        if content_w >= offset + 20:
-            body = _wrap(msg, content_w, " " * offset)
-        else:
-            body = msg
-        self._emit(prefix + "  " + body)
+        self._emit_line(prefix, msg, mod_overflow=mod_overflow)
 
     def section(self, title: str) -> None:
         self._emit(self._paint("bold", f"==> {title}"))
