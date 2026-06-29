@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Unified dev-script logger — columnar output aligned with Rust `tracing`.
 
-Canonical layout (source first, so streamed Rust tracing lines — which already
-carry TIME/LEVEL/TARGET — align by simply prepending the source tag):
+Canonical layout (source first; streamed Rust tracing lines are re-parsed
+and re-emitted with matching column widths so TIME/LEVEL/MODULE align):
 
     SOURCE     TIME      LEVEL  MODULE       MESSAGE
     backend    21:49:58  INFO   chest_cli    shittim-chest started on 0.0.0.0:3000
@@ -281,11 +281,14 @@ class Logger:
 
         Rust ``tracing`` lines (``HH:MM:SS LEVEL TARGET: msg``) are reparsed
         and re-emitted with the same column widths as :meth:`log`, so the
-        TIME/LEVEL/MODULE columns align across Python and Rust output. Plain
-        lines (cargo progress, mock-LLM stdout, bare stderr) are emitted as
-        full columnar lines too — current timestamp, INFO level, and the source
-        as the module — so every streamed line carries the same columns instead
-        of a bare source+text that breaks alignment."""
+        TIME/LEVEL/MODULE columns align across Python and Rust output. When
+        a tracing span context prefixes the target (e.g.
+        ``request{method=GET}: chest::api: msg``) the span layers are peeled
+        so the MODULE column shows the real leaf target. Plain lines (cargo
+        progress, mock-LLM stdout, bare stderr) are emitted as full columnar
+        lines too — current timestamp, INFO level, and the source as the
+        module — so every streamed line carries the same columns instead of
+        a bare source+text that breaks alignment."""
         text = _strip_ansi(line.rstrip("\n\r"))
         src = self._paint("dim", source.ljust(self.source_width))
 
