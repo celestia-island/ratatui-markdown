@@ -296,7 +296,7 @@ class Logger:
         module — so every streamed line carries the same columns instead of
         a bare source+text that breaks alignment."""
         text = _strip_ansi((line or "").rstrip("\n\r"))
-        source = _sanitize_col(source)
+        source = _sanitize_col(source or "")
         src = self._paint("dim", source.ljust(self.source_width))
 
         m = _RUST_TRACE_RE.match(text)
