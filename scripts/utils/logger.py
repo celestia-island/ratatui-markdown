@@ -78,9 +78,10 @@ _ANSI = {
 
 _TIME_FMT = "%H:%M:%S"
 
-# Serializes multi-line overflow emits so concurrent threads don't interleave
-# a prefix line with another thread's body line.
-_emit_lock = threading.Lock()
+# Serializes all writes so concurrent threads cannot interleave lines (or
+# split an overflow prefix/body pair). RLock so _emit_line can hold it across
+# two _emit calls that each re-acquire it.
+_emit_lock = threading.RLock()
 
 # Strip ANSI escape codes (tracing_subscriber emits them even when piped).
 _ANSI_RE = re.compile(r'\033\[[0-9;]*m')
@@ -339,11 +340,12 @@ class Logger:
 
     def _emit(self, text: str, *, err: bool = False) -> None:
         stream = self.stream if not err else (sys.stderr if self.stream is sys.stdout else self.stream)
-        try:
-            stream.write(text + "\n")
-            stream.flush()
-        except (BrokenPipeError, ValueError):
-            pass
+        with _emit_lock:
+            try:
+                stream.write(text + "\n")
+                stream.flush()
+            except (BrokenPipeError, ValueError):
+                pass
 
 
 _default = Logger()
