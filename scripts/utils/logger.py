@@ -249,7 +249,7 @@ class Logger:
         source: Optional[str] = None,
         module: Optional[str] = None,
     ) -> None:
-        level = level.upper()
+        level = str(level if level is not None else "INFO").upper()
         if level not in _LEVELS:
             level = "INFO"
         color = _LEVELS[level]
