@@ -122,6 +122,12 @@ def _script_module() -> str:
     return name or "script"
 
 
+def _sanitize_col(text: str) -> str:
+    """Replace control characters that would break column alignment or split
+    a logical log line across multiple physical lines."""
+    return text.replace("\n", " ").replace("\r", " ").replace("\t", " ")
+
+
 def _wrap(text: str, width: int, indent: str) -> str:
     if width <= 1 or not text:
         return text
@@ -248,8 +254,8 @@ class Logger:
             level = "INFO"
         color = _LEVELS[level]
         lvl = level.rjust(5)
-        src_raw = source if source is not None else self.source
-        mod_raw = module if module is not None else self.module
+        src_raw = _sanitize_col(source if source is not None else self.source)
+        mod_raw = _sanitize_col(module if module is not None else self.module)
         overflow = len(src_raw) > self.source_width or len(mod_raw) > self.module_width
         prefix = "  ".join(
             [
@@ -289,7 +295,8 @@ class Logger:
         lines too — current timestamp, INFO level, and the source as the
         module — so every streamed line carries the same columns instead of
         a bare source+text that breaks alignment."""
-        text = _strip_ansi(line.rstrip("\n\r"))
+        text = _strip_ansi((line or "").rstrip("\n\r"))
+        source = _sanitize_col(source)
         src = self._paint("dim", source.ljust(self.source_width))
 
         m = _RUST_TRACE_RE.match(text)
