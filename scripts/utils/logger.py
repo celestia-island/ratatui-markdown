@@ -15,8 +15,9 @@ Levels (ANSI, severity-coloured; triple-gated on tty + NO_COLOR + TERM=dumb):
 Two emit modes:
   - log()/debug()/info()/ok()/warn()/error() : full 5-column line (own message)
   - tag(source, line)                        : prepend SOURCE column to a line
-                                               streamed from a subprocess (the
-                                               line is passed through verbatim)
+                                               streamed from a subprocess (ANSI
+                                               escapes stripped, then re-aligned
+                                               to the columnar layout)
 
 Vendored copy — each repo hosts a byte-identical file. Keep copies in sync with
 the project's sync_devkit tool. This is NOT a shared just-common-style path
@@ -194,24 +195,19 @@ class Logger:
     def _now(self) -> str:
         return datetime.now().strftime(_TIME_FMT)
 
-    def _src(self, override: Optional[str]) -> str:
-        return (override if override is not None else self.source).ljust(self.source_width)
-
-    def _mod(self, override: Optional[str]) -> str:
-        return (override if override is not None else self.module).ljust(self.module_width)
-
     @property
     def _msg_offset(self) -> int:
         # visible columns before the message: src + 2 + time(8) + 2 + level(5) + 2 + mod + 2
         return self.source_width + 2 + 8 + 2 + 5 + 2 + self.module_width + 2
 
-    def _emit_line(self, prefix: str, msg: str, *, mod_overflow: bool = False, err: bool = False) -> None:
+    def _emit_line(self, prefix: str, msg: str, *, overflow: bool = False, err: bool = False) -> None:
         """Render prefix + message, wrapping the message at the correct column.
 
-        When *mod_overflow* is True the module name exceeded its column width;
-        the prefix is emitted as its own line and the message starts on the
-        next line aligned at the theoretical message offset so subsequent
-        continuation lines stay aligned with other processes' output."""
+        When *overflow* is True some column (source or module) exceeded its
+        allotted width; the prefix is emitted as its own line and the message
+        starts on the next line aligned at the theoretical message offset so
+        continuation lines stay aligned with other processes' output. A blank
+        message emits no second line (avoids a whitespace-only row)."""
         offset = self._msg_offset
         term = _term_width()
         content_w = term - offset
@@ -219,9 +215,10 @@ class Logger:
             body = _wrap(msg, content_w, " " * offset)
         else:
             body = msg
-        if mod_overflow:
-            self._emit(prefix)
-            self._emit(" " * offset + body, err=err)
+        if overflow:
+            self._emit(prefix, err=err)
+            if body:
+                self._emit(" " * offset + body, err=err)
         else:
             self._emit(prefix + "  " + body, err=err)
 
@@ -238,17 +235,18 @@ class Logger:
             level = "INFO"
         color = _LEVELS[level]
         lvl = level.rjust(5)
+        src_raw = source if source is not None else self.source
         mod_raw = module if module is not None else self.module
-        mod_overflow = len(mod_raw) > self.module_width
+        overflow = len(src_raw) > self.source_width or len(mod_raw) > self.module_width
         prefix = "  ".join(
             [
-                self._paint("dim", self._src(source)),
+                self._paint("dim", src_raw.ljust(self.source_width)),
                 self._paint("dim", self._now()),
                 self._paint(color, lvl),
                 self._paint("dim", mod_raw.ljust(self.module_width)),
             ]
         )
-        self._emit_line(prefix, str(message), mod_overflow=mod_overflow, err=(level == "ERROR"))
+        self._emit_line(prefix, str(message), overflow=overflow, err=(level == "ERROR"))
 
     def debug(self, message: str, **kw) -> None:
         self.log("DEBUG", message, **kw)
@@ -296,14 +294,14 @@ class Logger:
 
         color = _LEVELS.get(level, "dim")
         lvl = level.rjust(5)
-        mod_overflow = len(target) > self.module_width
+        overflow = len(source) > self.source_width or len(target) > self.module_width
         prefix = "  ".join([
             src,
             self._paint("dim", time_s),
             self._paint(color, lvl),
             self._paint("dim", target.ljust(self.module_width)),
         ])
-        self._emit_line(prefix, msg, mod_overflow=mod_overflow)
+        self._emit_line(prefix, msg, overflow=overflow)
 
     def section(self, title: str) -> None:
         self._emit(self._paint("bold", f"==> {title}"))
