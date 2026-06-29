@@ -30,6 +30,7 @@ import re
 import shutil
 import sys
 import textwrap
+import threading
 from datetime import datetime
 from typing import IO, Optional
 
@@ -74,6 +75,10 @@ _ANSI = {
 }
 
 _TIME_FMT = "%H:%M:%S"
+
+# Serializes multi-line overflow emits so concurrent threads don't interleave
+# a prefix line with another thread's body line.
+_emit_lock = threading.Lock()
 
 # Strip ANSI escape codes (tracing_subscriber emits them even when piped).
 _ANSI_RE = re.compile(r'\033\[[0-9;]*m')
@@ -216,9 +221,10 @@ class Logger:
         else:
             body = msg
         if overflow:
-            self._emit(prefix, err=err)
-            if body:
-                self._emit(" " * offset + body, err=err)
+            with _emit_lock:
+                self._emit(prefix, err=err)
+                if body:
+                    self._emit(" " * offset + body, err=err)
         else:
             self._emit(prefix + ("  " + body if body else ""), err=err)
 
@@ -287,6 +293,13 @@ class Logger:
             # "scepter::state_machine::skill_chain::execution::merge_coordinator")
             # don't push the message column far to the right.
             target = target.rstrip(":").split("::")[-1]
+            # tracing prints span context (e.g. "request{method=GET …}") BEFORE
+            # the real target; the lazy regex captures it as `target` and pushes
+            # the real "target: message" into `msg`. Peel those span layers off
+            # the front of msg until target no longer contains a span's braces.
+            while '{' in target and ': ' in msg:
+                head, _, msg = msg.partition(': ')
+                target = head.rstrip(":").split("::")[-1]
         else:
             # Non-tracing line (cargo, deno/node console.log, plain stderr):
             # synthesize the missing columns so it aligns with log() output.
