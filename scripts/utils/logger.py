@@ -220,7 +220,7 @@ class Logger:
             if body:
                 self._emit(" " * offset + body, err=err)
         else:
-            self._emit(prefix + "  " + body, err=err)
+            self._emit(prefix + ("  " + body if body else ""), err=err)
 
     def log(
         self,
@@ -301,7 +301,7 @@ class Logger:
             self._paint(color, lvl),
             self._paint("dim", target.ljust(self.module_width)),
         ])
-        self._emit_line(prefix, msg, overflow=overflow)
+        self._emit_line(prefix, msg, overflow=overflow, err=(level == "ERROR"))
 
     def section(self, title: str) -> None:
         self._emit(self._paint("bold", f"==> {title}"))
