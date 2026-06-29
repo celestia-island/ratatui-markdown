@@ -193,10 +193,10 @@ class Logger:
         module_width: int = MODULE_WIDTH,
         stream: Optional[IO] = None,
     ) -> None:
-        self.source = source
-        self.module = module or _script_module()
-        self.source_width = source_width
-        self.module_width = module_width
+        self.source = source if source is not None else "dev"
+        self.module = module if module is not None else _script_module()
+        self.source_width = source_width if isinstance(source_width, int) else SOURCE_WIDTH
+        self.module_width = module_width if isinstance(module_width, int) else MODULE_WIDTH
         self.stream: IO = stream if stream is not None else sys.stdout
         self._color = _color_enabled(self.stream)
 
@@ -317,8 +317,8 @@ class Logger:
         lines too — current timestamp, INFO level, and the source as the
         module — so every streamed line carries the same columns instead of
         a bare source+text that breaks alignment."""
-        text = _strip_ansi(_safe_str(line or "").rstrip("\n\r"))
-        source = _sanitize_col(source or "")
+        text = _strip_ansi(_safe_str(line if line is not None else "").rstrip("\n\r"))
+        source = _sanitize_col(source if source is not None else "")
         src = self._paint("dim", source.ljust(self.source_width))
 
         m = _RUST_TRACE_RE.match(text)
