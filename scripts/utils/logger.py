@@ -132,10 +132,21 @@ def _script_module() -> str:
 _CTRL_TRANS = str.maketrans({**{i: " " for i in range(0x20)}, 0x7F: " "})
 
 
+def _safe_str(obj: object) -> str:
+    """str() with a repr() fallback; never raises."""
+    try:
+        return str(obj)
+    except Exception:
+        try:
+            return repr(obj)
+        except Exception:
+            return "<unreprable>"
+
+
 def _sanitize_col(text: str) -> str:
     """Replace control characters that would break column alignment or split
     a logical log line across multiple physical lines."""
-    return str(text).translate(_CTRL_TRANS)
+    return _safe_str(text).translate(_CTRL_TRANS)
 
 
 def _wrap(text: str, width: int, indent: str) -> str:
@@ -259,7 +270,7 @@ class Logger:
         source: Optional[str] = None,
         module: Optional[str] = None,
     ) -> None:
-        level = str(level if level is not None else "INFO").upper()
+        level = _safe_str(level if level is not None else "INFO").upper()
         if level not in _LEVELS:
             level = "INFO"
         color = _LEVELS[level]
@@ -275,10 +286,7 @@ class Logger:
                 self._paint("dim", mod_raw.ljust(self.module_width)),
             ]
         )
-        try:
-            msg_text = str(message)
-        except Exception:
-            msg_text = repr(message)
+        msg_text = _safe_str(message)
         self._emit_line(prefix, msg_text, overflow=overflow, err=(level == "ERROR"))
 
     def debug(self, message: str, **kw) -> None:
@@ -309,7 +317,7 @@ class Logger:
         lines too — current timestamp, INFO level, and the source as the
         module — so every streamed line carries the same columns instead of
         a bare source+text that breaks alignment."""
-        text = _strip_ansi(str(line or "").rstrip("\n\r"))
+        text = _strip_ansi(_safe_str(line or "").rstrip("\n\r"))
         source = _sanitize_col(source or "")
         src = self._paint("dim", source.ljust(self.source_width))
 
@@ -355,7 +363,7 @@ class Logger:
         self._emit_line(prefix, msg, overflow=overflow, err=(level == "ERROR"))
 
     def section(self, title: str) -> None:
-        self._emit(self._paint("bold", f"==> {title}"))
+        self._emit(self._paint("bold", f"==> {_safe_str(title)}"))
 
     def blank(self) -> None:
         self._emit("")
@@ -369,7 +377,7 @@ class Logger:
             try:
                 stream.write(text + "\n")
                 stream.flush()
-            except (BrokenPipeError, ValueError):
+            except (BrokenPipeError, OSError, ValueError):
                 pass
 
 
