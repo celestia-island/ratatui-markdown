@@ -36,6 +36,8 @@ from typing import IO, Optional
 
 __all__ = [
     "Logger",
+    "SOURCE_WIDTH",
+    "MODULE_WIDTH",
     "configure",
     "log",
     "debug",
@@ -216,7 +218,11 @@ class Logger:
         offset = self._msg_offset
         term = _term_width()
         content_w = term - offset
-        if content_w >= offset + 20:
+        # Wrap only when the message column is wide enough to be useful (>= 20
+        # chars of text per line). continuation indent + content always sums to
+        # `term`, so the indent can never exceed the wrap width — the gate is
+        # purely about avoiding per-char fragments on very narrow terminals.
+        if content_w >= 20:
             body = _wrap(msg, content_w, " " * offset)
         else:
             body = msg
