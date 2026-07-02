@@ -98,6 +98,8 @@ ci:
     @cargo fmt --all -- --check
     @echo "  →  Running Clippy..."
     @cargo clippy --all-targets --all-features -- -D warnings
+    @echo "  →  Checking --no-default-features..."
+    @cargo check --no-default-features
     @echo "  →  Running tests..."
     @cargo test --all-features
     @echo "  ✓  All CI checks passed"

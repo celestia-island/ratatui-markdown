@@ -2,11 +2,11 @@ name: CI
 
 on:
   pull_request:
+    branches: [master, dev]
     paths:
       - '.github/workflows/ci.yml'
       - 'src/**/*'
       - 'Cargo.toml'
-      - 'Cargo.lock'
       - 'deny.toml'
   push:
     branches: [master, dev]
@@ -42,13 +42,33 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --all-targets --all-features -- -D warnings
 
+  check:
+    name: check (${{ matrix.features }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        features:
+          - all-features
+          - no-default-features
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check --${{ matrix.features }}
+
   test:
-    name: test (${{ matrix.toolchain }})
+    name: test (${{ matrix.toolchain }}, ${{ matrix.features }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         toolchain: [stable, nightly]
+        features:
+          - all-features
+          - no-default-features
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
@@ -57,7 +77,51 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
-      - run: cargo test --all-features
+      - run: cargo test --${{ matrix.features }}
+
+  msrv:
+    name: msrv (1.74)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.74
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check --all-features
+
+  docs:
+    name: docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo doc --all-features --no-deps
+        env:
+          RUSTDOCFLAGS: -D warnings
+
+  examples:
+    name: examples
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check --example basic
+      - run: cargo check --example selector
+      - run: cargo check --example text_input
+      - run: cargo check --example custom_code_block
+      - run: cargo check --example span_tree_cursor
+      - run: cargo check --example tree_list
+      - run: cargo check --example code --features highlight-lang-rust,highlight-pest
+      - run: cargo check --example image --features image
+      - run: cargo check --example mermaid --features mermaid
+      - run: cargo check --example mermaid_image --features mermaid,image
 
   audit:
     name: cargo audit
@@ -69,6 +133,7 @@ jobs:
       - uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-audit
+      - run: cargo generate-lockfile
       - run: cargo audit
 
   deny:
@@ -80,4 +145,5 @@ jobs:
       - uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-deny
+      - run: cargo generate-lockfile
       - run: cargo deny check
