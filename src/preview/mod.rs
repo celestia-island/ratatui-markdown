@@ -313,10 +313,9 @@ impl MarkdownPreview {
                 if in_frontmatter {
                     in_frontmatter = false;
                     continue;
-                } else {
-                    in_frontmatter = true;
-                    continue;
                 }
+                in_frontmatter = true;
+                continue;
             }
 
             if !in_frontmatter {

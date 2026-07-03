@@ -49,7 +49,7 @@ pub trait ImageResolver {
 
     /// Determine the terminal **cell** dimensions for rendering a resolved image.
     ///
-    /// Called by [`MarkdownRenderer::render_full`] after `resolve()` succeeds.
+    /// Called by `MarkdownRenderer::render_full` after `resolve()` succeeds.
     /// The returned `(width_cells, height_cells)` controls:
     /// - How many blank lines are reserved in the text output so content doesn't overlap
     /// - The `width_cells` / `height_cells` stored in [`ImagePlacement`] for your draw loop

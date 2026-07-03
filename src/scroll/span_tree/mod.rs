@@ -38,7 +38,7 @@ impl SpanTreeEntry {
 ///
 /// The span at index `cursor_column` (default 0) in every line of every entry
 /// is **owned by the cursor mechanism**. It MUST contain only whitespace
-/// (spaces) so that [`apply_cursor`](crate::scroll::span_tree::render) can
+/// (spaces) so that `apply_cursor` can
 /// safely replace it with `cursor_span` or `blank_cursor_span` without
 /// destroying tree-structure characters like `│`, `├`, `└`.
 ///

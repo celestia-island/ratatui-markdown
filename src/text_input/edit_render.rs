@@ -163,11 +163,10 @@ fn style_source_spans(text: &str, theme: &impl RichTextTheme) -> Vec<Span<'stati
                     i += rest.chars().count();
                 }
                 continue;
-            } else {
-                let hashes: String = chars[start..i].iter().collect();
-                current.push_str(&hashes);
-                continue;
             }
+            let hashes: String = chars[start..i].iter().collect();
+            current.push_str(&hashes);
+            continue;
         }
 
         if chars[i] == '*' && i + 2 < len && chars[i + 1] == '*' && chars[i + 2] == '*' {
