@@ -8,6 +8,8 @@
 # Python command
 py := "python3"
 
+import "./celestia-devtools.just"
+
 default:
     @just --list
 
