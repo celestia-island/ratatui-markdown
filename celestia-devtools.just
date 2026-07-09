@@ -5,17 +5,31 @@
 # to parse the justfile, only to run the recipes.
 #
 # Refresh with:  celestia-devtools init --force
-# Version: 0.1.0
+# Version: 0.2.0
 #
 # All recipes and variables are overridable — redefine anything after the
 # `import` line in your justfile to customize it.
 #
 # This file is intentionally free of `set` directives (shell, windows-shell,
 # unstable) so it composes cleanly with each repo's own header.
+#
+# Windows note: each repo's justfile MUST declare, near its own header,
+#     set windows-shell := ["bash.exe", "-c"]
+# Without it just resolves recipe shebangs via `cygpath`, which Git for Windows
+# does not place on PATH, so every shebang recipe dies with
+# "could not find cygpath executable to translate recipe ... shebang". The
+# `windows-shell-check` recipe below fails fast with a clear message if it is
+# missing, instead of that cryptic per-recipe error.
 
 # ── Tool resolution ───────────────────────────────────────────────────────────
 
-python_cmd := if which("python3") != "" { "python3" } else { "python" }
+# On Windows prefer `python` — `python3` is often the broken WindowsApps Store
+# stub that exits 49. On Unix, `python3` is the norm.
+python_cmd := if os_family() == "windows" {
+    if which("python") != "" { "python" } else { "python3" }
+} else {
+    if which("python3") != "" { "python3" } else { "python" }
+}
 
 # Resolve the celestia-devtools CLI: installed entry point, or module fallback.
 _devtools := if which("celestia-devtools") != "" { "celestia-devtools" } else { python_cmd + " -m celestia_devtools" }
@@ -28,6 +42,27 @@ ensure:
     @command -v celestia-devtools >/dev/null 2>&1 || \
         {{python_cmd}} -c "import celestia_devtools" 2>/dev/null || \
         pip3 install "${CELESTIA_DEVTOOLS_INSTALL:-git+https://github.com/celestia-island/celestia-devtools.git}"
+
+# Fail fast on Windows if the importing justfile forgot `set windows-shell`.
+# On Windows, `just` resolves recipe shebangs through `cygpath` when no
+# windows-shell is set, and Git for Windows does not put `cygpath` on PATH — so
+# every shebang recipe then dies with a cryptic "could not find cygpath
+# executable" error. This recipe surfaces the real cause up front. No-op on
+# non-Windows hosts.
+windows-shell-check:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "{{os_family()}}" != "windows" ]; then
+      echo "windows-shell-check: non-Windows host, nothing to check."
+      exit 0
+    fi
+    if ! command -v bash.exe >/dev/null 2>&1; then
+      echo "windows-shell-check: bash.exe not on PATH." >&2
+      echo "  Install Git for Windows, or add its usr/bin to PATH." >&2
+      exit 1
+    fi
+    echo "windows-shell-check: bash.exe found. Ensure the importing justfile sets:"
+    echo "  set windows-shell := [\"bash.exe\", \"-c\"]"
 
 # ── Build helper ──────────────────────────────────────────────────────────────
 
@@ -95,3 +130,102 @@ cross-check target='aarch64-unknown-linux-gnu' features='full':
 # Locate a celestia-island crate checkout (env → cargo [patch] → sibling → clone).
 locate crate:
     {{ _devtools }} locate --crate {{crate}}
+
+# ── WSL2 dev environment ──────────────────────────────────────────────────────
+#
+# The celestia ecosystem shares ONE persistent WSL2 distro (default
+# "celestia-dev") provisioned with rust + just + docker, so the global cargo
+# registry cache is reused across aris / kei / entelecheia / shittim-chest
+# instead of re-fetching every dependency per repo. Same model as Docker
+# Desktop's managed WSL2 backend.
+#
+#   just wsl-ensure              create/verify (idempotent — safe to re-run)
+#   just wsl-ensure --reset      destroy + recreate (clears ALL caches)
+#   just wsl-ensure --no-docker  skip docker (use Docker Desktop integration)
+#   just wsl-ensure --force      re-provision even if distro already exists
+wsl-ensure *ARGS='':
+    {{ _devtools }} wsl-ensure {{ARGS}}
+
+# Run a command inside the celestia-dev distro (cwd = this repo's root).
+# Example: just wsl-run cargo build --release
+wsl-run *CMD='echo "usage: just wsl-run <command>"':
+    wsl -d celestia-dev --cd "{{ justfile_directory() }}" -- bash -lc "{{ CMD }}"
+
+# Drop into an interactive shell in the distro at the repo root.
+wsl-shell:
+    wsl -d celestia-dev --cd "{{ justfile_directory() }}"
+
+# ── Environment preflight ────────────────────────────────────────────────────
+#
+# Verify required dev tools are present BEFORE a facility (pglite, build,
+# cross-compile, …) actually needs them, so the user gets one actionable
+# hint ("missing node → run just wsl-ensure") instead of a stack trace.
+#
+#   just preflight                 check ALL known tools
+#   just preflight node npm        check only node + npm
+#   just preflight -- --quiet      exit code only (for scripts)
+preflight *REQS='':
+    {{ _devtools }} preflight {{REQS}}
+
+# ── Shared temporary PGlite ──────────────────────────────────────────────────
+#
+# Spawn a real embedded Postgres (PGlite WASM + pgvector) over the PG wire
+# protocol, shared between entelecheia and shittim-chest for tests / mock
+# backends. Zero Docker / system-postgres; data is in-memory unless --persist.
+#
+#   just pglite start              spawn, print DATABASE_URL (auto free port)
+#   just pglite start --port 5433  pin a port
+#   just pglite start --persist ./pgdata   keep data across restarts
+#   just pglite stop               stop the recorded instance
+#   just pglite status             is one running? prints JSON
+pglite *ARGS='':
+    {{ _devtools }} pglite {{ARGS}}
+
+# ── npx precompiled distribution ─────────────────────────────────────────────
+#
+# Turn a cross-compiled Rust binary into a publishable npm package so users run
+# it via `npx @celestia-island/<pkg>` with no Rust toolchain required. The
+# generator writes a two-layer layout under ./dist: a root launcher
+# (@scope/pkg) with optionalDependencies on per-platform subpackages, plus one
+# subpackage per target carrying only that binary.
+#
+# Local dry-run (verify the staged packages without publishing):
+#
+#   just npm-dist shirabe                                        # reassemble root from existing dist/
+#   just npm-dist shirabe 0.1.0 path/to/shirabe x86_64-unknown-linux-gnu
+#
+# Per-platform subpackages are staged from CI (one matrix job per target),
+# then a final job reassembles the root. Actual `npm publish` runs in CI; this
+# recipe only stages + `npm pack --dry-run` so you can inspect the tarball.
+npm-dist name version='' binary='' target='':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Assemble the npm-dist CLI args. just params are not bash vars, so we test
+    # the substituted strings directly rather than relying on ${var:+}.
+    base=(--name "{{name}}" --out-dir dist)
+    [ -n "{{version}}" ] && base+=(--version "{{version}}")
+    if [ -n "{{binary}}" ]; then
+      if [ -z "{{target}}" ]; then
+        echo "npm-dist: --target required when --binary given" >&2
+        exit 1
+      fi
+      base+=(--binary "{{binary}}" --rust-target "{{target}}")
+    fi
+    {{ _devtools }} npm-dist "${base[@]}"
+    cd dist && npm pack --dry-run
+
+# Publish the staged packages to npm (requires NPM_TOKEN in the environment).
+# Intended for CI; prompts interactively for the OTP if 2FA is on.
+# Override the tag with NPM_DIST_TAG (default: latest).
+npm-release *PKGS='':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd dist
+    tag="${NPM_DIST_TAG:-latest}"
+    if [ $# -eq 0 ]; then
+      npm publish --access public --tag "$tag"
+    else
+      for pkg in "$@"; do
+        npm publish "$pkg" --access public --tag "$tag"
+      done
+    fi
