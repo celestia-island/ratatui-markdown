@@ -13,13 +13,12 @@
 # This file is intentionally free of `set` directives (shell, windows-shell,
 # unstable) so it composes cleanly with each repo's own header.
 #
-# Windows note: each repo's justfile MUST declare, near its own header,
-#     set windows-shell := ["bash.exe", "-c"]
-# Without it just resolves recipe shebangs via `cygpath`, which Git for Windows
-# does not place on PATH, so every shebang recipe dies with
-# "could not find cygpath executable to translate recipe ... shebang". The
-# `windows-shell-check` recipe below fails fast with a clear message if it is
-# missing, instead of that cryptic per-recipe error.
+# Windows note: `set windows-shell` only governs linewise recipes. Shebang
+# recipes bypass it and force `just` to call `cygpath` (which Git for Windows
+# keeps off PATH), so they die with "could not find cygpath executable". To
+# avoid that, the multi-line recipes below use the `[script('bash')]` attribute
+# (stable since just 1.32.0), which resolves the interpreter via PATH and never
+# calls cygpath. The `windows-shell-check` recipe below verifies bash is on PATH.
 
 # ── Tool resolution ───────────────────────────────────────────────────────────
 
@@ -49,8 +48,8 @@ ensure:
 # every shebang recipe then dies with a cryptic "could not find cygpath
 # executable" error. This recipe surfaces the real cause up front. No-op on
 # non-Windows hosts.
+[script('bash')]
 windows-shell-check:
-    #!/usr/bin/env bash
     set -euo pipefail
     if [ "{{os_family()}}" != "windows" ]; then
       echo "windows-shell-check: non-Windows host, nothing to check."
@@ -74,8 +73,8 @@ windows-shell-check:
 # Flags (consumed from *FLAGS):
 #   --dev    use the dev command instead of release
 #   --clean  cargo clean before building
+[script('bash')]
 _build always_pre dcmd rcmd *FLAGS='':
-    #!/usr/bin/env bash
     set -euo pipefail
     profile=release
     for a in {{FLAGS}}; do
@@ -197,8 +196,8 @@ pglite *ARGS='':
 # Per-platform subpackages are staged from CI (one matrix job per target),
 # then a final job reassembles the root. Actual `npm publish` runs in CI; this
 # recipe only stages + `npm pack --dry-run` so you can inspect the tarball.
+[script('bash')]
 npm-dist name version='' binary='' target='':
-    #!/usr/bin/env bash
     set -euo pipefail
     # Assemble the npm-dist CLI args. just params are not bash vars, so we test
     # the substituted strings directly rather than relying on ${var:+}.
@@ -217,8 +216,8 @@ npm-dist name version='' binary='' target='':
 # Publish the staged packages to npm (requires NPM_TOKEN in the environment).
 # Intended for CI; prompts interactively for the OTP if 2FA is on.
 # Override the tag with NPM_DIST_TAG (default: latest).
+[script('bash')]
 npm-release *PKGS='':
-    #!/usr/bin/env bash
     set -euo pipefail
     cd dist
     tag="${NPM_DIST_TAG:-latest}"
