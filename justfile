@@ -12,6 +12,7 @@ set lists
 
 # Shared celestia-devtools recipes — NOT in git. Stage with: just fetch.
 # `import?` silently skips when absent, so this justfile parses pre-fetch.
+import? "./.just/git-bash-interop.just"
 import? "./.just/celestia-devtools.just"
 
 # Stage shared celestia-devtools recipes into .just/ (gitignored).
