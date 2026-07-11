@@ -13,7 +13,7 @@ set shell := ["bash", "-c"]
 # below uses the `[script('bash')]` attribute instead of a `#!` shebang:
 # `[script]` resolves the interpreter via PATH (PATHEXT-aware) and never calls
 # cygpath. See casey/just#2828 and the just manual (Script Recipes).
-set windows-shell := ["bash.exe", "-c"]
+set windows-shell := ["pwsh.exe", "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $PSDefaultParameterValues['*:Encoding'] = 'utf8';"]
 # `set lists` enables which() (used by the imported celestia-devtools.just);
 # `set unstable` gates it.
 set unstable
