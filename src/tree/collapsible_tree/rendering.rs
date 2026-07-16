@@ -148,7 +148,10 @@ fn truncate_value(value: &str, total_width: usize, depth: usize) -> String {
     let value = value.replace('\t', "    ");
     let indent_len = depth * 3 + 4;
     let max_len = total_width.saturating_sub(indent_len + 4);
-    let vw: usize = value.chars().map(|c| UnicodeWidthChar::width(c).unwrap_or(0)).sum();
+    let vw: usize = value
+        .chars()
+        .map(|c| UnicodeWidthChar::width(c).unwrap_or(0))
+        .sum();
     if vw > max_len {
         let target = max_len.saturating_sub(3);
         let mut w = 0;

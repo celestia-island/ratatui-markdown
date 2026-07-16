@@ -483,7 +483,8 @@ impl MarkdownRenderer {
                     line.spans
                         .insert(0, Span::styled(prefix_str.clone(), prefix_style));
                     for span in line.spans.iter_mut().skip(1) {
-                        if span.style.fg == Some(theme.get_text_color()) || span.style.fg.is_none() {
+                        if span.style.fg == Some(theme.get_text_color()) || span.style.fg.is_none()
+                        {
                             span.style = span.style.fg(theme.get_muted_text_color());
                         }
                     }
@@ -587,11 +588,7 @@ impl MarkdownRenderer {
         (is_last, ancestors_are_last, index_in_group)
     }
 
-    fn render_heading(
-        text: &str,
-        style: Style,
-        theme: &impl RichTextTheme,
-    ) -> Line<'static> {
+    fn render_heading(text: &str, style: Style, theme: &impl RichTextTheme) -> Line<'static> {
         let parsed = parse_inline_formatting(text, theme);
         if parsed.is_empty() {
             Line::from(Span::styled(text.replace('\t', "    "), style))

@@ -92,10 +92,7 @@ impl MarkdownRenderer {
         }
     }
 
-    fn parse_inner(
-        &self,
-        markdown: &str,
-    ) -> Vec<MarkdownBlock> {
+    fn parse_inner(&self, markdown: &str) -> Vec<MarkdownBlock> {
         let mut blocks = Vec::new();
         let mut in_code_block = false;
         let mut code_lang = String::new();
@@ -353,8 +350,7 @@ impl MarkdownRenderer {
         }
 
         if !group.is_empty() {
-            let inner =
-                Self::parse_nested_blockquote_inner(&group, current_level + 1, depth + 1);
+            let inner = Self::parse_nested_blockquote_inner(&group, current_level + 1, depth + 1);
             children.push(inner);
         }
 

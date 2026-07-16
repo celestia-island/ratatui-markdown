@@ -1,7 +1,7 @@
 use ratatui::{style::Style, text::Span};
 
-use super::MarkdownRenderer;
 use super::text::display_width;
+use super::MarkdownRenderer;
 use crate::{
     constants::{BD_DL, BD_DR, BD_T_UP},
     theme::{RichTextTheme, ThemeConfig},

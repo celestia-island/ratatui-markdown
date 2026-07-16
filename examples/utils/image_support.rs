@@ -32,7 +32,13 @@ pub fn height_divisor(font_h: u16, proto: ProtocolType) -> f64 {
     }
 }
 
-pub fn pixel_to_cell(pw: u32, ph: u32, font_w: u16, font_h: u16, proto: ProtocolType) -> (u16, u16) {
+pub fn pixel_to_cell(
+    pw: u32,
+    ph: u32,
+    font_w: u16,
+    font_h: u16,
+    proto: ProtocolType,
+) -> (u16, u16) {
     if pw == 0 || ph == 0 || font_w == 0 {
         return (0, 0);
     }

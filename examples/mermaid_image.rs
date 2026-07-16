@@ -478,8 +478,7 @@ fn main() -> anyhow::Result<()> {
                 let img_t = text_top as i32 + placement.row as i32 - state.scroll as i32;
 
                 let clip = match calculate_clip(
-                    img_l, img_t, img_w, img_h,
-                    text_left, text_top, content_w, text_bot,
+                    img_l, img_t, img_w, img_h, text_left, text_top, content_w, text_bot,
                 ) {
                     Some(c) => c,
                     None => continue,
@@ -534,10 +533,11 @@ fn main() -> anyhow::Result<()> {
                     };
 
                     let rect_for_proto = Rect::new(0, 0, clip.vis_w, clip.vis_h);
-                    match state
-                        .picker
-                        .new_protocol(final_img, rect_for_proto.into(), Resize::Fit(None))
-                    {
+                    match state.picker.new_protocol(
+                        final_img,
+                        rect_for_proto.into(),
+                        Resize::Fit(None),
+                    ) {
                         Ok(p) => mi.protocol = Some(p),
                         Err(_) => {
                             mi.failed = true;

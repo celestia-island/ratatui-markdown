@@ -202,7 +202,12 @@ impl MarkdownViewer {
         }
 
         if !self.key_hints.is_empty() {
-            let info_area = Rect::new(area.x, area.y + area.height.saturating_sub(1), area.width, 1);
+            let info_area = Rect::new(
+                area.x,
+                area.y + area.height.saturating_sub(1),
+                area.width,
+                1,
+            );
             f.render_widget(
                 Paragraph::new(vec![Line::from(Span::styled(
                     format!(" {}", self.key_hints),
