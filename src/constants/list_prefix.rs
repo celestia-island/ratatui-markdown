@@ -4,7 +4,7 @@
 
 /// 选中/聚焦行的光标符号
 pub const CURSOR_SELECTED: &str = ">";
-/// 未选中行的光标占位（与 CURSOR_SELECTED 等宽）
+/// 未选中行的光标占位（与 `CURSOR_SELECTED` 等宽）
 pub const CURSOR_BLANK: &str = " ";
 
 // ============================================================================
@@ -68,15 +68,15 @@ pub const BRANCH_FIRST: &str = "┌─";
 /// ┌─ 带尾随空格（首项，无向上突起）
 pub const BRANCH_FIRST_SP: &str = "┌─ ";
 
-/// ├─ 带尾随空格（与 BRANCH_END_SP / BRANCH_VERT_PAD 等宽）
+/// ├─ 带尾随空格（与 `BRANCH_END_SP` / `BRANCH_VERT_PAD` 等宽）
 pub const BRANCH_MID_SP: &str = "├─ ";
-/// └─ 带尾随空格（与 BRANCH_MID_SP / BRANCH_VERT_PAD 等宽）
+/// └─ 带尾随空格（与 `BRANCH_MID_SP` / `BRANCH_VERT_PAD` 等宽）
 pub const BRANCH_END_SP: &str = "└─ ";
-/// │  纵向延续线 + 2空格（与 BRANCH_MID_SP / BRANCH_END_SP 等宽）
+/// │  纵向延续线 + 2空格（与 `BRANCH_MID_SP` / `BRANCH_END_SP` 等宽）
 pub const BRANCH_VERT_PAD: &str = "│  ";
 /// │ （带尾随空格）用于深层缩进 "│ ".repeat(depth)
 pub const INDENT_VERT: &str = "│ ";
-/// 子项竖线延续：1空格缩进 + │ + 2空格（与 tree_child_prefix 等宽）
+/// 子项竖线延续：1空格缩进 + │ + 2空格（与 `tree_child_prefix` 等宽）
 pub const CHILD_VERT_PAD: &str = " │  ";
 
 // ============================================================================
@@ -147,10 +147,10 @@ pub enum TreeNodeKind {
 /// \> └─ item 5
 ///
 /// 效果（对话面板，光标始终在组头）:
-/// \> └─ 用户 [12:00]
+/// \> └─ 用户 `[12:00]`
 /// \> ├─ 内容行
 /// \> └─ 最后一行
-/// \> └─ 助手 [12:01]
+/// \> └─ 助手 `[12:01]`
 /// \> ├─ 回复内容
 /// \> └─ 完成
 pub fn tree_connector(kind: TreeNodeKind) -> &'static str {

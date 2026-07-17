@@ -36,7 +36,7 @@
 //! |------------|-----------------------------------------|-------------------------------------------|
 //! | `markdown` | —                                       | Markdown parser and renderer              |
 //! | `image`    | `image` crate                           | Image resolution via `ImageResolver`      |
-//! | `scroll`   | —                                       | HybridScrollView, scrollable lists        |
+//! | `scroll`   | —                                       | `HybridScrollView`, scrollable lists        |
 //! | `tree`     | `scroll`, `serde_json`, `toml`          | Collapsible JSON/TOML tree                |
 //! | `preview`  | `markdown`, `scroll`, `tree`            | `MarkdownPreview` unified widget          |
 //! | `mermaid`  | `markdown`                              | Mermaid diagram rendering                 |

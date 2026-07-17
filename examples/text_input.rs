@@ -60,10 +60,7 @@ impl App {
         });
         let mut input = TextInput::new()
             .with_mode(InputMode::Edit)
-            .with_cursor_style(
-                CursorStyle::new()
-                    .with_shape(CursorShape::Block),
-            )
+            .with_cursor_style(CursorStyle::new().with_shape(CursorShape::Block))
             .with_blink_controller(blink.clone())
             .with_placeholder("Type markdown here...");
         input.set_text(INITIAL_TEXT);
@@ -82,8 +79,7 @@ impl App {
             let mut new_input = TextInput::new()
                 .with_mode(self.input.mode())
                 .with_cursor_style(
-                    CursorStyle::new()
-                        .with_shape(CURSOR_SHAPES[self.cursor_shape_idx]),
+                    CursorStyle::new().with_shape(CURSOR_SHAPES[self.cursor_shape_idx]),
                 )
                 .with_blink_controller(self.blink.clone())
                 .with_placeholder("Type markdown here...");

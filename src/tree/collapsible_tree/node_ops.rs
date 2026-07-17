@@ -39,7 +39,7 @@ impl CollapsibleTree {
     }
 
     pub fn expand_to_depth(&mut self, max_depth: usize) {
-        *self.flatten_cache.get_mut() = None;
+        *self.flatten_cache.get_mut().unwrap() = None;
         self.expanded_paths = Self::collect_expandable_paths_to_depth(&self.root, "", 0, max_depth);
     }
 
@@ -89,7 +89,7 @@ impl CollapsibleTree {
     }
 
     pub fn flatten(&self) -> Vec<FlatEntry> {
-        if let Some(ref cache) = *self.flatten_cache.borrow() {
+        if let Some(ref cache) = *self.flatten_cache.lock().unwrap() {
             return cache.clone();
         }
         let mut entries = Vec::new();
@@ -107,7 +107,7 @@ impl CollapsibleTree {
             &self.root_label,
             &mut ctx,
         );
-        *self.flatten_cache.borrow_mut() = Some(entries.clone());
+        *self.flatten_cache.lock().unwrap() = Some(entries.clone());
         entries
     }
 

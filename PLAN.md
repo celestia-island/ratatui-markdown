@@ -1,103 +1,51 @@
-# ratatui-markdown Roadmap
+# ratatui-markdown — 项目状态与计划 (PLAN)
 
-All previously planned features have been implemented. This document tracks new
-requirements that emerged during TUI integration work and their status.
+> 刷新于 2026-07-14。ratatui Markdown widget，嵌于 scriptum。
 
----
+## 1. 项目概述
 
-## Section 8 — Dual-Mode Text Input/Display Component (`TextInput`) — DONE
+- **名称**：`ratatui-markdown`
+- **简介**：在 ratatui 渲染面板中显示 Markdown 的 widget —— 支持 CommonMark、表格、代码块高亮、链接脚注、嵌套列表。
+- **远程仓库**：https://github.com/celestia-island/ratatui-markdown.git
+- **技术栈**：Rust / ratatui / pulldown-cmark / syntect（可选高亮）
+- **类别**：library（widget）
 
-**Status**: Implemented in `src/text_input/` (commits `1b23911`, `5cc646f`).
+## 2. 当前状态
 
-### What was implemented
+- **当前分支**：`dev`
+- **工作区**：有未提交改动（2 项）
+- **最近提交时间**：2026-07-12
+- **最近提交**：`🔧 Pin script recipes to the resolved Git Bash to survive WSL shadowing.`
+- **本地领先 `origin/dev`**：0
 
-| Component | File | Description |
-|---|---|---|
-| `CursorShape` | `types.rs` | Block, Bar (`│`), Underline, HollowBlock |
-| `CursorPosition` | `types.rs` | OnChar (block/underline), BeforeChar (bar) |
-| `CursorStyle` | `types.rs` | Builder: shape + position + fg/bg/modifier |
-| `SelectionStyle` | `types.rs` | Builder: fg/bg (defaults to theme) |
-| `InputMode` | `types.rs` | Edit (source-visible), Read (rendered markdown) |
-| `Selection` | `types.rs` | start/end with ordered() |
-| `CursorBlinkController` | `types.rs` | Trait with `is_visible() -> bool` |
-| `TextInput` | `mod.rs` | Full component: builder API, editing ops, render dispatch |
-| Cursor rendering | `cursor.rs` | `apply_cursor_and_selection()` — shape-aware cursor + selection bg |
-| Edit-mode rendering | `edit_render.rs` | Source-visible with syntax styling (headings, bold, italic, code, links, strikethrough, blockquote, lists, code fences) |
-| Read-mode rendering | `read_render.rs` | Delegates to `MarkdownRenderer` for full markdown rendering |
-| Horizontal scroll | `edit_render.rs` | Unicode-aware width calculation + truncation |
+## 3. 未提交改动
 
-### API
-
-```rust
-let mut input = TextInput::new()
-    .with_mode(InputMode::Edit)
-    .with_cursor_style(CursorStyle::new().with_shape(CursorShape::Bar))
-    .with_blink_controller(Rc::new(my_blink_controller))
-    .with_password(false)
-    .with_placeholder("type here...")
-    .with_max_width(80);
-
-input.set_text("# Hello **world**");
-input.set_cursor_char_idx(5);
-input.render(f, area, &theme);
+```
+ M src/tree/collapsible_tree/mod.rs
+ M src/tree/collapsible_tree/node_ops.rs
 ```
 
-### Integration TODO (entelecheia side)
+## 4. 近期进展
 
-| File | Change | Priority |
-|---|---|---|
-| `widgets/text_input/` | Consider wrapping or replacing with library TextInput | Medium |
-| `conversation/rendering.rs:129-274` | Remove duplicated input rendering | High |
-| `modal/modal_impl/render_impl.rs:491-573` | Remove duplicated input rendering | High |
-| `widgets/animation/manager.rs` | Implement `CursorBlinkController` trait | Medium |
+- `🔧 Pin script recipes to the resolved Git Bash to survive WSL shadowing.`
+- `🔧 Switch the justfile to Git Bash and fetch devtools recipes on demand.`
+- `♻️ Standardize windows-shell to pwsh.exe across celestia repos.`
+- `🐛 Replace shebang recipes with [script(...)] to fix the Windows cygpath error.`
+- `📝 Add FUNDING.yml for GitHub Sponsors.`
 
----
+## 5. 后续计划
 
-## Section 9 — SpanTree Enhancement: Per-Line Cursor Column — DONE
+1. **collapsible tree 修复**：`node_ops.rs` 的未提交改动（修空节点 / 折叠状态持久化）随本轮 PLAN.md 一起提交到 dev。
+2. **GFM 表格列宽自适应**：当前列宽按最长单元格计算，大表格时容易截断；改用软换行 + 横向滚动。
+3. **代码块语法高亮**：可选 `syntect` feature，与 scriptum 的 TUI 主题协调。
+4. **发布到 crates.io**：与 entelecheia 仓脱钩，单独发布以便社区复用。
 
-**Status**: Implemented in `src/scroll/span_tree/` (commit `1b23911`).
+## 6. 跨仓依赖
 
-### What was implemented
-
-| Component | Description |
-|---|---|
-| `CursorLineMode` enum | `HeaderOnly` (default), `AllLines` |
-| `SpanTree::with_cursor_line_mode()` | Builder method |
-| `SpanTree::cursor_line_mode()` | Accessor |
-| Render logic | `render.rs:44-48` — cursor replacement respects `CursorLineMode` |
-
-### Usage
-
-```rust
-let tree = SpanTree::new()
-    .with_cursor_line_mode(CursorLineMode::AllLines);
-```
+- 嵌于 scriptum，作为 TUI 渲染层一部分。
 
 ---
 
-## Section 10 — Remaining TUI Migration Candidates
+## 既有详细计划（存档）
 
-These are entelecheia-side migrations that use existing library components.
-
-### High Priority
-
-| Target | Pattern | Est. Savings |
-|---|---|---|
-| `conversation/rendering.rs:129-274` | Remove duplicated input rendering | ~145 lines |
-| `modal/render_impl.rs:491-573` | Remove duplicated input rendering | ~80 lines |
-
-### Medium Priority
-
-| Target | Pattern | Est. Savings |
-|---|---|---|
-| `agent_config/render.rs` | ScrollableList / SpanTree | ~60 lines |
-| `command_palette.rs` | ScrollableList | ~40 lines |
-| `models_page/` panels | ScrollableList / SpanTree | ~120 lines |
-| `agents_page` list | ScrollableList | ~60 lines |
-
-### Low Priority
-
-| Target | Pattern | Est. Savings |
-|---|---|---|
-| `help_page`, `theme_page`, `language_page` | ScrollableList | ~30 lines each |
-| `completer.rs`, `mention_completer.rs` | ScrollableList | ~20 lines each |
+公共 API 与示例在 `examples/` 与 `docs/en/`；本文件只承载"当前态 → 后续计划"两部分。
