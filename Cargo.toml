@@ -172,7 +172,7 @@ fontdb = "^0.23"
 lipsum = "^0.9"
 mermaid-rs-renderer = { version = "^0.2", default-features = false }
 pest_derive = "^2"
-ratatui-image = { version = "^9", default-features = false, features = [
+ratatui-image = { version = "^11", default-features = false, features = [
     "crossterm",
 ] }
 resvg = "^0.46"
