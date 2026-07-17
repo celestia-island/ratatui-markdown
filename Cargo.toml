@@ -170,7 +170,7 @@ crossterm = "^0.28"
 font-kit = "^0.14"
 fontdb = "^0.23"
 lipsum = "^0.9"
-mermaid-rs-renderer = { version = "^0.2", default-features = false }
+mermaid-rs-renderer = { version = "^0.3", default-features = false }
 pest_derive = "^2"
 ratatui-image = { version = "^9", default-features = false, features = [
     "crossterm",
