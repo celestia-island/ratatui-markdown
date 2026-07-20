@@ -1,0 +1,11 @@
+name: Commit Message Lint
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+  merge_group:
+    types: [checks_requested]
+
+jobs:
+  lint-commits:
+    uses: celestia-island/celestia-devtools/.github/workflows/commit-msg-lint.yml@master
