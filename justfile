@@ -64,6 +64,7 @@ build-release:
 
 # Format code with rustfmt
 fmt:
+    just fmt-toml
     @echo "  →  Formatting code..."
     @cargo fmt --all
 

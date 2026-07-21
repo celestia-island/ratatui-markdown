@@ -114,6 +114,7 @@ highlight-lang-all = [
 ]
 
 [dependencies]
+
 image = { version = "^0.25", optional = true, default-features = false, features = [
     "png",
     "webp",
@@ -124,22 +125,22 @@ ratatui = "^0.29"
 serde_json = { version = "^1", optional = true }
 toml = { version = "^0.8", optional = true }
 tree-sitter = { version = "^0.26", optional = true }
-tree-sitter-highlight = { version = "^0.26", optional = true }
 tree-sitter-bash = { version = "^0.25", optional = true }
 tree-sitter-c = { version = "^0.24", optional = true }
-tree-sitter-cpp = { version = "^0.23", optional = true }
 tree-sitter-c-sharp = { version = "^0.23", optional = true }
+tree-sitter-cmake = { version = "^0.7", optional = true }
+tree-sitter-cpp = { version = "^0.23", optional = true }
 tree-sitter-css = { version = "^0.25", optional = true }
 tree-sitter-dart = { version = "^0.2", optional = true }
 tree-sitter-diff = { version = "^0.1", optional = true }
 tree-sitter-elixir = { version = "^0.3", optional = true }
 tree-sitter-go = { version = "^0.25", optional = true }
 tree-sitter-haskell = { version = "^0.23", optional = true }
+tree-sitter-highlight = { version = "^0.26", optional = true }
 tree-sitter-html = { version = "^0.23", optional = true }
 tree-sitter-java = { version = "^0.23", optional = true }
 tree-sitter-javascript = { version = "^0.25", optional = true }
 tree-sitter-json = { version = "^0.24", optional = true }
-tree-sitter-cmake = { version = "^0.7", optional = true }
 tree-sitter-kotlin-ng = { version = "^1.1", optional = true }
 tree-sitter-lua = { version = "^0.5", optional = true }
 tree-sitter-nix = { version = "^0.3", optional = true }
@@ -154,8 +155,8 @@ tree-sitter-regex = { version = "^0.25", optional = true }
 tree-sitter-ruby = { version = "^0.23", optional = true }
 tree-sitter-rust = { version = "^0.24", optional = true }
 tree-sitter-scala = { version = "^0.26", optional = true }
-tree-sitter-solidity = { version = "^1.2", optional = true }
 tree-sitter-sequel = { version = "^0.3", optional = true }
+tree-sitter-solidity = { version = "^1.2", optional = true }
 tree-sitter-swift = { version = "^0.7", optional = true }
 tree-sitter-toml-ng = { version = "^0.7", optional = true }
 tree-sitter-typescript = { version = "^0.23", optional = true }
@@ -163,8 +164,8 @@ tree-sitter-xml = { version = "^0.7", optional = true }
 tree-sitter-yaml = { version = "^0.7", optional = true }
 tree-sitter-zig = { version = "^1.1", optional = true }
 unicode-width = "^0.2"
-
 [dev-dependencies]
+
 anyhow = "^1"
 crossterm = "^0.28"
 font-kit = "^0.14"
@@ -178,7 +179,6 @@ ratatui-image = { version = "^9", default-features = false, features = [
 resvg = "^0.46"
 tiny-skia = "^0.11"
 usvg = "^0.46"
-
 [[example]]
 name = "image"
 required-features = ["image"]
