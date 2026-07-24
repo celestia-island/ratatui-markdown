@@ -167,7 +167,7 @@ unicode-width = "^0.2"
 [dev-dependencies]
 
 anyhow = "^1"
-crossterm = "^0.28"
+crossterm = "^0.29"
 font-kit = "^0.14"
 fontdb = "^0.23"
 lipsum = "^0.9"
