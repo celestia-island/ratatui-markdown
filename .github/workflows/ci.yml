@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_dispatch:
   pull_request:
     branches: [master, dev]
     paths:
@@ -16,7 +17,7 @@ on:
 jobs:
   fmt:
     name: fmt
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, local]
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@nightly
@@ -26,7 +27,7 @@ jobs:
 
   clippy:
     name: clippy (${{ matrix.toolchain }})
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, local]
     strategy:
       fail-fast: false
       matrix:
@@ -44,7 +45,7 @@ jobs:
 
   check:
     name: check (${{ matrix.features }})
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, local]
     strategy:
       fail-fast: false
       matrix:
@@ -61,7 +62,7 @@ jobs:
 
   test:
     name: test (${{ matrix.toolchain }}, ${{ matrix.features }})
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, local]
     strategy:
       fail-fast: false
       matrix:
@@ -81,7 +82,7 @@ jobs:
 
   msrv:
     name: msrv (1.74)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, local]
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@1.100
@@ -92,7 +93,7 @@ jobs:
 
   docs:
     name: docs
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, local]
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
@@ -105,7 +106,7 @@ jobs:
 
   examples:
     name: examples
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, local]
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
@@ -125,7 +126,7 @@ jobs:
 
   audit:
     name: cargo audit
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, local]
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
@@ -138,7 +139,7 @@ jobs:
 
   deny:
     name: cargo deny
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, local]
     steps:
       - uses: actions/checkout@v7
       - uses: Swatinem/rust-cache@v2
