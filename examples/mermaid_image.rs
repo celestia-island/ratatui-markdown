@@ -533,10 +533,11 @@ fn main() -> anyhow::Result<()> {
                     };
 
                     let rect_for_proto = Rect::new(0, 0, clip.vis_w, clip.vis_h);
-                    match state
-                        .picker
-                        .new_protocol(final_img, rect_for_proto, Resize::Fit(None))
-                    {
+                    match state.picker.new_protocol(
+                        final_img,
+                        rect_for_proto.as_size(),
+                        Resize::Fit(None),
+                    ) {
                         Ok(p) => mi.protocol = Some(p),
                         Err(_) => {
                             mi.failed = true;

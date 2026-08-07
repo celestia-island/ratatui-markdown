@@ -13,7 +13,6 @@ use ratatui::{
         terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     },
     layout::Rect,
-    prelude::Stylize,
     style::{Color, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Padding, Paragraph},
@@ -416,7 +415,7 @@ fn main() -> anyhow::Result<()> {
                     let rect_for_proto = Rect::new(0, 0, clip.vis_w, clip.vis_h);
                     match state
                         .picker
-                        .new_protocol(img_for_proto, rect_for_proto, Resize::Fit(None))
+                        .new_protocol(img_for_proto, rect_for_proto.as_size(), Resize::Fit(None))
                     {
                         Ok(proto) => si.protocol = Some(proto),
                         Err(_) => {

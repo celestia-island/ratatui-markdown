@@ -1,7 +1,6 @@
 use std::num::NonZeroUsize;
 
 use ratatui::{
-    prelude::Stylize,
     style::{Color, Modifier, Style},
     text::{Line, Span},
 };

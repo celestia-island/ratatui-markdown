@@ -6,13 +6,13 @@
 
 > 为 ratatui 提供 Markdown 渲染、Mermaid 图表、语法高亮、可折叠 JSON/TOML 树以及丰富滚动组件的 Rust 库。
 >
-> **构建基础**: [ratatui](https://github.com/ratatui/ratatui) 0.29 + 纯 Rust
+> **构建基础**: [ratatui](https://github.com/ratatui/ratatui) 0.30 + 纯 Rust
 >
 > **最低 Rust 版本**: 1.74
 
 <div align="center">
   <p>
-    <a href="../../README.md">English</a> |
+    <a href="../../../README.md">English</a> |
     <a href="../zhs/index.md">简体中文</a> |
     <a href="../zht/index.md">繁體中文</a> |
     <a href="../ja/index.md">日本語</a> |

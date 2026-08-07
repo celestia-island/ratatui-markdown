@@ -16,7 +16,9 @@ pub fn fix_protocol_override(picker: &mut Picker) {
 }
 
 pub fn safe_font_size(picker: &Picker) -> (u16, u16) {
-    let (fw, fh) = picker.font_size();
+    let font_size = picker.font_size();
+    let fw = font_size.width;
+    let fh = font_size.height;
     if fw == 0 || fh == 0 {
         (8, 16)
     } else {

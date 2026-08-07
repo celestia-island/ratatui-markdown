@@ -121,7 +121,8 @@ image = { version = "^0.25", optional = true, default-features = false, features
 ] }
 pest = { version = "^2", optional = true }
 pest_derive = { version = "^2", optional = true }
-ratatui = "^0.29"
+ratatui = "0.30"
+ratatui-image = { version = "11", default-features = false, features = ["crossterm", "image-defaults"] }
 serde_json = { version = "^1", optional = true }
 toml = { version = "^0.8", optional = true }
 tree-sitter = { version = "^0.26", optional = true }
@@ -167,15 +168,13 @@ unicode-width = "^0.2"
 [dev-dependencies]
 
 anyhow = "^1"
-crossterm = "^0.28"
+crossterm = "0.29.0"
 font-kit = "^0.14"
 fontdb = "^0.23"
 lipsum = "^0.9"
 mermaid-rs-renderer = { version = "^0.3", default-features = false }
 pest_derive = "^2"
-ratatui-image = { version = "^9", default-features = false, features = [
-    "crossterm",
-] }
+ratatui-image = { version = "11", default-features = false, features = ["crossterm", "image-defaults"] }
 resvg = "^0.47"
 tiny-skia = "^0.12"
 usvg = "^0.47"

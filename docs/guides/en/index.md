@@ -6,7 +6,7 @@
 
 > A Rust library providing markdown rendering, Mermaid diagrams, syntax highlighting, collapsible JSON/TOML trees, and rich scroll widgets for ratatui.
 >
-> **Build with**: [ratatui](https://github.com/ratatui/ratatui) 0.29 + pure Rust
+> **Build with**: [ratatui](https://github.com/ratatui/ratatui) 0.30 + pure Rust
 >
 > **Minimal Rust Version**: 1.74
 

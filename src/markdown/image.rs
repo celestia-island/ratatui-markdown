@@ -1,7 +1,6 @@
 #[cfg(feature = "image")]
 pub use image;
 use ratatui::{
-    prelude::Stylize,
     style::{Color, Style},
     text::{Line, Span},
 };

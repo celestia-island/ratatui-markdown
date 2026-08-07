@@ -6,13 +6,13 @@
 
 > ratatui 向けの Markdown レンダリング、Mermaid ダイアグラム、シンタックスハイライト、折りたたみ可能な JSON/TOML ツリー、そしてリッチなスクロールウィジェットを提供する Rust ライブラリです。
 >
-> **ビルド基盤**: [ratatui](https://github.com/ratatui/ratatui) 0.29 + 純粋 Rust
+> **ビルド基盤**: [ratatui](https://github.com/ratatui/ratatui) 0.30 + 純粋 Rust
 >
 > **最小 Rust バージョン**: 1.74
 
 <div align="center">
   <p>
-    <a href="../../README.md">English</a> |
+    <a href="../../../README.md">English</a> |
     <a href="../zhs/index.md">简体中文</a> |
     <a href="../zht/index.md">繁體中文</a> |
     <a href="../ja/index.md">日本語</a> |

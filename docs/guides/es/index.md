@@ -6,13 +6,13 @@
 
 > Una biblioteca Rust que ofrece renderizado de Markdown, diagramas Mermaid, resaltado de sintaxis, árboles JSON/TOML colapsables y widgets de desplazamiento enriquecidos para ratatui.
 >
-> **Construido con**: [ratatui](https://github.com/ratatui/ratatui) 0.29 + Rust puro
+> **Construido con**: [ratatui](https://github.com/ratatui/ratatui) 0.30 + Rust puro
 >
 > **Versión mínima de Rust**: 1.74
 
 <div align="center">
   <p>
-    <a href="../../README.md">English</a> |
+    <a href="../../../README.md">English</a> |
     <a href="../zhs/index.md">简体中文</a> |
     <a href="../zht/index.md">繁體中文</a> |
     <a href="../ja/index.md">日本語</a> |
