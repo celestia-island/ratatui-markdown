@@ -178,7 +178,7 @@ ratatui-image = { version = "^9", default-features = false, features = [
 ] }
 resvg = "^0.47"
 tiny-skia = "^0.12"
-usvg = "^0.47"
+usvg = "^0.48"
 [[example]]
 name = "image"
 required-features = ["image"]
