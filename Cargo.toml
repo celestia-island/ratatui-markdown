@@ -176,7 +176,7 @@ pest_derive = "^2"
 ratatui-image = { version = "^9", default-features = false, features = [
     "crossterm",
 ] }
-resvg = "^0.47"
+resvg = "^0.48"
 tiny-skia = "^0.12"
 usvg = "^0.47"
 [[example]]
