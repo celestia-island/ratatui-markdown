@@ -2,7 +2,7 @@ name: Commit Message Lint
 
 on:
   pull_request:
-    types: [opened, edited, reopened, synchronize]
+    types: [opened, edited, reopened, ready_for_review]
   merge_group:
     types: [checks_requested]
 
