@@ -14,6 +14,10 @@ set windows-shell := ["powershell.exe", "-NoLogo", "-NoProfile", "-Command", "[C
 set unstable
 set lists
 
+# Repo definitions override the shared template's (imported above).
+set allow-duplicate-recipes
+set allow-duplicate-variables
+
 # Shared celestia-devtools recipes — NOT in git. Stage with: just fetch.
 # `import?` silently skips when absent, so this justfile parses pre-fetch.
 import? "./.just/git-bash-interop.just"
@@ -22,25 +26,9 @@ import? "./.just/celestia-devtools.just"
 # Stage shared celestia-devtools recipes into .just/ (gitignored).
 # Source order: explicit URL arg → local pip bundle (offline) → GitHub raw.
 # curl honors HTTP_PROXY/HTTPS_PROXY/ALL_PROXY env vars automatically.
-[script('bash')]
 fetch URL='':
-    #!/usr/bin/env bash
-    set -euo pipefail
-    out=.just/celestia-devtools.just
-    mkdir -p .just
-    if [ -n "{{URL}}" ]; then
-      echo "[fetch] {{URL}} -> $out"
-      curl -fsSL "{{URL}}" -o "$out"
-    elif command -v celestia-devtools >/dev/null 2>&1; then
-      src=$(celestia-devtools include-path)
-      echo "[fetch] local bundle ($src) -> $out"
-      cp "$src" "$out"
-    else
-      echo "[fetch] github raw -> $out"
-      curl -fsSL "https://raw.githubusercontent.com/celestia-island/celestia-devtools/dev/src/celestia_devtools/common.just" -o "$out"
-    fi
-    echo "[fetch] wrote $out"
-
+    {{ if os_family() == "windows" { "python" } else { "python3" } }} -c "import os; os.makedirs('.just', exist_ok=True)"
+    {{ if URL != "" { "curl -fsSL " + URL + " -o .just/celestia-devtools.just" } else if which("celestia-devtools") != "" { "celestia-devtools fetch-just" } else { "curl -fsSL https://raw.githubusercontent.com/celestia-island/celestia-devtools/dev/src/celestia_devtools/common.just -o .just/celestia-devtools.just" } }}
 # Python command
 py := "python3"
 
