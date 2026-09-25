@@ -136,7 +136,7 @@ tree-sitter-diff = { version = "^0.1", optional = true }
 tree-sitter-elixir = { version = "^0.3", optional = true }
 tree-sitter-go = { version = "^0.25", optional = true }
 tree-sitter-haskell = { version = "^0.23", optional = true }
-tree-sitter-highlight = { version = "^0.26", optional = true }
+tree-sitter-highlight = { version = "^0.27", optional = true }
 tree-sitter-html = { version = "^0.23", optional = true }
 tree-sitter-java = { version = "^0.23", optional = true }
 tree-sitter-javascript = { version = "^0.25", optional = true }
