@@ -5,7 +5,33 @@ on:
     types: [opened, edited, reopened, ready_for_review, synchronize]
   merge_group:
     types: [checks_requested]
+  # Fallback entry for the CNB lane (or an operator): dispatch this workflow on
+  # the pull request's head branch, so the single required check is served by
+  # the lane that can actually run. See the devtools callee for the lane rules.
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "Pull request number to lint"
+        required: true
+        type: string
+
+permissions:
+  # A called workflow cannot grant itself a permission the caller withholds —
+  # the mismatch reads as startup_failure. The org default token permissions
+  # were tightened on 2026-10-02 and this caller was missed, so the single
+  # required check stopped reporting entirely. Grant exactly what the reusable
+  # lint declares and nothing more.
+  contents: read
+  pull-requests: read
 
 jobs:
   lint-commits:
     uses: celestia-island/celestia-devtools/.github/workflows/commit-msg-lint.yml@master
+    with:
+      # Lane switch without touching this tree: the org variables resolve to the
+      # self-hosted fleet while the hosted lane is down (2026-09-24 account
+      # payments: a job sent there sits fifteen minutes with no runner before
+      # being cancelled, indistinguishable from "the check never reports").
+      runner: ${{ vars.LINT_RUNNER || '["ubuntu-latest"]' }}
+      lane: ${{ vars.LINT_LANE || 'hosted' }}
+      pr: ${{ inputs.pr }}
