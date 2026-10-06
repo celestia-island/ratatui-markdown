@@ -16,6 +16,12 @@ on:
 
 jobs:
   fmt:
+    # Fork pull requests pay for their own CI: this job is heavy (it compiles,
+    # builds, tests or audits) and a fork's run would spend shared runner time on
+    # untrusted content. The required commit-lint and PR-title checks are the
+    # deliberate exception: they are sub-minute, execute no pull request code, and
+    # hold no secrets.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     name: fmt
     runs-on: [self-hosted, linux, x64, local]
     steps:
@@ -26,6 +32,12 @@ jobs:
       - run: cargo +nightly fmt --all -- --check --unstable-features
 
   clippy:
+    # Fork pull requests pay for their own CI: this job is heavy (it compiles,
+    # builds, tests or audits) and a fork's run would spend shared runner time on
+    # untrusted content. The required commit-lint and PR-title checks are the
+    # deliberate exception: they are sub-minute, execute no pull request code, and
+    # hold no secrets.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     name: clippy (${{ matrix.toolchain }})
     runs-on: [self-hosted, linux, x64, local]
     strategy:
@@ -44,6 +56,12 @@ jobs:
       - run: cargo clippy --all-targets --all-features -- -D warnings
 
   check:
+    # Fork pull requests pay for their own CI: this job is heavy (it compiles,
+    # builds, tests or audits) and a fork's run would spend shared runner time on
+    # untrusted content. The required commit-lint and PR-title checks are the
+    # deliberate exception: they are sub-minute, execute no pull request code, and
+    # hold no secrets.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     name: check (${{ matrix.features }})
     runs-on: [self-hosted, linux, x64, local]
     strategy:
@@ -61,6 +79,12 @@ jobs:
       - run: cargo check --${{ matrix.features }}
 
   test:
+    # Fork pull requests pay for their own CI: this job is heavy (it compiles,
+    # builds, tests or audits) and a fork's run would spend shared runner time on
+    # untrusted content. The required commit-lint and PR-title checks are the
+    # deliberate exception: they are sub-minute, execute no pull request code, and
+    # hold no secrets.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     name: test (${{ matrix.toolchain }}, ${{ matrix.features }})
     runs-on: [self-hosted, linux, x64, local]
     strategy:
@@ -81,6 +105,12 @@ jobs:
       - run: cargo test --${{ matrix.features }}
 
   msrv:
+    # Fork pull requests pay for their own CI: this job is heavy (it compiles,
+    # builds, tests or audits) and a fork's run would spend shared runner time on
+    # untrusted content. The required commit-lint and PR-title checks are the
+    # deliberate exception: they are sub-minute, execute no pull request code, and
+    # hold no secrets.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     name: msrv (1.74)
     runs-on: [self-hosted, linux, x64, local]
     steps:
@@ -92,6 +122,12 @@ jobs:
       - run: cargo check --all-features
 
   docs:
+    # Fork pull requests pay for their own CI: this job is heavy (it compiles,
+    # builds, tests or audits) and a fork's run would spend shared runner time on
+    # untrusted content. The required commit-lint and PR-title checks are the
+    # deliberate exception: they are sub-minute, execute no pull request code, and
+    # hold no secrets.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     name: docs
     runs-on: [self-hosted, linux, x64, local]
     steps:
@@ -105,6 +141,12 @@ jobs:
           RUSTDOCFLAGS: -D warnings
 
   examples:
+    # Fork pull requests pay for their own CI: this job is heavy (it compiles,
+    # builds, tests or audits) and a fork's run would spend shared runner time on
+    # untrusted content. The required commit-lint and PR-title checks are the
+    # deliberate exception: they are sub-minute, execute no pull request code, and
+    # hold no secrets.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     name: examples
     runs-on: [self-hosted, linux, x64, local]
     steps:
@@ -125,6 +167,12 @@ jobs:
       - run: cargo check --example mermaid_image --features mermaid,image
 
   audit:
+    # Fork pull requests pay for their own CI: this job is heavy (it compiles,
+    # builds, tests or audits) and a fork's run would spend shared runner time on
+    # untrusted content. The required commit-lint and PR-title checks are the
+    # deliberate exception: they are sub-minute, execute no pull request code, and
+    # hold no secrets.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     name: cargo audit
     runs-on: [self-hosted, linux, x64, local]
     steps:
@@ -138,6 +186,12 @@ jobs:
       - run: cargo audit
 
   deny:
+    # Fork pull requests pay for their own CI: this job is heavy (it compiles,
+    # builds, tests or audits) and a fork's run would spend shared runner time on
+    # untrusted content. The required commit-lint and PR-title checks are the
+    # deliberate exception: they are sub-minute, execute no pull request code, and
+    # hold no secrets.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     name: cargo deny
     runs-on: [self-hosted, linux, x64, local]
     steps:
