@@ -1,0 +1,11 @@
+name: CI Cache Policy
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, synchronize]
+  merge_group:
+    types: [checks_requested]
+
+jobs:
+  cache-policy:
+    uses: celestia-island/celestia-devtools/.github/workflows/ci-cache.yml@master
