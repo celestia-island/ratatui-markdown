@@ -9,6 +9,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Ensure the release tag is on master
+        if: github.event_name == 'push' && !github.event.deleted
+        shell: bash
+        run: |
+          git fetch --no-tags --prune origin +refs/heads/master:refs/remotes/origin/master
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/master; then
+            echo "::error::tag $GITHUB_REF_NAME points at $GITHUB_SHA, which is not an ancestor of origin/master — release tags must point at a squash-merged master commit"
+            exit 1
+          fi
+          echo "tag $GITHUB_REF_NAME ($GITHUB_SHA) is on master"
       - name: Extract tag version
         id: tag
         run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
