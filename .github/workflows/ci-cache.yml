@@ -8,4 +8,6 @@ on:
 
 jobs:
   cache-policy:
-    uses: celestia-island/celestia-devtools/.github/workflows/ci-cache.yml@master
+    uses: celestia-island/celestia-devtools/.github/workflows/ci-cache.yml@v2026.10
+    with:
+      devtools-ref: v2026.10
