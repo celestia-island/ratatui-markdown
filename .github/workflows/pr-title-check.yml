@@ -15,4 +15,6 @@ on:
 
 jobs:
   pr-title-check:
-    uses: celestia-island/celestia-devtools/.github/workflows/pr-title-check.yml@master
+    uses: celestia-island/celestia-devtools/.github/workflows/pr-title-check.yml@v2026.10
+    with:
+      devtools-ref: v2026.10
