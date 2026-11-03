@@ -35,7 +35,7 @@ jobs:
   lint-commits:
     uses: celestia-island/celestia-devtools/.github/workflows/commit-msg-lint.yml@2e76d373762dc6b36c1ab7625c1c34842c28ad4a
     with:
-      devtools-ref: v2026.10
+      devtools-ref: 5f280203dd6794b9e631978c5984d5a4d4f801b1
       # Lane switch without touching this tree: the org variables resolve to the
       # self-hosted fleet while the hosted lane is down (2026-09-24 account
       # payments: a job sent there sits fifteen minutes with no runner before
