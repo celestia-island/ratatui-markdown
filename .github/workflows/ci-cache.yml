@@ -10,4 +10,4 @@ jobs:
   cache-policy:
     uses: celestia-island/celestia-devtools/.github/workflows/ci-cache.yml@2e76d373762dc6b36c1ab7625c1c34842c28ad4a
     with:
-      devtools-ref: v2026.10
+      devtools-ref: 5f280203dd6794b9e631978c5984d5a4d4f801b1
