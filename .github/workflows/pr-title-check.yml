@@ -8,10 +8,12 @@ concurrency:
   cancel-in-progress: true
 
 on:
+  # Dispatch-only per the 2026-11-06 trigger policy: CI no longer runs on pull
+  # requests. Format is held by review plus the squash subject; the lane stays
+  # dispatchable so a patch can still be checked on demand.
   workflow_dispatch:
-
 jobs:
   pr-title-check:
-    uses: celestia-island/celestia-devtools/.github/workflows/pr-title-check.yml@2e76d373762dc6b36c1ab7625c1c34842c28ad4a
+    uses: celestia-island/celestia-devtools/.github/workflows/pr-title-check.yml@bcf5ed8f3caebe8dbf0a528ab9deecb6d42cf211
     with:
-      devtools-ref: 5f280203dd6794b9e631978c5984d5a4d4f801b1
+      devtools-ref: bcf5ed8f3caebe8dbf0a528ab9deecb6d42cf211
