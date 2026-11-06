@@ -88,21 +88,21 @@ jobs:
     # deliberate exception: they are sub-minute, execute no pull request code, and
     # hold no secrets.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    name: test (${{ matrix.toolchain }}, ${{ matrix.features }})
+    name: test (${{ matrix.features }})
     runs-on: [self-hosted, linux, x64, local]
     timeout-minutes: 300
     strategy:
       fail-fast: false
       matrix:
-        toolchain: [stable, nightly]
+        # One full Rust test run per PR and feature leg, on stable only
+        # (org-wide CI rule): the self-hosted farm has 4-6 slots and PR jobs
+        # queue 38-77 minutes. Nightly keeps only the static checks (clippy/fmt).
         features:
           - all-features
           - no-default-features
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ matrix.toolchain }}
       - uses: Swatinem/rust-cache@v2
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
