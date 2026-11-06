@@ -8,10 +8,6 @@ concurrency:
   cancel-in-progress: true
 
 on:
-  pull_request:
-    types: [opened, edited, reopened, ready_for_review, synchronize]
-  merge_group:
-    types: [checks_requested]
   # Fallback entry for the CNB lane (or an operator): dispatch this workflow on
   # the pull request's head branch, so the single required check is served by
   # the lane that can actually run. See the devtools callee for the lane rules.
