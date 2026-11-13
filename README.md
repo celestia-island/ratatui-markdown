@@ -25,7 +25,7 @@
   <h3>
     <a href="#quick-start">Quick Start</a>
     <span> | </span>
-    <a href="https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/en/index.md">Documentation</a>
+    <a href="https://github.com/celestia-island/ratatui-markdown/blob/master/docs/guides/en/index.md">Documentation</a>
     <span> | </span>
     <a href="https://docs.rs/ratatui-markdown">API Reference</a>
   </h3>
@@ -33,15 +33,15 @@
 
 <div align="center">
   <p>
-    <a href="https://github.com/celestia-island/ratatui-markdown/blob/dev/README.md">English</a> |
-    <a href="https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/zhs/index.md">简体中文</a> |
-    <a href="https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/zht/index.md">繁體中文</a> |
-    <a href="https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/ja/index.md">日本語</a> |
-    <a href="https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/ko/index.md">한국어</a> |
-    <a href="https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/fr/index.md">Français</a> |
-    <a href="https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/es/index.md">Español</a> |
-    <a href="https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/ru/index.md">Русский</a> |
-    <a href="https://github.com/celestia-island/ratatui-markdown/blob/dev/docs/guides/ar/index.md">العربية</a>
+    <a href="https://github.com/celestia-island/ratatui-markdown/blob/master/README.md">English</a> |
+    <a href="https://github.com/celestia-island/ratatui-markdown/blob/master/docs/guides/zhs/index.md">简体中文</a> |
+    <a href="https://github.com/celestia-island/ratatui-markdown/blob/master/docs/guides/zht/index.md">繁體中文</a> |
+    <a href="https://github.com/celestia-island/ratatui-markdown/blob/master/docs/guides/ja/index.md">日本語</a> |
+    <a href="https://github.com/celestia-island/ratatui-markdown/blob/master/docs/guides/ko/index.md">한국어</a> |
+    <a href="https://github.com/celestia-island/ratatui-markdown/blob/master/docs/guides/fr/index.md">Français</a> |
+    <a href="https://github.com/celestia-island/ratatui-markdown/blob/master/docs/guides/es/index.md">Español</a> |
+    <a href="https://github.com/celestia-island/ratatui-markdown/blob/master/docs/guides/ru/index.md">Русский</a> |
+    <a href="https://github.com/celestia-island/ratatui-markdown/blob/master/docs/guides/ar/index.md">العربية</a>
   </p>
 </div>
 
