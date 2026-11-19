@@ -13,7 +13,6 @@ use ratatui::{
         terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     },
     layout::Rect,
-    prelude::Stylize,
     style::{Color, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Padding, Paragraph},

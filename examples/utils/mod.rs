@@ -292,6 +292,7 @@ pub fn poll_and_handle(state: &mut AppState) -> anyhow::Result<bool> {
 }
 
 #[allow(dead_code)]
+#[cfg(feature = "image")]
 pub mod image_support;
 
 #[allow(dead_code)]
