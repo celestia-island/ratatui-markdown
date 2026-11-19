@@ -123,7 +123,7 @@ pest = { version = "^2", optional = true }
 pest_derive = { version = "^2", optional = true }
 ratatui = "^0.30"
 serde_json = { version = "^1", optional = true }
-toml = { version = "1", optional = true }
+toml = { version = "0.8", optional = true }
 tree-sitter = { version = "^0.27", optional = true }
 tree-sitter-bash = { version = "^0.25", optional = true }
 tree-sitter-c = { version = "^0.24", optional = true }
@@ -181,7 +181,7 @@ tiny-skia = "^0.12"
 usvg = "^0.47"
 [[example]]
 name = "image"
-required-features = ["image"]
+required-features = ["image", "markdown"]
 
 [[example]]
 name = "mermaid"
@@ -193,7 +193,27 @@ required-features = ["mermaid", "image"]
 
 [[example]]
 name = "selector"
+required-features = ["tree"]
+
+[[example]]
+name = "basic"
+required-features = ["markdown"]
+
+[[example]]
+name = "custom_code_block"
+required-features = ["markdown"]
+
+[[example]]
+name = "text_input"
+
+[[example]]
+name = "tree_list"
+required-features = ["scroll"]
+
+[[example]]
+name = "span_tree_cursor"
+required-features = ["scroll"]
 
 [[example]]
 name = "code"
-required-features = ["highlight-lang-rust", "highlight-pest"]
+required-features = ["highlight-lang-rust", "highlight-pest", "markdown"]

@@ -45,11 +45,16 @@
 //! ## Quick Start
 //!
 //! ```rust,no_run
+//! # #[cfg(feature = "preview")]
+//! # fn main() {
 //! use ratatui_markdown::preview::MarkdownPreview;
 //!
 //! let mut preview = MarkdownPreview::new();
 //! preview.set_content("# Hello, world!\n\nThis is a paragraph.");
 //! // render and handle input in your ratatui app loop
+//! # }
+//! # #[cfg(not(feature = "preview"))]
+//! # fn main() {}
 //! ```
 //!
 //! ### Markdown Rendering
@@ -65,6 +70,8 @@
 //! ### Custom Rendering with Hooks
 //!
 //! ```rust
+//! # #[cfg(feature = "markdown")]
+//! # fn main() {
 //! use ratatui_markdown::markdown::{MarkdownRenderer, RenderHooks};
 //! use ratatui::text::Line;
 //!
@@ -78,6 +85,9 @@
 //!
 //! let renderer = MarkdownRenderer::new(80)
 //!     .with_render_hooks(Box::new(MyHooks));
+//! # }
+//! # #[cfg(not(feature = "markdown"))]
+//! # fn main() {}
 //! ```
 //!
 //! ### Collapsible Trees
@@ -96,11 +106,16 @@
 //! ### Scroll System
 //!
 //! ```rust
+//! # #[cfg(feature = "scroll")]
+//! # fn main() {
 //! use ratatui_markdown::scroll::HybridScrollView;
 //!
 //! let mut scroll = HybridScrollView::new()
 //!     .with_cursor_indicator(true);
 //! // set content, handle input, render
+//! # }
+//! # #[cfg(not(feature = "scroll"))]
+//! # fn main() {}
 //! ```
 //!
 //! ### Theming
