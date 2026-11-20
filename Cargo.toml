@@ -2,9 +2,9 @@
 name = "ratatui-markdown"
 version = "0.3.6"
 edition = "2021"
-rust-version = "1.74"
+rust-version = "1.90"
 authors = ["langyo <langyo.china@gmail.com>"]
-license = "SySL-1.0"
+license = "LicenseRef-sysl-1.0" # SySL-1.0; LicenseRef spelling per the spdx crate (wishwell precedent)
 readme = "README.md"
 description = "Markdown rendering, syntax highlighting, collapsible trees, and rich scroll widgets for ratatui"
 repository = "https://github.com/celestia-island/ratatui-markdown"

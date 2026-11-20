@@ -106,12 +106,12 @@ jobs:
     # deliberate exception: they are sub-minute, execute no pull request code, and
     # hold no secrets.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    name: msrv (1.74)
+    name: msrv (1.90)
     runs-on: [self-hosted, linux, x64, local]
     timeout-minutes: 300
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@1.74
+      - uses: dtolnay/rust-toolchain@1.90
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
       - uses: Swatinem/rust-cache@v2

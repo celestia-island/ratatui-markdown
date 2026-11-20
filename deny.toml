@@ -4,6 +4,11 @@ targets = ["x86_64-unknown-linux-gnu"]
 [advisories]
 ignore = [
     "RUSTSEC-2024-0436", # paste - unmaintained, comes from ratatui
+    # 2026-11-20: unmaintained advisories reaching us through ratatui 0.30's
+    # text-shaping stack; tracked with the ratatui upgrade, no fixed version
+    # exists upstream.
+    "RUSTSEC-2026-0206", # rustybuzz - unmaintained
+    "RUSTSEC-2026-0192", # ttf-parser - unmaintained
 ]
 
 [licenses]
@@ -14,6 +19,7 @@ allow = [
     "Unicode-3.0",
     "Zlib",
     "BSL-1.0",
+    "LicenseRef-sysl-1.0", # this crate's own license (SySL-1.0; LicenseRef form — the spdx crate behind cargo-deny predates the canonical id, same shape as wishwell)
 ]
 confidence-threshold = 0.8
 
