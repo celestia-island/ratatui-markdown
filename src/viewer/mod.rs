@@ -137,8 +137,10 @@ impl MarkdownViewer {
         let blank = Line::from(Span::raw(" ".repeat(content_w)));
         let mut padded: Vec<Line<'static>> = Vec::with_capacity(visible);
 
-        for i in scroll..scroll.saturating_add(visible).min(self.lines.len()) {
-            let spans = self.lines[i].spans.clone();
+        let start = scroll.min(self.lines.len());
+        let last = start.saturating_add(visible).min(self.lines.len());
+        for line in &self.lines[start..last] {
+            let spans = line.spans.clone();
             let used: usize = spans.iter().map(|s| s.width()).sum();
             if used < content_w {
                 let mut s = spans;

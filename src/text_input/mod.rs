@@ -261,7 +261,7 @@ impl TextInput {
                 let blink_visible = self
                     .blink_controller
                     .as_ref()
-                    .map_or(true, |ctrl| ctrl.is_visible());
+                    .is_none_or(|ctrl| ctrl.is_visible());
 
                 if let Some(line) = all_lines.get_mut(cursor_line_idx) {
                     cursor::apply_cursor_and_selection(

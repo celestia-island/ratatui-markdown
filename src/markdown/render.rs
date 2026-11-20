@@ -741,7 +741,7 @@ impl MarkdownRenderer {
                         if surplus == 0 || natural_widths[idx] == 0 {
                             break;
                         }
-                        let share = (surplus * natural_widths[idx]) / total_natural.get();
+                        let share = (surplus * natural_widths[idx]) / total_natural;
                         if share == 0 {
                             continue;
                         }
