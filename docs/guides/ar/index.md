@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="../../../examples/logo.webp" alt="ratatui-markdown logo" width="200" />
+  <img src="https://raw.githubusercontent.com/celestia-island/celestia-island.github.io/main/res/logos/ratatui-markdown.webp" alt="ratatui-markdown logo" width="200" />
 </div>
 
 # ratatui-markdown
